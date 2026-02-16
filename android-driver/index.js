@@ -44,13 +44,26 @@ function snapshot(interactiveOnly) {
   const serial = getSerial();
   if (!serial) return { ok: false, error: 'no device connected' };
 
-  // Dump UI hierarchy
-  adb('shell uiautomator dump /sdcard/ui.xml');
-  const xml = adb('shell cat /sdcard/ui.xml');
+  // Dump UI hierarchy (retry up to 3 times for "null root node")
+  let xml = '';
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const dumpResult = adb('shell uiautomator dump /sdcard/ui.xml');
+    if (dumpResult.includes('ERROR') || dumpResult.includes('null root')) {
+      // Wait and retry
+      spawnSync('sleep', ['2']);
+      continue;
+    }
+    xml = adb('shell cat /sdcard/ui.xml');
+    if (xml.includes('<node')) break;
+    spawnSync('sleep', ['2']);
+  }
+  if (!xml.includes('<node')) {
+    return { ok: false, error: 'uiautomator dump failed after 3 attempts' };
+  }
 
-  // Parse XML — extract nodes
+  // Parse XML — extract all node tags (both self-closing and opening)
   const elements = [];
-  const nodeRegex = /<node\s+([^>]+)\/>/g;
+  const nodeRegex = /<node\s+([^>]+?)(?:\/>|>)/g;
   let match;
   let counter = 0;
 
