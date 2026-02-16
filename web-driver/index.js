@@ -1,52 +1,106 @@
 #!/usr/bin/env node
 /**
- * agent-control Web Driver — Playwright + CDP 持久浏览器
+ * agent-control Web Driver — Playwright 持久浏览器
  *
- * 两步使用：
- *   1. agent-control-web start          # 启动浏览器（后台常驻）
- *   2. agent-control-web snapshot -i    # 操作
+ * 架构：第一次调用启动 daemon（浏览器 + HTTP server），
+ * 后续调用通过 HTTP 发命令给 daemon 执行。
  *
- * 或一步：
- *   agent-control-web open <url>        # 自动启动 + 导航
+ * Usage:
+ *   agent-control-web open <url>
+ *   agent-control-web snapshot -i
+ *   agent-control-web click @e3
+ *   agent-control-web screenshot /tmp/out.png
+ *   agent-control-web close
  */
 
 const { chromium } = require('playwright');
 const fs = require('fs');
 const http = require('http');
+const path = require('path');
 
 const STATE_FILE = '/tmp/agent-control-web.json';
-const PORT = 3901;
+const DAEMON_PORT = 3901;
 
-// ── Connect to running browser ──
-async function connect() {
-  if (!fs.existsSync(STATE_FILE)) return null;
+// ══════════════════════════════════════════
+// CLIENT — send command to daemon via HTTP
+// ══════════════════════════════════════════
+async function sendToDaemon(args) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({ args });
+    const req = http.request({
+      hostname: '127.0.0.1', port: DAEMON_PORT, path: '/cmd',
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      timeout: 30000,
+    }, res => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve({ raw: body }); } });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.write(data);
+    req.end();
+  });
+}
+
+function isDaemonRunning() {
+  if (!fs.existsSync(STATE_FILE)) return false;
   try {
     const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    const browser = await chromium.connectOverCDP(`http://127.0.0.1:${state.port}`);
-    const contexts = browser.contexts();
-    const pages = contexts[0]?.pages();
-    return { browser, page: pages?.[0] || null };
-  } catch {
-    fs.unlinkSync(STATE_FILE);
-    return null;
-  }
+    // Check if process is alive
+    process.kill(state.pid, 0);
+    return true;
+  } catch { return false; }
 }
 
-// ── Launch browser ──
-async function launch() {
-  const browser = await chromium.launch({ headless: false });
+// ══════════════════════════════════════════
+// DAEMON — persistent browser + HTTP server
+// ══════════════════════════════════════════
+async function startDaemon() {
+  const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  const page = await context.newPage();
-  return { browser, page };
+  let page = await context.newPage();
+
+  const server = http.createServer(async (req, res) => {
+    if (req.method !== 'POST' || req.url !== '/cmd') {
+      res.writeHead(404); res.end('not found'); return;
+    }
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      try {
+        const { args } = JSON.parse(body);
+        const result = await executeCommand(args, page, browser, context);
+        // page might have changed (e.g. open creates new page)
+        if (result._newPage) { page = result._newPage; delete result._newPage; }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+  });
+
+  server.listen(DAEMON_PORT, '127.0.0.1', () => {
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ port: DAEMON_PORT, pid: process.pid }));
+  });
+
+  const cleanup = () => {
+    try { server.close(); } catch {}
+    try { browser.close(); } catch {}
+    try { fs.unlinkSync(STATE_FILE); } catch {}
+  };
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => { cleanup(); process.exit(); });
+  process.on('SIGTERM', () => { cleanup(); process.exit(); });
+
+  return { browser, page, context, server };
 }
 
-async function getPage() {
-  let conn = await connect();
-  if (conn?.page) return conn;
-  return await launch();
-}
-
-// ── Snapshot ──
+// ══════════════════════════════════════════
+// SNAPSHOT
+// ══════════════════════════════════════════
 async function snapshot(page, interactiveOnly) {
   return page.evaluate((interactiveOnly) => {
     const interactiveSelectors = [
@@ -60,183 +114,104 @@ async function snapshot(page, interactiveOnly) {
     const els = document.querySelectorAll(selector);
     const results = [];
     let counter = 0;
-
     for (const el of els) {
+      if (!el.offsetParent && el.tagName !== 'BODY' && el.tagName !== 'HTML') continue;
       const rect = el.getBoundingClientRect();
-      if (rect.width < 3 || rect.height < 3) continue;
-      if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
-      if (rect.right < 0 || rect.left > window.innerWidth) continue;
-
+      if (rect.width === 0 && rect.height === 0) continue;
       counter++;
+      const ref = `@e${counter}`;
       const tag = el.tagName.toLowerCase();
-      const role = el.getAttribute('role') || tag;
-      const label = el.getAttribute('aria-label')
-        || el.getAttribute('title')
-        || el.getAttribute('placeholder')
-        || el.textContent?.trim().slice(0, 40) || '';
-      const value = el.value ?? el.getAttribute('value') ?? null;
-
-      // Build stable selector
-      let sel;
-      const testId = el.getAttribute('data-testid');
-      if (testId) sel = `[data-testid="${testId}"]`;
-      else if (el.id) sel = `#${CSS.escape(el.id)}`;
-      else {
-        const aria = el.getAttribute('aria-label');
-        if (aria) sel = `${tag}[aria-label="${aria}"]`;
-        else {
-          const parent = el.parentElement;
-          const siblings = parent ? Array.from(parent.children).filter(c => c.tagName === el.tagName) : [];
-          const idx = siblings.indexOf(el) + 1;
-          sel = siblings.length > 1 ? `${tag}:nth-of-type(${idx})` : tag;
-        }
-      }
-
-      results.push({
-        ref: `@e${counter}`, role, label, value,
-        frame: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
-        interactive: true, _sel: sel,
-      });
+      const role = el.getAttribute('role') || el.type || tag;
+      const label = el.getAttribute('aria-label') || el.textContent?.trim().slice(0, 80) || '';
+      const value = el.value || '';
+      const name = el.getAttribute('name') || '';
+      results.push({ ref, role, tag, label, value, name, x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) });
     }
     return results;
   }, interactiveOnly);
 }
 
-// ── Resolve ref → selector ──
-let refCache = {};
 async function resolveRef(page, ref) {
-  if (!refCache[ref]) {
-    const elements = await snapshot(page, true);
-    refCache = {};
-    for (const el of elements) refCache[el.ref] = el._sel;
-  }
-  return refCache[ref];
+  const idx = parseInt(ref.replace('@e', '')) - 1;
+  const els = await snapshot(page, true);
+  if (idx < 0 || idx >= els.length) return null;
+  const el = els[idx];
+  const selectors = [
+    el.name ? `[name="${el.name}"]` : null,
+    el.tag === 'input' && el.role ? `input[type="${el.role}"]` : null,
+    `${el.tag}`,
+  ].filter(Boolean);
+  // Use coordinates for precise targeting
+  return { selector: selectors[0], x: el.x + el.w / 2, y: el.y + el.h / 2, el };
 }
 
-function clearCache() { refCache = {}; }
-
-// ── Parse multi-command: "open url ; snapshot -i" ──
-function parseCommands(argv) {
-  const cmds = [];
-  let current = [];
-  for (const a of argv) {
-    if (a === ';' || a === '&&') {
-      if (current.length) cmds.push(current);
-      current = [];
-    } else {
-      current.push(a);
-    }
+// ══════════════════════════════════════════
+// COMMAND EXECUTION
+// ══════════════════════════════════════════
+function parseCommands(rawArgs) {
+  const groups = [[]];
+  for (const a of rawArgs) {
+    if (a === ';' || a === '&&') groups.push([]);
+    else groups[groups.length - 1].push(a);
   }
-  if (current.length) cmds.push(current);
-  return cmds;
+  return groups.filter(g => g.length > 0);
 }
 
-// ── CLI ──
-async function main() {
-  const rawArgs = process.argv.slice(2);
-  const commands = parseCommands(rawArgs);
-
-  if (commands.length === 0) {
-    console.log('Usage: agent-control-web <command> [; command2 ...]');
-    process.exit(0);
-  }
-
-  const { browser, page } = await getPage();
-  if (!page) { console.error('error: no page'); process.exit(1); }
-
-  for (const args of commands) {
-    const result = await runCommand(args, page, browser);
-    console.log(JSON.stringify(result, null, 2));
-  }
-
-  try { await browser.close(); } catch {}
-  process.exit(0);
-}
-
-async function runCommand(args, page, browser) {
+async function executeCommand(args, page, browser, context) {
   const cmd = args[0];
-
-  if (!cmd || cmd === 'help' || cmd === '--help') {
-    return { help: true };
-  }
+  if (!cmd) return { ok: false, error: 'no command' };
 
   let result;
   try {
     switch (cmd) {
-      case 'open': case 'navigate': case 'goto': {
-        let url = args[1];
-        if (!url.startsWith('http')) url = 'https://' + url;
+      case 'open': case 'goto': case 'navigate': {
+        const url = args[1];
+        if (!url) { result = { ok: false, error: 'no url' }; break; }
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
-        clearCache();
         result = { ok: true, action: 'open', url };
         break;
       }
       case 'snapshot': {
-        const elements = await snapshot(page, args.includes('-i'));
-        result = elements.map(({ _sel, ...rest }) => rest);
+        const interactive = args.includes('-i') || args.includes('--interactive');
+        const els = await snapshot(page, interactive);
+        result = els;
         break;
       }
       case 'click': {
-        const sel = await resolveRef(page, args[1]);
-        if (!sel) { result = { ok: false, error: 'not found' }; break; }
-        await page.click(sel);
-        clearCache();
-        result = { ok: true, action: 'click', ref: args[1] };
+        const ref = args.find(a => a.startsWith('@'));
+        if (!ref) { result = { ok: false, error: 'no ref' }; break; }
+        const resolved = await resolveRef(page, ref);
+        if (!resolved) { result = { ok: false, error: 'not found' }; break; }
+        await page.mouse.click(resolved.x, resolved.y);
+        result = { ok: true, action: 'click', ref };
         break;
       }
       case 'dblclick': {
-        const sel = await resolveRef(page, args[1]);
-        if (!sel) { result = { ok: false, error: 'not found' }; break; }
-        await page.dblclick(sel);
-        clearCache();
-        result = { ok: true, action: 'dblclick', ref: args[1] };
+        const ref = args.find(a => a.startsWith('@'));
+        if (!ref) { result = { ok: false, error: 'no ref' }; break; }
+        const resolved = await resolveRef(page, ref);
+        if (!resolved) { result = { ok: false, error: 'not found' }; break; }
+        await page.mouse.dblclick(resolved.x, resolved.y);
+        result = { ok: true, action: 'dblclick', ref };
         break;
       }
-      case 'rightclick': {
-        const sel = await resolveRef(page, args[1]);
-        if (!sel) { result = { ok: false, error: 'not found' }; break; }
-        await page.click(sel, { button: 'right' });
-        clearCache();
-        result = { ok: true, action: 'rightclick', ref: args[1] };
+      case 'fill': case 'type': {
+        const ref = args.find(a => a.startsWith('@'));
+        const text = args.slice(args.indexOf(ref) + 1).join(' ');
+        if (!ref || !text) { result = { ok: false, error: 'usage: fill @ref text' }; break; }
+        const resolved = await resolveRef(page, ref);
+        if (!resolved) { result = { ok: false, error: 'not found' }; break; }
+        await page.mouse.click(resolved.x, resolved.y);
+        await page.keyboard.selectAll?.() || await page.keyboard.press('Meta+a');
+        await page.keyboard.type(text);
+        result = { ok: true, action: 'fill', ref, value: text };
         break;
       }
-      case 'fill': {
-        const sel = await resolveRef(page, args[1]);
-        if (!sel) { result = { ok: false, error: 'not found' }; break; }
-        await page.fill(sel, args.slice(2).join(' '));
-        clearCache();
-        result = { ok: true, action: 'fill', ref: args[1] };
-        break;
-      }
-      case 'press': case 'key': {
-        await page.keyboard.press(args[1]);
-        result = { ok: true, action: 'press', ref: args[1] };
-        break;
-      }
-      case 'hover': {
-        const sel = await resolveRef(page, args[1]);
-        if (!sel) { result = { ok: false, error: 'not found' }; break; }
-        await page.hover(sel);
-        result = { ok: true, action: 'hover', ref: args[1] };
-        break;
-      }
-      case 'drag': {
-        const elements = await snapshot(page, true);
-        const fromEl = elements.find(e => e.ref === args[1]);
-        const toEl = elements.find(e => e.ref === args[2]);
-        if (!fromEl || !toEl) { result = { ok: false, error: 'not found' }; break; }
-        const fx = fromEl.frame.x + fromEl.frame.w / 2;
-        const fy = fromEl.frame.y + fromEl.frame.h / 2;
-        const tx = toEl.frame.x + toEl.frame.w / 2;
-        const ty = toEl.frame.y + toEl.frame.h / 2;
-        await page.mouse.move(fx, fy);
-        await page.mouse.down();
-        for (let i = 1; i <= 10; i++) {
-          await page.mouse.move(fx + (tx - fx) * i / 10, fy + (ty - fy) * i / 10);
-        }
-        await page.mouse.up();
-        clearCache();
-        result = { ok: true, action: 'drag', ref: `${args[1]} → ${args[2]}` };
+      case 'press': {
+        const key = args[1];
+        if (!key) { result = { ok: false, error: 'no key' }; break; }
+        await page.keyboard.press(key);
+        result = { ok: true, action: 'press', key };
         break;
       }
       case 'scroll': {
@@ -249,12 +224,13 @@ async function runCommand(args, page, browser) {
         const ref = args.find(a => a.startsWith('@'));
         const outPath = args.find(a => a !== cmd && !a.startsWith('@')) || '/tmp/agent-control-web.png';
         if (ref) {
-          const sel = await resolveRef(page, ref);
-          if (!sel) { result = { ok: false, error: 'not found' }; break; }
-          const el = await page.$(sel);
-          await el.screenshot({ path: outPath });
+          const resolved = await resolveRef(page, ref);
+          if (!resolved) { result = { ok: false, error: 'not found' }; break; }
+          const el = await page.$(`${resolved.el.tag}:nth-of-type(1)`);
+          if (el) await el.screenshot({ path: outPath });
+          else await page.screenshot({ path: outPath });
         } else {
-          await page.screenshot({ path: outPath });
+          await page.screenshot({ path: outPath, fullPage: true });
         }
         result = { ok: true, path: outPath };
         break;
@@ -263,6 +239,7 @@ async function runCommand(args, page, browser) {
         await browser.close();
         try { fs.unlinkSync(STATE_FILE); } catch {}
         result = { ok: true, action: 'close' };
+        process.exit(0);
         break;
       default:
         result = { ok: false, error: `unknown command '${cmd}'` };
@@ -271,6 +248,39 @@ async function runCommand(args, page, browser) {
     result = { ok: false, error: err.message };
   }
   return result;
+}
+
+// ══════════════════════════════════════════
+// MAIN
+// ══════════════════════════════════════════
+async function main() {
+  const rawArgs = process.argv.slice(2);
+  const commands = parseCommands(rawArgs);
+
+  if (commands.length === 0) {
+    console.log('Usage: agent-control-web <command> [; command2 ...]');
+    process.exit(0);
+  }
+
+  // If daemon is running, send commands via HTTP
+  if (isDaemonRunning()) {
+    for (const args of commands) {
+      const result = await sendToDaemon(args);
+      console.log(JSON.stringify(result, null, 2));
+    }
+    process.exit(0);
+  }
+
+  // No daemon — start one, execute first batch, keep alive
+  const { browser, page, context, server } = await startDaemon();
+
+  for (const args of commands) {
+    const result = await executeCommand(args, page, browser, context);
+    console.log(JSON.stringify(result, null, 2));
+  }
+
+  // Don't exit — daemon stays alive for subsequent CLI calls
+  // Process will be kept alive by the HTTP server
 }
 
 main();
