@@ -9,7 +9,7 @@
   {"id": "F008", "category": "interaction", "description": "macOS driver: drag @ref1 @ref2 拖拽", "passes": true},
   {"id": "F009", "category": "interaction", "description": "macOS driver: scroll @ref direction amount", "passes": true},
   {"id": "F010", "category": "integration", "description": "对 BrainDown 跑完整 snapshot → click → fill → screenshot 链路", "passes": true},
-  {"id": "F011", "category": "integration", "description": "DBB scenario 自动执行 + 截图 + 报告输出", "passes": false},
+  {"id": "F011", "category": "integration", "description": "DBB scenario 自动执行 + 截图 + 报告输出", "passes": true},
   {"id": "F012", "category": "core", "description": "Web driver: Playwright 包装，统一协议接口", "passes": true},
   {"id": "F013", "category": "core", "description": "iOS driver: idb 包装，统一协议接口", "passes": true},
   {"id": "F014", "category": "integration", "description": "统一 CLI 入口，--platform 路由到各 driver", "passes": true}

@@ -1,0 +1,10 @@
+{
+  "id": "dbb-001",
+  "name": "BrainDown 文件浏览",
+  "platform": "macos",
+  "target": { "app": "BrainDown" },
+  "steps": [
+    { "action": "snapshot", "flags": ["-i"], "expect": "elements.length > 5" },
+    { "action": "screenshot", "path": "/tmp/dbb-001-snapshot.png" }
+  ]
+}

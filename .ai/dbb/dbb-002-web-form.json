@@ -1,0 +1,26 @@
+{
+  "id": "dbb-002",
+  "name": "Web 表单填写与提交",
+  "platform": "web",
+  "target": {},
+  "steps": [
+    {
+      "action": "chain",
+      "chain": [
+        { "action": "open", "url": "https://httpbin.org/forms/post" },
+        { "action": "snapshot", "flags": ["-i"] }
+      ],
+      "expect": "elements.length >= 10"
+    },
+    { "action": "chain",
+      "chain": [
+        { "action": "open", "url": "https://httpbin.org/forms/post" },
+        { "action": "fill", "ref": "@e1", "text": "Momo" },
+        { "action": "fill", "ref": "@e2", "text": "13800138000" },
+        { "action": "click", "ref": "@e5" },
+        { "action": "click", "ref": "@e7" },
+        { "action": "screenshot" }
+      ]
+    }
+  ]
+}
