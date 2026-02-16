@@ -6,11 +6,34 @@ import ScreenCaptureKit
 
 enum AXScreenshot {
 
-    /// Full screen screenshot
-    static func fullScreen(output: String) async -> Bool {
+    /// Full screen screenshot (or window if PID provided)
+    static func fullScreen(output: String, appPID: pid_t? = nil) async -> Bool {
+        // If PID given, capture that app's window
+        if let pid = appPID, let wid = windowID(for: pid) {
+            return capture(["-x", "-o", "-l", String(wid), output])
+        }
+        // Fallback: full screen
+        return capture(["-x", output])
+    }
+
+    /// Get the CGWindowID for an app's main window
+    private static func windowID(for pid: pid_t) -> CGWindowID? {
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return nil }
+        for win in list {
+            guard let ownerPID = win[kCGWindowOwnerPID as String] as? pid_t,
+                  let wid = win[kCGWindowNumber as String] as? CGWindowID,
+                  ownerPID == pid,
+                  let layer = win[kCGWindowLayer as String] as? Int, layer == 0
+            else { continue }
+            return wid
+        }
+        return nil
+    }
+
+    private static func capture(_ args: [String]) -> Bool {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        task.arguments = ["-x", output]
+        task.arguments = args
         do {
             try task.run()
             task.waitUntilExit()

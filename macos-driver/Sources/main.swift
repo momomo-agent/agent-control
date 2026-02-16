@@ -101,7 +101,7 @@ struct AgentControl {
             if let ref = ref {
                 ok = await AXScreenshot.element(ref: ref, output: output, appPID: pid)
             } else {
-                ok = await AXScreenshot.fullScreen(output: output)
+                ok = await AXScreenshot.fullScreen(output: output, appPID: pid)
             }
             if ok {
                 let result: [String: Any] = ["ok": true, "path": output]
