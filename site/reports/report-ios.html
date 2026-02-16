@@ -58,87 +58,72 @@ h1 em{color:var(--accent);font-style:italic}
 </style></head>
 <body><div class="container">
   <h1>Run <em>Report</em></h1>
-  <div class="meta">9 steps · platforms: ios · 2/17/2026, 12:34:29 AM</div>
-  <div class="goals"><div class="goals-label">Goals</div><div class="goals-list">🎯 在 iOS 模拟器上从锁屏进入主屏幕 observe<br>🎯 在 iOS 模拟器上从锁屏进入主屏幕 act-observe swipe up<br>🎯 在 iOS 模拟器上打开照片 app act-observe tap @e4<br>🎯 在 iOS 模拟器上打开照片 app act-observe tap @e2</div></div>
+  <div class="meta">3 steps · platforms: ios · 2/17/2026, 1:08:55 AM</div>
+  <div class="goals"><div class="goals-label">Goals</div><div class="goals-list">🎯 在 iOS 模拟器上从锁屏进入日历 app</div></div>
   
       <div class="step">
-        <div class="step-goal">🎯 在 iOS 模拟器上从锁屏进入主屏幕 observe</div>
+        <div class="step-goal">🎯 在 iOS 模拟器上从锁屏进入日历 app</div>
         <div class="step-header">
           <span class="step-num">1</span>
           <span class="step-type observe">👁 OBSERVE</span>
           <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-time">12:31:32 AM</span>
+          <span class="step-time">1:08:41 AM</span>
         </div>
-        <div class="step-note">💭 查看模拟器当前状态，识别界面元素</div>
-        <div class="semantic">📋 13 elements (12 Button, 1 Slider). Key items: "小组件", "小组件, 叠放", "2月17日 星期二", "照片", "提醒事项", "News", "地图", "健康"...</div>
-        <div class="screenshot"><img src="screenshots/step-1771259492946.jpg"></div>
-        <details class="tree"><summary>Element tree (13)</summary><pre>@e1 Button "小组件"
-@e2 Button "小组件, 叠放"
-@e3 Button "2月17日 星期二"
-@e4 Button "照片"
-@e5 Button "提醒事项"
-@e6 Button "News"
-@e7 Button "地图"
-@e8 Button "健康"
-@e9 Button "钱包"
-@e10 Button "设置"
-@e11 Slider "第1页（共2页）"
-@e12 Button "Safari浏览器"
-@e13 Button "信息"</pre></details>
+        <div class="step-note">💭 当前是锁屏界面，可以看到日期、小组件和 app 快捷方式（照片、提醒事项、News、地图等）</div>
+        <div class="semantic">📋 8 elements. "日历", "2026年2月17日 – 周二, 丙午年正月初一", "全天", "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日", "春节, 全天, 中国大陆节假日", "2月17日 星期二", "工具栏", "工具栏"</div>
+        <div class="screenshot"><img src="screenshots/step-1771261719770.jpg"></div>
+        <details class="tree"><summary>Element tree (8)</summary><pre>@e1 Application "日历"
+@e2 Heading "2026年2月17日 – 周二, 丙午年正月初一"
+@e3 StaticText "全天"
+@e4 Button "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日"
+@e5 Button "春节, 全天, 中国大陆节假日"
+@e6 Group "2月17日 星期二"
+@e7 Group "工具栏"
+@e8 Group "工具栏"</pre></details>
       </div>
 
       <div class="step">
-        <div class="step-goal">🎯 在 iOS 模拟器上从锁屏进入主屏幕 act-observe swipe up</div>
+        <div class="step-goal">🎯 在 iOS 模拟器上从锁屏进入日历 app</div>
         <div class="step-header">
           <span class="step-num">2</span>
           <span class="step-type act-observe">🤚→👁 ACT + OBSERVE</span>
           <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-action">swipe up</span>
-          <span class="step-result fail">❌</span>
+          <span class="step-action">tap 日期区域</span>
+          <span class="step-result ok">✅</span>
         </div>
-        <div class="step-note">💭 在锁屏界面向上滑动解锁</div>
-        <div class="diff">🔄 UI unchanged.</div>
+        <div class="step-note">💭 点击锁屏顶部的日期区域，尝试进入日历或通知中心</div>
+        <div class="diff">🔄 UI unchanged</div>
         <div class="before-after">
           <div class="ba-col">
             <div class="ba-label">Before</div>
-            <img src="screenshots/step-1771259502460.jpg">
-            <div class="ba-semantic">13 elements (12 Button, 1 Slider). Key items: "小组件", "小组件, 叠放", "2月17日 星期二", "照片", "提醒事项", "News", "地图", "健康"...</div>
+            <img src="screenshots/step-1771261721801.jpg">
+            <div class="ba-semantic">8 elements. "日历", "2026年2月17日 – 周二, 丙午年正月初一", "全天", "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日", "春节, 全天, 中国大陆节假日", "2月17日 星期二", "工具栏", "工具栏"</div>
           </div>
           <div class="ba-arrow">→</div>
           <div class="ba-col">
             <div class="ba-label">After</div>
-            <img src="screenshots/step-1771259506001.jpg">
-            <div class="ba-semantic">13 elements (12 Button, 1 Slider). Key items: "小组件", "小组件, 叠放", "2月17日 星期二", "照片", "提醒事项", "News", "地图", "健康"...</div>
+            <img src="screenshots/step-1771261725372.jpg">
+            <div class="ba-semantic">8 elements. "日历", "2026年2月17日 – 周二, 丙午年正月初一", "全天", "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日", "春节, 全天, 中国大陆节假日", "2月17日 星期二", "工具栏", "工具栏"</div>
           </div>
         </div>
         <details class="tree"><summary>Element diff</summary>
           <div class="diff-grid">
-            <div><strong>Before (13)</strong><pre>@e1 Button "小组件"
-@e2 Button "小组件, 叠放"
-@e3 Button "2月17日 星期二"
-@e4 Button "照片"
-@e5 Button "提醒事项"
-@e6 Button "News"
-@e7 Button "地图"
-@e8 Button "健康"
-@e9 Button "钱包"
-@e10 Button "设置"
-@e11 Slider "第1页（共2页）"
-@e12 Button "Safari浏览器"
-@e13 Button "信息"</pre></div>
-            <div><strong>After (13)</strong><pre>@e1 Button "小组件"
-@e2 Button "小组件, 叠放"
-@e3 Button "2月17日 星期二"
-@e4 Button "照片"
-@e5 Button "提醒事项"
-@e6 Button "News"
-@e7 Button "地图"
-@e8 Button "健康"
-@e9 Button "钱包"
-@e10 Button "设置"
-@e11 Slider "第1页（共2页）"
-@e12 Button "Safari浏览器"
-@e13 Button "信息"</pre></div>
+            <div><strong>Before (8)</strong><pre>@e1 Application "日历"
+@e2 Heading "2026年2月17日 – 周二, 丙午年正月初一"
+@e3 StaticText "全天"
+@e4 Button "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日"
+@e5 Button "春节, 全天, 中国大陆节假日"
+@e6 Group "2月17日 星期二"
+@e7 Group "工具栏"
+@e8 Group "工具栏"</pre></div>
+            <div><strong>After (8)</strong><pre>@e1 Application "日历"
+@e2 Heading "2026年2月17日 – 周二, 丙午年正月初一"
+@e3 StaticText "全天"
+@e4 Button "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日"
+@e5 Button "春节, 全天, 中国大陆节假日"
+@e6 Group "2月17日 星期二"
+@e7 Group "工具栏"
+@e8 Group "工具栏"</pre></div>
           </div>
         </details>
       </div>
@@ -149,166 +134,18 @@ h1 em{color:var(--accent);font-style:italic}
           <span class="step-num">3</span>
           <span class="step-type observe">👁 OBSERVE</span>
           <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-time">12:32:03 AM</span>
+          <span class="step-time">1:08:48 AM</span>
         </div>
-        <div class="step-note">💭 滑动解锁后，检查是否进入主屏幕</div>
-        <div class="semantic">📋 13 elements (12 Button, 1 Slider). Key items: "小组件", "小组件, 叠放", "2月17日 星期二", "照片", "提醒事项", "News", "地图", "健康"...</div>
-        <div class="screenshot"><img src="screenshots/step-1771259524001.jpg"></div>
-        <details class="tree"><summary>Element tree (13)</summary><pre>@e1 Button "小组件"
-@e2 Button "小组件, 叠放"
-@e3 Button "2月17日 星期二"
-@e4 Button "照片"
-@e5 Button "提醒事项"
-@e6 Button "News"
-@e7 Button "地图"
-@e8 Button "健康"
-@e9 Button "钱包"
-@e10 Button "设置"
-@e11 Slider "第1页（共2页）"
-@e12 Button "Safari浏览器"
-@e13 Button "信息"</pre></details>
-      </div>
-
-      <div class="step">
-        <div class="step-goal">🎯 在 iOS 模拟器上打开照片 app act-observe tap @e4</div>
-        <div class="step-header">
-          <span class="step-num">4</span>
-          <span class="step-type act-observe">🤚→👁 ACT + OBSERVE</span>
-          <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-action">tap @e4</span>
-          <span class="step-result ok">✅</span>
-        </div>
-        <div class="step-note">💭 锁屏上看到照片快捷方式 @e4，直接点击打开</div>
-        <div class="diff">🔄 New: "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日", "春节, 全天, 中国大陆节假日" | Gone: "小组件", "小组件, 叠放", "2月17日 星期二", "照片", "提醒事项"</div>
-        <div class="before-after">
-          <div class="ba-col">
-            <div class="ba-label">Before</div>
-            <img src="screenshots/step-1771259576599.jpg">
-            <div class="ba-semantic">13 elements (12 Button, 1 Slider). Key items: "小组件", "小组件, 叠放", "2月17日 星期二", "照片", "提醒事项", "News", "地图", "健康"...</div>
-          </div>
-          <div class="ba-arrow">→</div>
-          <div class="ba-col">
-            <div class="ba-label">After</div>
-            <img src="screenshots/step-1771259581176.jpg">
-            <div class="ba-semantic">2 elements (2 Button). Key items: "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日", "春节, 全天, 中国大陆节假日"</div>
-          </div>
-        </div>
-        <details class="tree"><summary>Element diff</summary>
-          <div class="diff-grid">
-            <div><strong>Before (13)</strong><pre>@e1 Button "小组件"
-@e2 Button "小组件, 叠放"
-@e3 Button "2月17日 星期二"
-@e4 Button "照片"
-@e5 Button "提醒事项"
-@e6 Button "News"
-@e7 Button "地图"
-@e8 Button "健康"
-@e9 Button "钱包"
-@e10 Button "设置"
-@e11 Slider "第1页（共2页）"
-@e12 Button "Safari浏览器"
-@e13 Button "信息"</pre></div>
-            <div><strong>After (2)</strong><pre>@e1 Button "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日"
-@e2 Button "春节, 全天, 中国大陆节假日"</pre></div>
-          </div>
-        </details>
-      </div>
-
-      <div class="step">
-        
-        <div class="step-header">
-          <span class="step-num">5</span>
-          <span class="step-type observe">👁 OBSERVE</span>
-          <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-time">12:33:21 AM</span>
-        </div>
-        <div class="step-note">💭 点击后跳到了通知/日历界面，看到春节假期信息</div>
-        <div class="semantic">📋 3 elements (3 Button). Key items: "允许一次", "使用App时允许", "不允许"</div>
-        <div class="screenshot"><img src="screenshots/step-1771259601253.jpg"></div>
-        <details class="tree"><summary>Element tree (3)</summary><pre>@e1 Button "允许一次"
-@e2 Button "使用App时允许"
-@e3 Button "不允许"</pre></details>
-      </div>
-
-      <div class="step">
-        <div class="step-goal">🎯 在 iOS 模拟器上打开照片 app act-observe tap @e2</div>
-        <div class="step-header">
-          <span class="step-num">6</span>
-          <span class="step-type act-observe">🤚→👁 ACT + OBSERVE</span>
-          <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-action">tap @e2</span>
-          <span class="step-result ok">✅</span>
-        </div>
-        <div class="step-note">💭 弹出位置权限请求，选择'使用App时允许'</div>
-        <div class="diff">🔄 UI unchanged.</div>
-        <div class="before-after">
-          <div class="ba-col">
-            <div class="ba-label">Before</div>
-            <img src="screenshots/step-1771259610016.jpg">
-            <div class="ba-semantic">3 elements (3 Button). Key items: "允许一次", "使用App时允许", "不允许"</div>
-          </div>
-          <div class="ba-arrow">→</div>
-          <div class="ba-col">
-            <div class="ba-label">After</div>
-            <img src="screenshots/step-1771259612447.jpg">
-            <div class="ba-semantic">3 elements (3 Button). Key items: "允许一次", "使用App时允许", "不允许"</div>
-          </div>
-        </div>
-        <details class="tree"><summary>Element diff</summary>
-          <div class="diff-grid">
-            <div><strong>Before (3)</strong><pre>@e1 Button "允许一次"
-@e2 Button "使用App时允许"
-@e3 Button "不允许"</pre></div>
-            <div><strong>After (3)</strong><pre>@e1 Button "允许一次"
-@e2 Button "使用App时允许"
-@e3 Button "不允许"</pre></div>
-          </div>
-        </details>
-      </div>
-
-      <div class="step">
-        
-        <div class="step-header">
-          <span class="step-num">7</span>
-          <span class="step-type observe">👁 OBSERVE</span>
-          <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-time">12:33:41 AM</span>
-        </div>
-        <div class="step-note">💭 权限弹窗处理后，检查当前界面</div>
-        <div class="semantic">📋 3 elements (3 Button). Key items: "允许一次", "使用App时允许", "不允许"</div>
-        <div class="screenshot"><img src="screenshots/step-1771259621963.jpg"></div>
-        <details class="tree"><summary>Element tree (3)</summary><pre>@e1 Button "允许一次"
-@e2 Button "使用App时允许"
-@e3 Button "不允许"</pre></details>
-      </div>
-
-      <div class="step">
-        
-        <div class="step-header">
-          <span class="step-num">8</span>
-          <span class="step-type observe">👁 OBSERVE</span>
-          <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-time">12:33:59 AM</span>
-        </div>
-        <div class="step-note">💭 点击'使用App时允许'后，检查界面</div>
-        <div class="semantic">📋 2 elements (2 Button). Key items: "不允许", "允许"</div>
-        <div class="screenshot"><img src="screenshots/step-1771259639181.jpg"></div>
-        <details class="tree"><summary>Element tree (2)</summary><pre>@e1 Button "不允许"
-@e2 Button "允许"</pre></details>
-      </div>
-
-      <div class="step">
-        
-        <div class="step-header">
-          <span class="step-num">9</span>
-          <span class="step-type observe">👁 OBSERVE</span>
-          <span class="platform-tag ios">📱 iOS</span>
-          <span class="step-time">12:34:18 AM</span>
-        </div>
-        <div class="step-note">💭 通知权限处理完毕，检查是否进入日历 app</div>
-        <div class="semantic">📋 2 elements (2 Button). Key items: "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日", "春节, 全天, 中国大陆节假日"</div>
-        <div class="screenshot"><img src="screenshots/step-1771259658226.jpg"></div>
-        <details class="tree"><summary>Element tree (2)</summary><pre>@e1 Button "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日"
-@e2 Button "春节, 全天, 中国大陆节假日"</pre></details>
+        <div class="step-note">💭 所有弹窗处理完毕，当前界面状态</div>
+        <div class="semantic">📋 8 elements. "日历", "2026年2月17日 – 周二, 丙午年正月初一", "全天", "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日", "春节, 全天, 中国大陆节假日", "2月17日 星期二", "工具栏", "工具栏"</div>
+        <div class="screenshot"><img src="screenshots/step-1771261726955.jpg"></div>
+        <details class="tree"><summary>Element tree (8)</summary><pre>@e1 Application "日历"
+@e2 Heading "2026年2月17日 – 周二, 丙午年正月初一"
+@e3 StaticText "全天"
+@e4 Button "春节（休）, 从2月15日 星期日到2月23日 星期一全天, 中国大陆节假日"
+@e5 Button "春节, 全天, 中国大陆节假日"
+@e6 Group "2月17日 星期二"
+@e7 Group "工具栏"
+@e8 Group "工具栏"</pre></details>
       </div>
 </div></body></html>

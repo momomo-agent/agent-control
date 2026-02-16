@@ -58,63 +58,169 @@ h1 em{color:var(--accent);font-style:italic}
 </style></head>
 <body><div class="container">
   <h1>Run <em>Report</em></h1>
-  <div class="meta">3 steps · platforms: web · 2/17/2026, 12:31:24 AM</div>
-  <div class="goals"><div class="goals-label">Goals</div><div class="goals-list">🎯 在 httpbin 表单页面填写一份披萨订单 act-observe open https://httpbin.org/forms/post<br>🎯 在 httpbin 表单页面填写一份披萨订单 act-observe fill @e1 Momo<br>🎯 在 httpbin 表单页面填写一份披萨订单 act-observe click @e5</div></div>
+  <div class="meta">6 steps · platforms: web · 2/17/2026, 1:07:49 AM</div>
+  <div class="goals"><div class="goals-label">Goals</div><div class="goals-list">🎯 在 httpbin 表单页面填写一份披萨订单</div></div>
   
       <div class="step">
-        <div class="step-goal">🎯 在 httpbin 表单页面填写一份披萨订单 act-observe open https://httpbin.org/forms/post</div>
+        <div class="step-goal">🎯 在 httpbin 表单页面填写一份披萨订单</div>
         <div class="step-header">
           <span class="step-num">1</span>
-          <span class="step-type act-observe">🤚→👁 ACT + OBSERVE</span>
+          <span class="step-type observe">👁 OBSERVE</span>
           <span class="platform-tag web">🌐 Web</span>
-          <span class="step-action">open https://httpbin.org/forms/post</span>
-          <span class="step-result ok">✅</span>
+          <span class="step-time">1:07:34 AM</span>
         </div>
-        <div class="step-note">💭 打开 httpbin 的披萨订单表单页面</div>
-        <div class="diff">🔄 UI unchanged.</div>
-        <div class="before-after">
-          <div class="ba-col">
-            <div class="ba-label">Before</div>
-            <img src="screenshots/step-1771259360793.jpg">
-            <div class="ba-semantic">No interactive elements found.</div>
-          </div>
-          <div class="ba-arrow">→</div>
-          <div class="ba-col">
-            <div class="ba-label">After</div>
-            <img src="screenshots/step-1771259383004.jpg">
-            <div class="ba-semantic">No interactive elements found.</div>
-          </div>
-        </div>
-        <details class="tree"><summary>Element diff</summary>
-          <div class="diff-grid">
-            <div><strong>Before (0)</strong><pre></pre></div>
-            <div><strong>After (0)</strong><pre></pre></div>
-          </div>
-        </details>
+        <div class="step-note">💭 打开 httpbin 的 HTML 表单页面，看到一个披萨订单表单：Customer Name、Pizza Size (radio)、Toppings (checkbox)、Delivery Time、Comments</div>
+        <div class="semantic">📋 13 form elements. custname(input), custtel(tel), custemail(email), size(radio), size(radio), size(radio), topping(checkbox), topping(checkbox), topping(checkbox), topping(checkbox), delivery(time), comments(textarea)</div>
+        <div class="screenshot"><img src="screenshots/step-1771261654335.jpg"></div>
+        <details class="tree"><summary>Element tree (13)</summary><pre>@e1 input name="custname" val=""
+@e2 tel name="custtel" val=""
+@e3 email name="custemail" val=""
+@e4 radio name="size" val="small"
+@e5 radio name="size" val="medium"
+@e6 radio name="size" val="large"
+@e7 checkbox name="topping" val="bacon"
+@e8 checkbox name="topping" val="cheese"
+@e9 checkbox name="topping" val="onion"
+@e10 checkbox name="topping" val="mushroom"
+@e11 time name="delivery" val=""
+@e12 textarea name="comments" val=""
+@e13 button name="" val="Submit order"</pre></details>
       </div>
 
       <div class="step">
-        <div class="step-goal">🎯 在 httpbin 表单页面填写一份披萨订单 act-observe fill @e1 Momo</div>
+        <div class="step-goal">🎯 在 httpbin 表单页面填写一份披萨订单</div>
         <div class="step-header">
           <span class="step-num">2</span>
           <span class="step-type act-observe">🤚→👁 ACT + OBSERVE</span>
           <span class="platform-tag web">🌐 Web</span>
-          <span class="step-action">fill @e1 Momo</span>
-          <span class="step-result fail">❌</span>
+          <span class="step-action">fill custname "Momo"</span>
+          <span class="step-result ok">✅</span>
         </div>
-        <div class="step-note">💭 第一个输入框是 Customer Name，填入 Momo</div>
-        <div class="diff">🔄 UI unchanged.</div>
+        <div class="step-note">💭 表单第一个输入框是 Customer Name，填入 "Momo"</div>
+        <div class="diff">🔄 Customer Name 从空变为 "Momo"</div>
         <div class="before-after">
           <div class="ba-col">
             <div class="ba-label">Before</div>
-            <img src="screenshots/step-1771259400716.jpg">
-            <div class="ba-semantic">No interactive elements found.</div>
+            <img src="screenshots/step-1771261654515.jpg">
+            <div class="ba-semantic">13 form elements. custname(input), custtel(tel), custemail(email), size(radio), size(radio), size(radio), topping(checkbox), topping(checkbox), topping(checkbox), topping(checkbox), delivery(time), comments(textarea)</div>
           </div>
           <div class="ba-arrow">→</div>
           <div class="ba-col">
             <div class="ba-label">After</div>
-            <img src="screenshots/step-1771259418252.jpg">
-            <div class="ba-semantic">No interactive elements found.</div>
+            <img src="screenshots/step-1771261654985.jpg">
+            <div class="ba-semantic">13 form elements. custname(input), custtel(tel), custemail(email), size(radio), size(radio), size(radio), topping(checkbox), topping(checkbox), topping(checkbox), topping(checkbox), delivery(time), comments(textarea)</div>
+          </div>
+        </div>
+        <details class="tree"><summary>Element diff</summary>
+          <div class="diff-grid">
+            <div><strong>Before (13)</strong><pre>@e1 input name="custname" val=""
+@e2 tel name="custtel" val=""
+@e3 email name="custemail" val=""
+@e4 radio name="size" val="small"
+@e5 radio name="size" val="medium"
+@e6 radio name="size" val="large"
+@e7 checkbox name="topping" val="bacon"
+@e8 checkbox name="topping" val="cheese"
+@e9 checkbox name="topping" val="onion"
+@e10 checkbox name="topping" val="mushroom"
+@e11 time name="delivery" val=""
+@e12 textarea name="comments" val=""
+@e13 button name="" val="Submit order"</pre></div>
+            <div><strong>After (13)</strong><pre>@e1 input name="custname" val="Momo"
+@e2 tel name="custtel" val=""
+@e3 email name="custemail" val=""
+@e4 radio name="size" val="small"
+@e5 radio name="size" val="medium"
+@e6 radio name="size" val="large"
+@e7 checkbox name="topping" val="bacon"
+@e8 checkbox name="topping" val="cheese"
+@e9 checkbox name="topping" val="onion"
+@e10 checkbox name="topping" val="mushroom"
+@e11 time name="delivery" val=""
+@e12 textarea name="comments" val=""
+@e13 button name="" val="Submit order"</pre></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="step">
+        <div class="step-goal">🎯 在 httpbin 表单页面填写一份披萨订单</div>
+        <div class="step-header">
+          <span class="step-num">3</span>
+          <span class="step-type act-observe">🤚→👁 ACT + OBSERVE</span>
+          <span class="platform-tag web">🌐 Web</span>
+          <span class="step-action">click radio "medium"</span>
+          <span class="step-result ok">✅</span>
+        </div>
+        <div class="step-note">💭 Pizza Size 有 Small/Medium/Large 三个选项，选择 Medium</div>
+        <div class="diff">🔄 Pizza Size radio 从未选中变为 Medium 选中</div>
+        <div class="before-after">
+          <div class="ba-col">
+            <div class="ba-label">Before</div>
+            <img src="screenshots/step-1771261655062.jpg">
+            <div class="ba-semantic">13 form elements. custname(input), custtel(tel), custemail(email), size(radio), size(radio), size(radio), topping(checkbox), topping(checkbox), topping(checkbox), topping(checkbox), delivery(time), comments(textarea)</div>
+          </div>
+          <div class="ba-arrow">→</div>
+          <div class="ba-col">
+            <div class="ba-label">After</div>
+            <img src="screenshots/step-1771261655476.jpg">
+            <div class="ba-semantic">13 form elements. custname(input), custtel(tel), custemail(email), size(radio), size(radio), size(radio), topping(checkbox), topping(checkbox), topping(checkbox), topping(checkbox), delivery(time), comments(textarea)</div>
+          </div>
+        </div>
+        <details class="tree"><summary>Element diff</summary>
+          <div class="diff-grid">
+            <div><strong>Before (13)</strong><pre>@e1 input name="custname" val="Momo"
+@e2 tel name="custtel" val=""
+@e3 email name="custemail" val=""
+@e4 radio name="size" val="small"
+@e5 radio name="size" val="medium"
+@e6 radio name="size" val="large"
+@e7 checkbox name="topping" val="bacon"
+@e8 checkbox name="topping" val="cheese"
+@e9 checkbox name="topping" val="onion"
+@e10 checkbox name="topping" val="mushroom"
+@e11 time name="delivery" val=""
+@e12 textarea name="comments" val=""
+@e13 button name="" val="Submit order"</pre></div>
+            <div><strong>After (13)</strong><pre>@e1 input name="custname" val="Momo"
+@e2 tel name="custtel" val=""
+@e3 email name="custemail" val=""
+@e4 radio name="size" val="small"
+@e5 radio name="size" val="medium"
+@e6 radio name="size" val="large"
+@e7 checkbox name="topping" val="bacon"
+@e8 checkbox name="topping" val="cheese"
+@e9 checkbox name="topping" val="onion"
+@e10 checkbox name="topping" val="mushroom"
+@e11 time name="delivery" val=""
+@e12 textarea name="comments" val=""
+@e13 button name="" val="Submit order"</pre></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="step">
+        <div class="step-goal">🎯 在 httpbin 表单页面填写一份披萨订单</div>
+        <div class="step-header">
+          <span class="step-num">4</span>
+          <span class="step-type act-observe">🤚→👁 ACT + OBSERVE</span>
+          <span class="platform-tag web">🌐 Web</span>
+          <span class="step-action">click checkbox "cheese"</span>
+          <span class="step-result ok">✅</span>
+        </div>
+        <div class="step-note">💭 Toppings 有 Bacon/Cheese/Onion/Mushroom，勾选 Cheese</div>
+        <div class="diff">🔄 Cheese topping checkbox 变为选中状态</div>
+        <div class="before-after">
+          <div class="ba-col">
+            <div class="ba-label">Before</div>
+            <img src="screenshots/step-1771261655540.jpg">
+            
+          </div>
+          <div class="ba-arrow">→</div>
+          <div class="ba-col">
+            <div class="ba-label">After</div>
+            <img src="screenshots/step-1771261655928.jpg">
+            
           </div>
         </div>
         <details class="tree"><summary>Element diff</summary>
@@ -126,27 +232,27 @@ h1 em{color:var(--accent);font-style:italic}
       </div>
 
       <div class="step">
-        <div class="step-goal">🎯 在 httpbin 表单页面填写一份披萨订单 act-observe click @e5</div>
+        <div class="step-goal">🎯 在 httpbin 表单页面填写一份披萨订单</div>
         <div class="step-header">
-          <span class="step-num">3</span>
+          <span class="step-num">5</span>
           <span class="step-type act-observe">🤚→👁 ACT + OBSERVE</span>
           <span class="platform-tag web">🌐 Web</span>
-          <span class="step-action">click @e5</span>
-          <span class="step-result fail">❌</span>
+          <span class="step-action">fill delivery "19:30"</span>
+          <span class="step-result ok">✅</span>
         </div>
-        <div class="step-note">💭 选择 Medium 尺寸的披萨（radio button）</div>
-        <div class="diff">🔄 UI unchanged.</div>
+        <div class="step-note">💭 填写配送时间为 19:30</div>
+        <div class="diff">🔄 Delivery Time 从空变为 "19:30"</div>
         <div class="before-after">
           <div class="ba-col">
             <div class="ba-label">Before</div>
-            <img src="screenshots/step-1771259442145.jpg">
-            <div class="ba-semantic">No interactive elements found.</div>
+            <img src="screenshots/step-1771261656000.jpg">
+            
           </div>
           <div class="ba-arrow">→</div>
           <div class="ba-col">
             <div class="ba-label">After</div>
-            <img src="screenshots/step-1771259461455.jpg">
-            <div class="ba-semantic">No interactive elements found.</div>
+            <img src="screenshots/step-1771261656376.jpg">
+            
           </div>
         </div>
         <details class="tree"><summary>Element diff</summary>
@@ -155,5 +261,31 @@ h1 em{color:var(--accent);font-style:italic}
             <div><strong>After (0)</strong><pre></pre></div>
           </div>
         </details>
+      </div>
+
+      <div class="step">
+        
+        <div class="step-header">
+          <span class="step-num">6</span>
+          <span class="step-type observe">👁 OBSERVE</span>
+          <span class="platform-tag web">🌐 Web</span>
+          <span class="step-time">1:07:36 AM</span>
+        </div>
+        <div class="step-note">💭 表单填写完成：Customer=Momo, Size=Medium, Topping=Cheese, Delivery=19:30。准备提交。</div>
+        <div class="semantic">📋 13 form elements. custname(input), custtel(tel), custemail(email), size(radio), size(radio), size(radio), topping(checkbox), topping(checkbox), topping(checkbox), topping(checkbox), delivery(time), comments(textarea)</div>
+        <div class="screenshot"><img src="screenshots/step-1771261656433.jpg"></div>
+        <details class="tree"><summary>Element tree (13)</summary><pre>@e1 input name="custname" val="Momo"
+@e2 tel name="custtel" val=""
+@e3 email name="custemail" val=""
+@e4 radio name="size" val="small"
+@e5 radio name="size" val="medium"
+@e6 radio name="size" val="large"
+@e7 checkbox name="topping" val="bacon"
+@e8 checkbox name="topping" val="cheese"
+@e9 checkbox name="topping" val="onion"
+@e10 checkbox name="topping" val="mushroom"
+@e11 time name="delivery" val="19:30"
+@e12 textarea name="comments" val=""
+@e13 button name="" val="Submit order"</pre></details>
       </div>
 </div></body></html>
