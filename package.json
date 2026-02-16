@@ -1,0 +1,32 @@
+{
+  "name": "agent-control",
+  "version": "0.1.0",
+  "description": "AI operation layer — one protocol, three platforms. Give AI hands.",
+  "bin": {
+    "agent-control": "./cli.js"
+  },
+  "keywords": ["ai", "agent", "automation", "accessibility", "playwright", "macos", "ios", "web"],
+  "author": "momomo-agent",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/momomo-agent/agent-control"
+  },
+  "homepage": "https://momomo-agent.github.io/agent-control/",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright": "^1.50.0"
+  },
+  "files": [
+    "cli.js",
+    "web-driver/",
+    "ios-driver/",
+    "macos-driver/.build/debug/agent-control",
+    "goal-runner.js",
+    "dbb-runner.js",
+    "README.md",
+    "LICENSE"
+  ]
+}
