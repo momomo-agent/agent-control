@@ -62,10 +62,17 @@ const drivers = {
     if (r.stderr) process.stderr.write(r.stderr);
     process.exit(r.status || 0);
   },
+  android: () => {
+    const script = path.join(ROOT, 'android-driver', 'index.js');
+    const r = spawnSync('node', [script, ...driverArgs], { encoding: 'utf8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] });
+    if (r.stdout) process.stdout.write(r.stdout);
+    if (r.stderr) process.stderr.write(r.stderr);
+    process.exit(r.status || 0);
+  },
 };
 
 if (!drivers[platform]) {
-  console.error(JSON.stringify({ ok: false, error: `unknown platform '${platform}'. Use: macos, web, ios` }));
+  console.error(JSON.stringify({ ok: false, error: `unknown platform '${platform}'. Use: macos, web, ios, android` }));
   process.exit(1);
 }
 
@@ -73,15 +80,17 @@ if (driverArgs.length === 0 || driverArgs[0] === 'help' || driverArgs[0] === '--
   console.log(`agent-control — AI 跨平台操作层
 
 Usage:
-  agent-control --platform <macos|web|ios> <command> [args...]
+  agent-control --platform <macos|web|ios|android> <command> [args...]
   agent-control -p macos snapshot -i
   agent-control -p web open example.com ';' snapshot -i
   agent-control -p ios tap @e1
+  agent-control -p android screenshot out.png
 
 Platforms:
-  macos   macOS apps (Accessibility API)
-  web     Web apps (Playwright)
-  ios     iOS simulator (idb + simctl)
+  macos     macOS apps (Accessibility API)
+  web       Web apps (Playwright)
+  ios       iOS simulator (idb + simctl)
+  android   Android device/emulator (adb + uiautomator2)
 
 Commands (all platforms):
   snapshot [-i]           Get interactive elements

@@ -13,5 +13,15 @@
   {"id": "F012", "category": "core", "description": "Web driver: Playwright 包装，统一协议接口", "passes": true},
   {"id": "F013", "category": "core", "description": "iOS driver: idb 包装，统一协议接口", "passes": true},
   {"id": "F014", "category": "integration", "description": "统一 CLI 入口，--platform 路由到各 driver", "passes": true},
-  {"id": "F015", "category": "core", "description": "Web driver 持久化 session — daemon 模式，浏览器常驻后台，CLI 通过 HTTP 发命令", "passes": true}
+  {"id": "F015", "category": "core", "description": "Web driver 持久化 session — daemon 模式，浏览器常驻后台，CLI 通过 HTTP 发命令", "passes": true},
+  {"id": "F016", "category": "core", "description": "Android driver: snapshot 返回 UI 元素树 (uiautomator dump → JSON with @ref)", "passes": true},
+  {"id": "F017", "category": "core", "description": "Android driver: tap @ref / tap x y 点击元素或坐标", "passes": true},
+  {"id": "F018", "category": "core", "description": "Android driver: fill @ref text 输入文字", "passes": true},
+  {"id": "F019", "category": "core", "description": "Android driver: screenshot 截图并 pull 到本地", "passes": true},
+  {"id": "F020", "category": "core", "description": "Android driver: press key 按键操作 (home/back/enter/...)", "passes": true},
+  {"id": "F021", "category": "core", "description": "Android driver: swipe direction 滑动操作", "passes": true},
+  {"id": "F022", "category": "core", "description": "Android driver: open package 启动 app", "passes": true},
+  {"id": "F023", "category": "core", "description": "Android driver: shell cmd 执行 adb shell 命令", "passes": true},
+  {"id": "F024", "category": "core", "description": "Android driver: longtap @ref 长按操作", "passes": true},
+  {"id": "F025", "category": "integration", "description": "统一 CLI 支持 --platform android 路由", "passes": true}
 ]
