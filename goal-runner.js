@@ -1,21 +1,16 @@
 #!/usr/bin/env node
 /**
- * agent-control Goal Runner — 单步执行模式
+ * agent-control Goal Runner — agent 的眼睛和手
  *
- * 不自带 LLM，而是作为 agent 的工具被调用：
- *   1. agent 调用 goal-runner observe → 拿到当前 UI 状态
- *   2. agent 决策下一步
- *   3. agent 调用 goal-runner act <action> → 执行并返回新状态
+ * observe 默认截图 + 树，可选只截图或只树
  *
  * Usage:
- *   node goal-runner.js -p macos observe              # 看当前状态
- *   node goal-runner.js -p macos act click @e3        # 执行动作并返回新状态
- *   node goal-runner.js -p macos act dblclick @e5     # 双击
- *   node goal-runner.js -p web act open example.com   # Web 打开页面
- *   node goal-runner.js -p macos act-observe click @e3 # 执行 + 自动 observe
- *
- * 也支持自动模式（需要 ANTHROPIC_API_KEY 或 OPENAI_API_KEY）：
- *   node goal-runner.js -p macos --goal "打开 README" --auto
+ *   node goal-runner.js -p macos observe                    # 截图 + 树
+ *   node goal-runner.js -p macos observe --screenshot-only  # 只截图
+ *   node goal-runner.js -p macos observe --tree-only        # 只树
+ *   node goal-runner.js -p macos act click @e3
+ *   node goal-runner.js -p macos act-observe dblclick @e5
+ *   node goal-runner.js -p web act-observe open example.com
  */
 
 const { spawnSync } = require('child_process');
@@ -23,6 +18,8 @@ const path = require('path');
 const fs = require('fs');
 
 const CLI = path.join(__dirname, 'cli.js');
+const SCREENSHOT_DIR = '/tmp/agent-control';
+try { fs.mkdirSync(SCREENSHOT_DIR, { recursive: true }); } catch {}
 
 // ── Parse args ──
 const args = process.argv.slice(2);
@@ -33,101 +30,114 @@ function flag(names, def) {
   }
   return def;
 }
+function hasFlag(names) {
+  return names.some(n => args.includes(n));
+}
 
 const platform = flag(['--platform', '-p'], 'macos');
 const pid = flag(['--pid'], null);
+const screenshotOnly = hasFlag(['--screenshot-only', '--ss']);
+const treeOnly = hasFlag(['--tree-only', '--tree']);
 
-// ── Agent Control wrapper ──
+// ── AC wrapper ──
 function ac(tokens) {
   const argv = [CLI, '-p', platform, ...tokens, ...(pid ? ['--pid', pid] : [])];
   const r = spawnSync('node', argv, { encoding: 'utf8', timeout: 30000 });
   return (r.stdout || '').trim();
 }
 
-function observe() {
-  const raw = ac(['snapshot', '-i']);
-  let elements = [];
-  try { elements = JSON.parse(raw); } catch {}
+// ── Observe: screenshot + tree ──
+function observe(mode) {
+  const result = { ok: true, action: 'observe' };
+  const ts = Date.now();
 
-  // Compact format for LLM consumption
-  const summary = elements.map(e => {
-    const v = e.value || e.label || '';
-    return `${e.ref} ${e.role}${v ? ` "${v}"` : ''}`;
-  }).join('\n');
+  // Screenshot (default or screenshot-only)
+  if (mode !== 'tree') {
+    const ssPath = `${SCREENSHOT_DIR}/observe-${ts}.png`;
+    const ssResult = ac(['screenshot', ssPath]);
+    try {
+      const parsed = JSON.parse(ssResult);
+      if (parsed.ok) {
+        result.screenshot = parsed.path || ssPath;
+      }
+    } catch {
+      // Try direct screenshot for web (needs page)
+      result.screenshot = null;
+      result.screenshotError = 'no page open';
+    }
+  }
 
-  return { elements, summary, count: elements.length };
+  // Tree (default or tree-only)
+  if (mode !== 'screenshot') {
+    const raw = ac(['snapshot', '-i']);
+    try {
+      const elements = JSON.parse(raw);
+      result.elementCount = elements.length;
+      result.elements = elements.map(e => {
+        const v = e.value || e.label || '';
+        return `${e.ref} ${e.role}${v ? ` "${v}"` : ''}`;
+      }).join('\n');
+    } catch {
+      result.elements = '';
+      result.elementCount = 0;
+    }
+  }
+
+  return result;
 }
 
-function act(actionTokens) {
-  return ac(actionTokens);
-}
-
-// ── CLI routing ──
-const cmd = args.find(a => !a.startsWith('-') && !['macos', 'web', 'ios'].includes(a) &&
-  args.indexOf(a) > 0 && !args[args.indexOf(a) - 1]?.startsWith('-'));
-
-// Find command position (first non-flag arg after platform)
+// ── Find command position ──
 let cmdIdx = -1;
+const skipNext = new Set(['-p', '--platform', '--pid']);
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === '-p' || args[i] === '--platform' || args[i] === '--pid') { i++; continue; }
+  if (skipNext.has(args[i])) { i++; continue; }
   if (args[i].startsWith('-')) continue;
   cmdIdx = i;
   break;
 }
 
 const command = cmdIdx >= 0 ? args[cmdIdx] : 'observe';
-const restArgs = cmdIdx >= 0 ? args.slice(cmdIdx + 1).filter(a =>
-  a !== '-p' && a !== '--platform' && a !== '--pid' &&
-  !['macos', 'web', 'ios'].includes(a)
-) : [];
 
-// Filter out platform/pid from restArgs
+// Collect action tokens (everything after command, excluding flags)
 const actionTokens = [];
-for (let i = 0; i < restArgs.length; i++) {
-  if (restArgs[i] === '-p' || restArgs[i] === '--platform' || restArgs[i] === '--pid') { i++; continue; }
-  actionTokens.push(restArgs[i]);
+if (cmdIdx >= 0) {
+  for (let i = cmdIdx + 1; i < args.length; i++) {
+    if (skipNext.has(args[i])) { i++; continue; }
+    if (args[i].startsWith('--')) continue;
+    actionTokens.push(args[i]);
+  }
 }
 
 switch (command) {
   case 'observe': case 'look': case 'see': {
-    const state = observe();
-    console.log(JSON.stringify({
-      ok: true,
-      action: 'observe',
-      count: state.count,
-      elements: state.summary,
-    }, null, 2));
+    const mode = screenshotOnly ? 'screenshot' : treeOnly ? 'tree' : 'both';
+    const state = observe(mode);
+    console.log(JSON.stringify(state, null, 2));
     break;
   }
 
-  case 'act': case 'do': case 'exec': {
-    const result = act(actionTokens);
+  case 'act': case 'do': {
+    const result = ac(actionTokens);
     console.log(result);
     break;
   }
 
   case 'act-observe': case 'do-look': {
-    // Execute action then immediately observe
-    const actResult = act(actionTokens);
-    spawnSync('sleep', ['0.3']); // Brief pause for UI to update
-    const state = observe();
+    const actResult = ac(actionTokens);
+    spawnSync('sleep', ['0.5']);
+    const mode = screenshotOnly ? 'screenshot' : treeOnly ? 'tree' : 'both';
+    const state = observe(mode);
+    let parsed;
+    try { parsed = JSON.parse(actResult); } catch { parsed = actResult; }
     console.log(JSON.stringify({
       ok: true,
-      actionResult: safeParse(actResult),
-      observe: {
-        count: state.count,
-        elements: state.summary,
-      },
+      actionResult: parsed,
+      observe: state,
     }, null, 2));
     break;
   }
 
   default:
-    // Treat as action directly: "click @e3" etc
-    const directResult = act([command, ...actionTokens]);
-    console.log(directResult);
-}
-
-function safeParse(s) {
-  try { return JSON.parse(s); } catch { return s; }
+    const result = ac([command, ...actionTokens]);
+    console.log(result);
 }
