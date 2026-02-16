@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>agent-control — AI Operation Layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0b;
+  --bg2: #111113;
+  --bg3: #1a1a1e;
+  --border: #2a2a2e;
+  --text: #e8e8ec;
+  --text2: #8888a0;
+  --accent: #6ee7b7;
+  --accent2: #34d399;
+  --macos: #f472b6;
+  --web: #60a5fa;
+  --ios: #fbbf24;
+  --mono: 'JetBrains Mono', monospace;
+  --serif: 'Instrument Serif', Georgia, serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── Grain overlay ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Layout ── */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Nav ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: rgba(10,10,11,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  padding: 16px 0;
+}
+nav .container { display: flex; align-items: center; justify-content: space-between; }
+nav .logo { font-weight: 600; font-size: 15px; letter-spacing: -0.5px; }
+nav .logo span { color: var(--accent); }
+nav .links { display: flex; gap: 28px; }
+nav .links a { color: var(--text2); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+nav .links a:hover { color: var(--text); }
+
+/* ── Hero ── */
+.hero {
+  padding: 160px 0 100px;
+  position: relative;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 80px; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(110,231,183,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero h1 {
+  font-family: var(--serif);
+  font-size: clamp(48px, 8vw, 88px);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  margin-bottom: 28px;
+}
+.hero h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+.hero .subtitle {
+  font-size: 16px;
+  color: var(--text2);
+  max-width: 520px;
+  line-height: 1.8;
+  margin-bottom: 40px;
+}
+.hero .subtitle strong { color: var(--text); font-weight: 500; }
+
+/* ── Platform badges ── */
+.platforms {
+  display: flex; gap: 12px; margin-bottom: 48px;
+}
+.platform-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text2);
+  transition: all 0.3s;
+}
+.platform-badge:hover { border-color: var(--accent); color: var(--text); }
+.platform-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+.platform-badge.macos .dot { background: var(--macos); }
+.platform-badge.web .dot { background: var(--web); }
+.platform-badge.ios .dot { background: var(--ios); }
+
+/* ── Terminal demo ── */
+.terminal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 60px 0;
+}
+.terminal-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+}
+.terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+.terminal-dot.r { background: #ff5f57; }
+.terminal-dot.y { background: #febc2e; }
+.terminal-dot.g { background: #28c840; }
+.terminal-title { margin-left: 12px; font-size: 12px; color: var(--text2); }
+.terminal-body {
+  padding: 24px;
+  font-size: 13px;
+  line-height: 2;
+  overflow-x: auto;
+}
+.terminal-body .prompt { color: var(--accent); }
+.terminal-body .cmd { color: var(--text); }
+.terminal-body .comment { color: #555; }
+.terminal-body .output { color: var(--text2); }
+.terminal-body .ref { color: var(--ios); }
+.terminal-body .ok { color: var(--accent2); }
+
+/* ── Loop section ── */
+.loop-section { padding: 80px 0; }
+.loop-section h2 {
+  font-family: var(--serif);
+  font-size: 42px;
+  font-weight: 400;
+  margin-bottom: 16px;
+  letter-spacing: -1px;
+}
+.loop-section .desc { color: var(--text2); margin-bottom: 48px; max-width: 500px; }
+
+.loop-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 60px 0;
+}
+.loop-step {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 32px;
+  position: relative;
+}
+.loop-icon {
+  width: 72px; height: 72px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  transition: all 0.4s;
+}
+.loop-step:hover .loop-icon {
+  border-color: var(--accent);
+  box-shadow: 0 0 30px rgba(110,231,183,0.15);
+}
+.loop-label { font-size: 14px; font-weight: 500; }
+.loop-desc { font-size: 12px; color: var(--text2); text-align: center; max-width: 140px; }
+.loop-arrow {
+  font-size: 24px; color: var(--border);
+  margin: 0 -8px;
+  padding-bottom: 60px;
+}
+
+/* ── Architecture ── */
+.arch-section { padding: 80px 0; }
+.arch-section h2 {
+  font-family: var(--serif);
+  font-size: 42px;
+  font-weight: 400;
+  margin-bottom: 48px;
+  letter-spacing: -1px;
+}
+.arch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.arch-card {
+  background: var(--bg2);
+  padding: 36px;
+  transition: background 0.3s;
+}
+.arch-card:hover { background: var(--bg3); }
+.arch-card .card-platform {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+}
+.arch-card.macos .card-platform { color: var(--macos); }
+.arch-card.web .card-platform { color: var(--web); }
+.arch-card.ios .card-platform { color: var(--ios); }
+.arch-card h3 { font-size: 16px; font-weight: 500; margin-bottom: 12px; }
+.arch-card p { font-size: 13px; color: var(--text2); line-height: 1.7; }
+.arch-card .tech { margin-top: 16px; font-size: 11px; color: #555; }
+
+/* ── Actions table ── */
+.actions-section { padding: 80px 0; }
+.actions-section h2 {
+  font-family: var(--serif);
+  font-size: 42px;
+  font-weight: 400;
+  margin-bottom: 48px;
+  letter-spacing: -1px;
+}
+.actions-table {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.actions-table th {
+  background: var(--bg3);
+  padding: 14px 20px;
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.actions-table td {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.actions-table td:first-child { color: var(--accent); font-weight: 500; }
+.actions-table td:nth-child(2) { color: var(--text2); }
+.actions-table tr:hover td { background: rgba(110,231,183,0.02); }
+.check { color: var(--accent2); }
+.dash { color: #333; }
+
+/* ── Footer ── */
+footer {
+  padding: 60px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 80px;
+}
+footer .container { display: flex; justify-content: space-between; align-items: center; }
+footer .left { color: var(--text2); font-size: 13px; }
+footer .right { display: flex; gap: 24px; }
+footer .right a { color: var(--text2); text-decoration: none; font-size: 13px; }
+footer .right a:hover { color: var(--accent); }
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.hero h1, .hero .subtitle, .platforms, .terminal {
+  animation: fadeUp 0.8s ease-out both;
+}
+.hero .subtitle { animation-delay: 0.1s; }
+.platforms { animation-delay: 0.2s; }
+.terminal { animation-delay: 0.3s; }
+
+/* ── Typing animation ── */
+.typing-line { opacity: 0; animation: typeFade 0.3s ease-out forwards; }
+.typing-line:nth-child(1) { animation-delay: 0.5s; }
+.typing-line:nth-child(2) { animation-delay: 1.2s; }
+.typing-line:nth-child(3) { animation-delay: 1.5s; }
+.typing-line:nth-child(4) { animation-delay: 2.5s; }
+.typing-line:nth-child(5) { animation-delay: 3.2s; }
+.typing-line:nth-child(6) { animation-delay: 3.5s; }
+.typing-line:nth-child(7) { animation-delay: 4.5s; }
+.typing-line:nth-child(8) { animation-delay: 5.0s; }
+@keyframes typeFade { to { opacity: 1; } }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .arch-grid { grid-template-columns: 1fr; }
+  .loop-visual { flex-direction: column; }
+  .loop-arrow { transform: rotate(90deg); padding: 0; margin: -8px 0; }
+  .platforms { flex-wrap: wrap; }
+  nav .links { display: none; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="logo">agent<span>-control</span></div>
+    <div class="links">
+      <a href="#loop">How it works</a>
+      <a href="#platforms">Platforms</a>
+      <a href="#actions">Actions</a>
+      <a href="https://github.com/momomo-agent/agent-control">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container">
+    <h1>Give AI<br><em>hands.</em></h1>
+    <p class="subtitle">
+      One protocol to <strong>see, decide, and act</strong> on any interface.
+      macOS apps, web pages, iOS simulators — all through
+      <strong>snapshot → think → act</strong>.
+    </p>
+
+    <div class="platforms">
+      <div class="platform-badge macos"><span class="dot"></span> macOS</div>
+      <div class="platform-badge web"><span class="dot"></span> Web</div>
+      <div class="platform-badge ios"><span class="dot"></span> iOS</div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="terminal-dot r"></span>
+        <span class="terminal-dot y"></span>
+        <span class="terminal-dot g"></span>
+        <span class="terminal-title">agent-control — observe → act → observe</span>
+      </div>
+      <div class="terminal-body">
+        <div class="typing-line"><span class="comment"># 1. Look at the screen</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p macos observe</span></div>
+        <div class="typing-line"><span class="output">  📸 screenshot saved &nbsp; | &nbsp; 38 elements found</span><br><span class="output">  <span class="ref">@e21</span> StaticText "README" &nbsp; <span class="ref">@e28</span> StaticText "config"</span></div>
+        <div class="typing-line"><br><span class="comment"># 2. Decide and act</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p macos act-observe dblclick <span class="ref">@e21</span></span></div>
+        <div class="typing-line"><span class="output">  <span class="ok">✓</span> dblclick @e21 &nbsp; | &nbsp; title → "BrainDown — README.md"</span></div>
+        <div class="typing-line"><br><span class="comment"># 3. Goal reached ✅</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p macos act screenshot</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="loop-section" id="loop">
+  <div class="container">
+    <h2>The Loop</h2>
+    <p class="desc">No pre-scripted steps. The AI observes the current state, decides what to do, acts, then observes again. Like a human would.</p>
+
+    <div class="loop-visual">
+      <div class="loop-step">
+        <div class="loop-icon">👁</div>
+        <div class="loop-label">Observe</div>
+        <div class="loop-desc">Screenshot + element tree with @ref identifiers</div>
+      </div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-step">
+        <div class="loop-icon">🧠</div>
+        <div class="loop-label">Decide</div>
+        <div class="loop-desc">LLM sees the UI, picks the next action</div>
+      </div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-step">
+        <div class="loop-icon">🤚</div>
+        <div class="loop-label">Act</div>
+        <div class="loop-desc">Click, type, scroll — through the unified protocol</div>
+      </div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-step">
+        <div class="loop-icon">🔄</div>
+        <div class="loop-label">Repeat</div>
+        <div class="loop-desc">Until the goal is reached</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="arch-section" id="platforms">
+  <div class="container">
+    <h2>Three Drivers, One Protocol</h2>
+    <div class="arch-grid">
+      <div class="arch-card macos">
+        <div class="card-platform">macOS</div>
+        <h3>Accessibility API</h3>
+        <p>Native Swift CLI that reads the AX tree and acts via AXPress, CGEvent, or coordinate fallback. Operates any macOS app — Finder, Xcode, your own apps.</p>
+        <div class="tech">Swift · ApplicationServices · CGEvent</div>
+      </div>
+      <div class="arch-card web">
+        <div class="card-platform">Web</div>
+        <h3>Playwright</h3>
+        <p>Headless Chromium with chain commands. Open a URL, snapshot the DOM, fill forms, click buttons — all in one pipeline.</p>
+        <div class="tech">Node.js · Playwright · Chromium</div>
+      </div>
+      <div class="arch-card ios">
+        <div class="card-platform">iOS</div>
+        <h3>idb + simctl</h3>
+        <p>Facebook's iOS Development Bridge for accessibility tree, Apple's simctl for screenshots. Tap, swipe, type on any simulator app.</p>
+        <div class="tech">idb · xcrun simctl · Accessibility</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="actions-section" id="actions">
+  <div class="container">
+    <h2>Unified Actions</h2>
+    <table class="actions-table">
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>Syntax</th>
+          <th>macOS</th>
+          <th>Web</th>
+          <th>iOS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>observe</td><td>observe [--ss] [--tree]</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>click</td><td>click @ref</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>dblclick</td><td>dblclick @ref</td><td class="check">✓</td><td class="check">✓</td><td class="dash">—</td></tr>
+        <tr><td>rightclick</td><td>rightclick @ref</td><td class="check">✓</td><td class="check">✓</td><td class="dash">—</td></tr>
+        <tr><td>fill</td><td>fill @ref "text"</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>press</td><td>press &lt;key&gt;</td><td class="check">✓</td><td class="check">✓</td><td class="dash">—</td></tr>
+        <tr><td>scroll</td><td>scroll &lt;up|down&gt;</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>drag</td><td>drag @ref1 @ref2</td><td class="check">✓</td><td class="check">✓</td><td class="dash">—</td></tr>
+        <tr><td>screenshot</td><td>screenshot [path]</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>open</td><td>open &lt;url&gt;</td><td class="dash">—</td><td class="check">✓</td><td class="dash">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="left">agent-control · built in one night · 2026</div>
+    <div class="right">
+      <a href="https://github.com/momomo-agent/agent-control">Source</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
