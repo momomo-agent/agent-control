@@ -85,18 +85,19 @@ class AndroidRecorder {
 }
 
 class MacOSRecorder {
-  constructor(outDir) {
+  constructor(outDir, windowArgs) {
     this.outDir = outDir;
     this.localFile = path.join(outDir, 'recording.mp4');
-    this.recBin = path.join(__dirname, 'macos-driver', 'screen-record');
+    this.windowArgs = windowArgs || []; // e.g. ['--pid', '123'] or ['--window', 'Finder']
     this.pid = null;
   }
 
   start() {
     try { fs.unlinkSync('/tmp/agent-control-screenrecord.pid'); } catch {}
     const startSh = path.join(__dirname, 'macos-driver', 'start-record.sh');
+    const args = ['start', this.localFile, ...this.windowArgs].map(a => `"${a}"`).join(' ');
     try {
-      const pidStr = execSync(`bash "${startSh}" "${this.localFile}"`, { encoding: 'utf8', timeout: 25000 }).trim();
+      const pidStr = execSync(`bash "${startSh}" ${args}`, { encoding: 'utf8', timeout: 25000 }).trim();
       this.pid = parseInt(pidStr, 10);
     } catch (e) {
       return false;
@@ -120,18 +121,28 @@ class MacOSRecorder {
 }
 
 class IOSRecorder extends MacOSRecorder {
-  // iOS: same ScreenCaptureKit recording (captures simulator window on screen)
+  constructor(outDir) {
+    // Find Simulator.app PID for window-level recording
+    let simPid;
+    try { simPid = execSync('pgrep -x Simulator', { encoding: 'utf8', timeout: 3000 }).trim().split('\n')[0]; } catch {}
+    if (!simPid) {
+      // Try to open Simulator if not running
+      try { execSync('open -a Simulator', { timeout: 5000, stdio: 'pipe' }); spawnSync('sleep', ['3']); } catch {}
+      try { simPid = execSync('pgrep -x Simulator', { encoding: 'utf8', timeout: 3000 }).trim().split('\n')[0]; } catch {}
+    }
+    super(outDir, simPid ? ['--pid', simPid] : ['--window', 'Simulator']);
+  }
 }
 
 class WebRecorder extends MacOSRecorder {
-  // Web: same ScreenCaptureKit recording (captures browser on screen)
+  constructor(outDir) { super(outDir, ['--window', 'Playwright']); }
 }
 
 function createRecorder(platform, outDir) {
   switch (platform) {
     case 'android': return new AndroidRecorder(outDir);
     case 'ios': return new IOSRecorder(outDir);
-    case 'macos': return new MacOSRecorder(outDir);
+    case 'macos': return new MacOSRecorder(outDir, pid ? ['--pid', pid] : []);
     case 'web': return new WebRecorder(outDir);
     default: return new AndroidRecorder(outDir);
   }
