@@ -27,8 +27,15 @@ if (!device) {
 }
 const UDID = device.udid;
 
-// ── Snapshot ──
+// ── Snapshot cache (avoid 5s re-dump on tap/fill) ──
+let _cachedElements = null;
+let _cacheTime = 0;
+const CACHE_TTL = 10000; // 10s
+
 function snapshot(interactiveOnly) {
+  if (_cachedElements && (Date.now() - _cacheTime < CACHE_TTL)) {
+    return interactiveOnly ? _cachedElements.filter(e => e.interactive) : _cachedElements;
+  }
   const r = spawnSync('idb', ['ui', 'describe-all', '--udid', UDID], {
     encoding: 'utf8', timeout: 15000,
   });
@@ -69,7 +76,9 @@ function snapshot(interactiveOnly) {
       interactive: isInteractive,
     });
   }
-  return elements;
+  _cachedElements = elements;
+  _cacheTime = Date.now();
+  return interactiveOnly ? elements.filter(e => e.interactive) : elements;
 }
 
 // ── Resolve ref ──
@@ -139,6 +148,7 @@ try {
       const pt = refToPoint(args[1], els);
       if (!pt) { result = { ok: false, error: `${args[1]} not found` }; break; }
       result = { ok: tap(pt.x, pt.y), action: 'tap', ref: args[1] };
+      _cachedElements = null; // invalidate after interaction
       break;
     }
     case 'fill': {
@@ -148,6 +158,7 @@ try {
       tap(pt.x, pt.y);
       typeText(args.slice(2).join(' '));
       result = { ok: true, action: 'fill', ref: args[1] };
+      _cachedElements = null;
       break;
     }
     case 'type': {
@@ -165,8 +176,13 @@ try {
       break;
     }
     case 'press': {
-      const r = spawnSync('xcrun', ['simctl', 'io', UDID, 'enumerate'], { encoding: 'utf8' });
-      result = { ok: false, error: 'press not yet implemented for simctl' };
+      const btn = (args[1] || '').toUpperCase();
+      const map = { HOME: 'HOME', LOCK: 'LOCK', SIRI: 'SIRI', 'APPLE_PAY': 'APPLE_PAY' };
+      const idbBtn = map[btn];
+      if (!idbBtn) { result = { ok: false, error: `unknown button: ${args[1]}` }; break; }
+      const r = spawnSync('idb', ['ui', 'button', idbBtn, '--udid', UDID], { encoding: 'utf8', timeout: 10000 });
+      result = { ok: r.status === 0, action: 'press', button: btn };
+      _cachedElements = null;
       break;
     }
     default:
