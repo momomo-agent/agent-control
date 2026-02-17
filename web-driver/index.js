@@ -255,6 +255,37 @@ async function executeCommand(args, page, browser, context) {
 // ══════════════════════════════════════════
 async function main() {
   const rawArgs = process.argv.slice(2);
+
+  // Special: start-daemon — fork daemon to background and exit immediately
+  if (rawArgs[0] === 'start-daemon') {
+    if (isDaemonRunning()) {
+      console.log(JSON.stringify({ ok: true, action: 'start-daemon', status: 'already running' }));
+      process.exit(0);
+    }
+    const { spawn } = require('child_process');
+    const child = spawn('node', [__filename, '--daemon-mode'], {
+      detached: true, stdio: 'ignore', env: { ...process.env }
+    });
+    child.unref();
+    // Wait for daemon to be ready
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      if (isDaemonRunning()) {
+        console.log(JSON.stringify({ ok: true, action: 'start-daemon', pid: child.pid }));
+        process.exit(0);
+      }
+    }
+    console.log(JSON.stringify({ ok: false, error: 'daemon start timeout' }));
+    process.exit(1);
+  }
+
+  // Special: --daemon-mode — run as background daemon (don't exit)
+  if (rawArgs[0] === '--daemon-mode') {
+    await startDaemon();
+    // Keep alive — HTTP server prevents exit
+    return;
+  }
+
   const commands = parseCommands(rawArgs);
 
   if (commands.length === 0) {

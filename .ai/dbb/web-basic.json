@@ -1,0 +1,23 @@
+{
+  "id": "WEB-001",
+  "name": "Web 基础操作验证",
+  "platform": "web",
+  "target": {},
+  "steps": [
+    {
+      "description": "打开 example.com",
+      "action": "open https://example.com",
+      "wait": 2
+    },
+    {
+      "description": "截取页面快照",
+      "action": "snapshot -i",
+      "wait": 1
+    },
+    {
+      "description": "截图",
+      "action": "screenshot /tmp/ac-web-test.png",
+      "wait": 1
+    }
+  ]
+}

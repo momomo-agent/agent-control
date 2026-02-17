@@ -84,59 +84,32 @@ class AndroidRecorder {
   }
 }
 
-class IOSRecorder {
-  constructor(outDir) {
-    this.outDir = outDir;
-    this.proc = null;
-    this.localFile = path.join(outDir, 'recording.mp4');
-  }
-
-  start() {
-    this.proc = spawn('xcrun', ['simctl', 'io', 'booted', 'recordVideo', this.localFile], {
-      stdio: 'ignore', detached: true
-    });
-    this.proc.unref();
-    spawnSync('sleep', ['1']);
-    return true;
-  }
-
-  stop() {
-    if (this.proc) {
-      try { this.proc.kill('SIGINT'); } catch {}
-      spawnSync('sleep', ['2']);
-    }
-    try {
-      const stat = fs.statSync(this.localFile);
-      if (stat.size > 0) return this.localFile;
-    } catch {}
-    return null;
-  }
-}
-
 class MacOSRecorder {
   constructor(outDir) {
     this.outDir = outDir;
     this.localFile = path.join(outDir, 'recording.mp4');
-    this.proc = null;
+    this.recBin = path.join(__dirname, 'macos-driver', 'screen-record');
+    this.pid = null;
   }
 
   start() {
-    // Use ffmpeg to record screen (display 1)
-    this.proc = spawn('ffmpeg', [
-      '-f', 'avfoundation', '-framerate', '15', '-capture_cursor', '1',
-      '-i', '1:none', '-c:v', 'libx264', '-preset', 'ultrafast',
-      '-pix_fmt', 'yuv420p', '-y', this.localFile
-    ], { stdio: 'ignore', detached: true });
-    this.proc.unref();
-    spawnSync('sleep', ['1']);
-    return true;
+    try { fs.unlinkSync('/tmp/agent-control-screenrecord.pid'); } catch {}
+    const startSh = path.join(__dirname, 'macos-driver', 'start-record.sh');
+    try {
+      const pidStr = execSync(`bash "${startSh}" "${this.localFile}"`, { encoding: 'utf8', timeout: 25000 }).trim();
+      this.pid = parseInt(pidStr, 10);
+    } catch (e) {
+      return false;
+    }
+    return !!this.pid;
   }
 
+  captureFrame() {}
+
   stop() {
-    if (this.proc) {
-      try { process.kill(-this.proc.pid, 'SIGINT'); } catch {}
-      try { this.proc.kill('SIGINT'); } catch {}
-      spawnSync('sleep', ['2']);
+    if (this.pid) {
+      try { execSync(`kill -INT ${this.pid}`, { stdio: 'pipe', timeout: 3000 }); } catch {}
+      spawnSync('sleep', ['3']);
     }
     try {
       const stat = fs.statSync(this.localFile);
@@ -146,8 +119,12 @@ class MacOSRecorder {
   }
 }
 
+class IOSRecorder extends MacOSRecorder {
+  // iOS: same ScreenCaptureKit recording (captures simulator window on screen)
+}
+
 class WebRecorder extends MacOSRecorder {
-  // Web uses same desktop recording as macOS
+  // Web: same ScreenCaptureKit recording (captures browser on screen)
 }
 
 function createRecorder(platform, outDir) {
@@ -161,9 +138,18 @@ function createRecorder(platform, outDir) {
 }
 
 // ── AC helper ──
+let _recorder = null; // module-level ref for frame capture
+
+function ensureWebDaemon() {
+  if (platform !== 'web') return;
+  const script = path.join(__dirname, 'web-driver', 'index.js');
+  const r = spawnSync('node', [script, 'start-daemon'], { encoding: 'utf8', timeout: 60000 });
+  if (r.stdout) console.log('🌐 Web daemon:', safeParse(r.stdout)?.status || r.stdout.trim());
+}
+
 function ac(argTokens) {
   const argv = [CLI, '-p', platform, ...argTokens, ...(pid ? ['--pid', pid] : [])];
-  const r = spawnSync('node', argv, { encoding: 'utf8', timeout: 60000 });
+  const r = spawnSync('node', argv, { encoding: 'utf8', timeout: 120000 });
   return { raw: (r.stdout || '').trim(), code: r.status };
 }
 
@@ -172,6 +158,8 @@ function safeParse(s) {
 }
 
 function screenshot(outPath) {
+  // Capture a frame for video if recorder supports it
+  if (_recorder && typeof _recorder.captureFrame === 'function') _recorder.captureFrame();
   const r = ac(['screenshot', outPath]);
   return r.code === 0;
 }
@@ -430,8 +418,12 @@ async function main() {
   console.log(`   Platform: ${platform}`);
   console.log(`   Output: ${runDir}\n`);
 
+  // Pre-start web daemon if needed
+  ensureWebDaemon();
+
   // Start recording
   const recorder = createRecorder(platform, runDir);
+  _recorder = recorder; // expose for screenshot() frame capture
   const recordOk = recorder.start();
   if (recordOk) console.log('📹 Screen recording started\n');
   else console.log('⚠️  Screen recording failed to start, continuing without video\n');
