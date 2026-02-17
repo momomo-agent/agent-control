@@ -120,17 +120,36 @@ class MacOSRecorder {
   }
 }
 
-class IOSRecorder extends MacOSRecorder {
+class IOSRecorder {
   constructor(outDir) {
-    // Find Simulator.app PID for window-level recording
-    let simPid;
-    try { simPid = execSync('pgrep -x Simulator', { encoding: 'utf8', timeout: 3000 }).trim().split('\n')[0]; } catch {}
-    if (!simPid) {
-      // Try to open Simulator if not running
-      try { execSync('open -a Simulator', { timeout: 5000, stdio: 'pipe' }); spawnSync('sleep', ['3']); } catch {}
-      try { simPid = execSync('pgrep -x Simulator', { encoding: 'utf8', timeout: 3000 }).trim().split('\n')[0]; } catch {}
+    this.outDir = outDir;
+    this.localFile = path.join(outDir, 'recording.mp4');
+    this.pid = null;
+  }
+
+  start() {
+    try { fs.unlinkSync(this.localFile); } catch {}
+    const proc = spawn('xcrun', ['simctl', 'io', 'booted', 'recordVideo', '--codec=h264', this.localFile], {
+      stdio: 'ignore', detached: false
+    });
+    this.pid = proc.pid;
+    this._proc = proc;
+    spawnSync('sleep', ['1']);
+    return true;
+  }
+
+  captureFrame() {}
+
+  stop() {
+    if (this._proc) {
+      try { process.kill(this._proc.pid, 'SIGINT'); } catch {}
+      spawnSync('sleep', ['3']);
     }
-    super(outDir, simPid ? ['--pid', simPid] : ['--window', 'Simulator']);
+    try {
+      const stat = fs.statSync(this.localFile);
+      if (stat.size > 0) return this.localFile;
+    } catch {}
+    return null;
   }
 }
 
