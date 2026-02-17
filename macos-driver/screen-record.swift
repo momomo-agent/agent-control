@@ -31,6 +31,7 @@ class Rec: NSObject, SCStreamOutput {
     var active = false
     var t0: CMTime?
     var frameCount = 0
+    var sourceRect: CGRect?
 
     init(_ p: String) { url = URL(fileURLWithPath: p); super.init() }
 
@@ -54,8 +55,9 @@ class Rec: NSObject, SCStreamOutput {
             if let win = win {
                 let d = content.displays.first!
                 filter = SCContentFilter(display: d, including: [win])
-                w = Int(win.frame.width); h = Int(win.frame.height)
-                FileHandle.standardError.write(Data("Recording window: \(win.owningApplication?.applicationName ?? "?") - \(win.title ?? "?") [\(w)x\(h)]\n".utf8))
+                w = Int(win.frame.width * 2); h = Int(win.frame.height * 2) // Retina 2x
+                sourceRect = win.frame
+                FileHandle.standardError.write(Data("Recording window: \(win.owningApplication?.applicationName ?? "?") - \(win.title ?? "?") [\(w/2)x\(h/2)]\n".utf8))
             } else {
                 // Fallback to full screen
                 let d = content.displays.first!
@@ -74,6 +76,7 @@ class Rec: NSObject, SCStreamOutput {
         cfg.minimumFrameInterval = CMTime(value: 1, timescale: 10)
         cfg.pixelFormat = kCVPixelFormatType_32BGRA
         cfg.showsCursor = true
+        if let rect = sourceRect { cfg.sourceRect = rect; cfg.scalesToFit = true }
 
         try? FileManager.default.removeItem(at: url)
         writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
