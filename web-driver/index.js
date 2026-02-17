@@ -58,7 +58,7 @@ function isDaemonRunning() {
 // ══════════════════════════════════════════
 async function startDaemon() {
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  let context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   let page = await context.newPage();
 
   const server = http.createServer(async (req, res) => {
@@ -73,6 +73,7 @@ async function startDaemon() {
         const result = await executeCommand(args, page, browser, context);
         // page might have changed (e.g. open creates new page)
         if (result._newPage) { page = result._newPage; delete result._newPage; }
+        if (result._newContext) { context = result._newContext; delete result._newContext; }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
       } catch (err) {
@@ -241,6 +242,30 @@ async function executeCommand(args, page, browser, context) {
         result = { ok: true, action: 'close' };
         process.exit(0);
         break;
+      case 'start-video': {
+        const dir = args[1] || '/tmp/agent-control-web-video';
+        try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+        const newCtx = await browser.newContext({
+          viewport: { width: 1280, height: 800 },
+          recordVideo: { dir, size: { width: 1280, height: 800 } }
+        });
+        const newPage = await newCtx.newPage();
+        // Copy current URL
+        try { await newPage.goto(page.url(), { waitUntil: 'domcontentloaded', timeout: 10000 }); } catch {}
+        result = { ok: true, action: 'start-video', dir, _newPage: newPage, _newContext: newCtx };
+        break;
+      }
+      case 'stop-video': {
+        let videoPath = null;
+        try {
+          const video = page.video();
+          if (video) { videoPath = await video.path(); }
+        } catch {}
+        // Close the recording context
+        try { await page.context().close(); } catch {}
+        result = { ok: true, action: 'stop-video', path: videoPath };
+        break;
+      }
       default:
         result = { ok: false, error: `unknown command '${cmd}'` };
     }

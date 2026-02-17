@@ -130,11 +130,14 @@ class IOSRecorder {
   start() {
     try { fs.unlinkSync(this.localFile); } catch {}
     const proc = spawn('xcrun', ['simctl', 'io', 'booted', 'recordVideo', '--codec=h264', this.localFile], {
-      stdio: 'ignore', detached: false
+      stdio: ['pipe', 'pipe', 'pipe']
     });
     this.pid = proc.pid;
     this._proc = proc;
-    spawnSync('sleep', ['1']);
+    // Wait for "Recording started" on stderr
+    let started = false;
+    proc.stderr.on('data', d => { if (d.toString().includes('Recording')) started = true; });
+    for (let i = 0; i < 10 && !started; i++) spawnSync('sleep', ['0.5']);
     return true;
   }
 
@@ -153,8 +156,44 @@ class IOSRecorder {
   }
 }
 
-class WebRecorder extends MacOSRecorder {
-  constructor(outDir) { super(outDir, ['--window', 'Playwright']); }
+class WebRecorder {
+  constructor(outDir) {
+    this.outDir = outDir;
+    this.localFile = path.join(outDir, 'recording.mp4');
+    this.videoDir = path.join(outDir, '_webvideo');
+  }
+
+  start() {
+    // Tell web daemon to start Playwright video recording
+    try {
+      const r = execSync(`curl -s -X POST http://localhost:3901/cmd -H "Content-Type: application/json" -d '{"args":["start-video","${this.videoDir}"]}'`, { encoding: 'utf8', timeout: 10000 });
+      const j = JSON.parse(r);
+      return j.ok;
+    } catch { return false; }
+  }
+
+  captureFrame() {}
+
+  stop() {
+    try {
+      const r = execSync(`curl -s -X POST http://localhost:3901/cmd -H "Content-Type: application/json" -d '{"args":["stop-video"]}'`, { encoding: 'utf8', timeout: 10000 });
+      const j = JSON.parse(r);
+      const webmPath = j.path || (() => {
+        const files = fs.readdirSync(this.videoDir).filter(f => f.endsWith('.webm'));
+        return files.length ? path.join(this.videoDir, files[0]) : null;
+      })();
+      if (webmPath && fs.existsSync(webmPath)) {
+        // Convert WebM to MP4
+        try {
+          execSync(`ffmpeg -i "${webmPath}" -c:v libx264 -preset ultrafast -y "${this.localFile}"`, { timeout: 15000, stdio: 'pipe' });
+        } catch {
+          fs.copyFileSync(webmPath, this.localFile); // fallback: copy as-is
+        }
+        return this.localFile;
+      }
+    } catch {}
+    return null;
+  }
 }
 
 function createRecorder(platform, outDir) {
