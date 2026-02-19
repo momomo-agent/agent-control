@@ -168,7 +168,7 @@ async function executeCommand(args, page, browser, context) {
       case 'open': case 'goto': case 'navigate': {
         const url = args[1];
         if (!url) { result = { ok: false, error: 'no url' }; break; }
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        await page.goto(url, { waitUntil: 'load', timeout: 20000 });
         result = { ok: true, action: 'open', url };
         break;
       }
@@ -213,6 +213,21 @@ async function executeCommand(args, page, browser, context) {
         if (!key) { result = { ok: false, error: 'no key' }; break; }
         await page.keyboard.press(key);
         result = { ok: true, action: 'press', key };
+        break;
+      }
+      case 'select': {
+        const ref = args.find(a => a.startsWith('@'));
+        const val = args.slice(args.indexOf(ref) + 1).join(' ');
+        if (!ref || !val) { result = { ok: false, error: 'usage: select @ref value' }; break; }
+        const resolved = await resolveRef(page, ref);
+        if (!resolved) { result = { ok: false, error: 'not found' }; break; }
+        const sel = `${resolved.el.tag}:nth-of-type(1)`;
+        try {
+          await page.selectOption(resolved.el.name ? `[name="${resolved.el.name}"]` : `select`, val);
+          result = { ok: true, action: 'select', ref, value: val };
+        } catch (e) {
+          result = { ok: false, error: e.message };
+        }
         break;
       }
       case 'scroll': {

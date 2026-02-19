@@ -1,0 +1,15 @@
+{
+  "name": "settings-nav",
+  "platform": "ios",
+  "setup": { "exec": "xcrun simctl terminate booted com.apple.Preferences 2>/dev/null; sleep 0.5; xcrun simctl openurl booted 'App-prefs:root'; sleep 3; open -a Simulator", "wait": 1000 },
+  "steps": [
+    { "action": "snapshot" },
+    { "action": "screenshot", "label": "initial" },
+    { "action": "click", "find": ["通用", "General"], "retry": true },
+    { "action": "wait", "ms": 2000 },
+    { "action": "verify", "find": ["关于本机", "About"] },
+    { "action": "screenshot", "label": "general" },
+    { "action": "click", "find": ["设置", "Back", "返回"], "retry": true },
+    { "action": "screenshot", "label": "final" }
+  ]
+}

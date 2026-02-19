@@ -1,0 +1,33 @@
+{
+  "runId": "2026-02-18T14-27-56-3076cc",
+  "platform": "web",
+  "name": "auto:Sign up with email test@flowlab.com, nam",
+  "status": "failed",
+  "resumedFrom": null,
+  "startMs": 1771424876786,
+  "endMs": 1771424893992,
+  "durationMs": 17206,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "parse",
+      "params": {},
+      "startMs": 1771424893991,
+      "endMs": 1771424893991,
+      "status": "failed",
+      "failureTag": "ASSERT_FAIL",
+      "failureMsg": "<think>**Requesting image or screenshot**\n\nI see we have image capabilities, but",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "failureTags": {
+      "ASSERT_FAIL": 1
+    },
+    "totalMs": 17206
+  }
+}

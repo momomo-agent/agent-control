@@ -19,7 +19,7 @@
     v      v          v
 ┌──────┐┌──────┐┌──────────┐
 │ Web  ││macOS ││   iOS    │
-│Playw.││ AX   ││  idb     │
+│Playw.││ AX   ││ Sim AX   │
 └──────┘└──────┘└──────────┘
 ```
 
@@ -74,6 +74,6 @@
 
 - macOS driver: Swift CLI（直接调 AX API，零依赖）
 - Web driver: Node + Playwright
-- iOS driver: idb CLI 包装
+- iOS driver: macOS AX API 操作 Simulator 进程（idb tap 在 iOS 26 不可用）
 - 协议层: Node CLI（路由到各 driver）
 - 通信: stdout JSON（简单、可管道）

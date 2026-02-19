@@ -1,0 +1,280 @@
+[
+  {
+    "frame": {
+      "h": 36,
+      "w": 18,
+      "x": 74,
+      "y": 303
+    },
+    "interactive": true,
+    "label": "Action",
+    "ref": "@e1",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 66,
+      "w": 18,
+      "x": 74,
+      "y": 364
+    },
+    "interactive": true,
+    "label": "Volume Up",
+    "ref": "@e2",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 66,
+      "w": 18,
+      "x": 74,
+      "y": 443
+    },
+    "interactive": true,
+    "label": "Volume Down",
+    "ref": "@e3",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 103,
+      "w": 18,
+      "x": 512,
+      "y": 405
+    },
+    "interactive": true,
+    "label": "Sleep/Wake",
+    "ref": "@e4",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 90,
+      "w": 370,
+      "x": 117,
+      "y": 324
+    },
+    "interactive": true,
+    "label": "Apple账户、登录以访问iCloud数据、App Store、Apple服务等。",
+    "ref": "@e5",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 449
+    },
+    "interactive": true,
+    "label": "通用",
+    "ref": "@e6",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 502
+    },
+    "interactive": true,
+    "label": "辅助功能",
+    "ref": "@e7",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 554
+    },
+    "interactive": true,
+    "label": "操作按钮",
+    "ref": "@e8",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 606
+    },
+    "interactive": true,
+    "label": "待机显示",
+    "ref": "@e9",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 659
+    },
+    "interactive": true,
+    "label": "搜索",
+    "ref": "@e10",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 711
+    },
+    "interactive": true,
+    "label": "相机",
+    "ref": "@e11",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 763
+    },
+    "interactive": true,
+    "label": "主屏幕与App资源库",
+    "ref": "@e12",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 816
+    },
+    "interactive": true,
+    "label": "Apple智能与Siri",
+    "ref": "@e13",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 903
+    },
+    "interactive": true,
+    "label": "屏幕时间",
+    "ref": "@e14",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 370,
+      "x": 117,
+      "y": 990
+    },
+    "interactive": true,
+    "label": "隐私与安全性",
+    "ref": "@e15",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 45,
+      "x": 389,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "Home",
+    "ref": "@e16",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 43,
+      "x": 434,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "Save Screen",
+    "ref": "@e17",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 41,
+      "x": 477,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "Rotate",
+    "ref": "@e18",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 16,
+      "w": 16,
+      "x": 92,
+      "y": 100
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e19",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 16,
+      "w": 16,
+      "x": 138,
+      "y": 100
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e20",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 16,
+      "w": 16,
+      "x": 115,
+      "y": 100
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e21",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 215,
+      "x": 166,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e22",
+    "role": "StaticText",
+    "value": "iPhone 16 Pro"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 215,
+      "x": 166,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e23",
+    "role": "StaticText",
+    "value": "iOS 26.0"
+  }
+]

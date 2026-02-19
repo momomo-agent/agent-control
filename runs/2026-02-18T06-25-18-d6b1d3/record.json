@@ -1,0 +1,79 @@
+{
+  "runId": "2026-02-18T06-25-18-d6b1d3",
+  "platform": "ios",
+  "name": "settings-nav",
+  "status": "failed",
+  "startMs": 1771395918144,
+  "endMs": 1771395927046,
+  "durationMs": 8902,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "launch-settings",
+      "params": {},
+      "startMs": 1771395918150,
+      "endMs": 1771395923575,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 1,
+      "action": "snapshot",
+      "params": {},
+      "startMs": 1771395923575,
+      "endMs": 1771395926137,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [
+        "step-1-snapshot.json"
+      ],
+      "retries": 0,
+      "result": {
+        "count": 12
+      }
+    },
+    {
+      "idx": 2,
+      "action": "screenshot",
+      "params": {
+        "label": "initial"
+      },
+      "startMs": 1771395926137,
+      "endMs": 1771395927045,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 3,
+      "action": "tap-general",
+      "params": {
+        "ref": null
+      },
+      "startMs": 1771395927046,
+      "endMs": 1771395927046,
+      "status": "failed",
+      "failureTag": "NOT_FOUND",
+      "failureMsg": "General not found",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "failureTags": {
+      "NOT_FOUND": 1
+    },
+    "totalMs": 8902
+  }
+}

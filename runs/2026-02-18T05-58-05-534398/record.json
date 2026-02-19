@@ -1,0 +1,159 @@
+{
+  "runId": "2026-02-18T05-58-05-534398",
+  "platform": "ios",
+  "name": "settings-nav",
+  "status": "failed",
+  "startMs": 1771394285824,
+  "endMs": 1771394302652,
+  "durationMs": 16828,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "launch-settings",
+      "params": {},
+      "startMs": 1771394285840,
+      "endMs": 1771394288752,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 1,
+      "action": "snapshot",
+      "params": {},
+      "startMs": 1771394288752,
+      "endMs": 1771394290710,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [
+        "step-1-snapshot.json"
+      ],
+      "retries": 0,
+      "result": {
+        "count": 11
+      }
+    },
+    {
+      "idx": 2,
+      "action": "screenshot",
+      "params": {
+        "label": "initial"
+      },
+      "startMs": 1771394290710,
+      "endMs": 1771394292056,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T05-58-05-534398/artifacts/step-2-initial.png"
+      }
+    },
+    {
+      "idx": 3,
+      "action": "tap-general",
+      "params": {
+        "ref": "@e2"
+      },
+      "startMs": 1771394292057,
+      "endMs": 1771394294009,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "action": "tap",
+        "ref": "@e2"
+      }
+    },
+    {
+      "idx": 4,
+      "action": "verify-general",
+      "params": {},
+      "startMs": 1771394295011,
+      "endMs": 1771394296961,
+      "status": "failed",
+      "failureTag": "ASSERT_FAIL",
+      "failureMsg": "About not found in General",
+      "artifacts": [
+        "step-4-general-snapshot.json"
+      ],
+      "retries": 0
+    },
+    {
+      "idx": 5,
+      "action": "screenshot",
+      "params": {
+        "label": "general"
+      },
+      "startMs": 1771394296961,
+      "endMs": 1771394298061,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T05-58-05-534398/artifacts/step-5-general.png"
+      }
+    },
+    {
+      "idx": 6,
+      "action": "swipe-down",
+      "params": {},
+      "startMs": 1771394298061,
+      "endMs": 1771394299429,
+      "status": "failed",
+      "failureTag": "DRIVER_ERROR",
+      "artifacts": [],
+      "retries": 0
+    },
+    {
+      "idx": 7,
+      "action": "go-back",
+      "params": {},
+      "startMs": 1771394299931,
+      "endMs": 1771394301510,
+      "status": "failed",
+      "failureTag": "NOT_FOUND",
+      "failureMsg": "back button not found",
+      "artifacts": [],
+      "retries": 0
+    },
+    {
+      "idx": 8,
+      "action": "screenshot",
+      "params": {
+        "label": "final"
+      },
+      "startMs": 1771394301510,
+      "endMs": 1771394302652,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T05-58-05-534398/artifacts/step-8-final.png"
+      }
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 6,
+    "failed": 3,
+    "failureTags": {
+      "ASSERT_FAIL": 1,
+      "DRIVER_ERROR": 1,
+      "NOT_FOUND": 1
+    },
+    "totalMs": 16828
+  }
+}

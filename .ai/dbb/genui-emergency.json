@@ -1,0 +1,18 @@
+{
+  "id": "genui-emergency",
+  "name": "GenUI — 紧急场景（osHandles 快速响应）",
+  "platform": "web",
+  "target": { "url": "http://localhost:3000" },
+  "steps": [
+    { "action": "open http://localhost:3000", "description": "打开页面", "wait": 3 },
+    { "action": "snapshot -i", "description": "初始状态" },
+    { "action": "fill @e1 手机快没电了，帮我找最近的充电宝租借点，我在国贸地铁站", "description": "意图：紧急+位置相关", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看快速响应 UI" },
+    { "action": "screenshot /tmp/genui-emergency-1.png", "description": "截图" },
+    { "action": "fill @e1 算了不借了，帮我叫个出租车回家，家在望京SOHO", "description": "意图切换：放弃原意图，新需求", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看打车 UI" },
+    { "action": "screenshot /tmp/genui-emergency-2.png", "description": "截图打车界面" }
+  ]
+}

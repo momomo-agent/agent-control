@@ -1,0 +1,24 @@
+{
+  "name": "flowlab-signup",
+  "platform": "web",
+  "steps": [
+    { "action": "open", "url": "$FLOWLAB" },
+    { "action": "snapshot" },
+    { "action": "screenshot", "label": "initial" },
+    { "action": "fill", "find": ["text"], "value": "Test User", "retry": true },
+    { "action": "fill", "find": ["email"], "value": "test@flowlab.dev", "retry": true },
+    { "action": "fill", "find": ["password"], "value": "Test1234!", "retry": true },
+    { "action": "select", "find": ["select-one", "select"], "value": "developer", "retry": true },
+    { "action": "click", "find": ["checkbox"], "retry": true },
+    { "action": "click", "find": ["Sign Up", "submit"] },
+    { "action": "wait", "ms": 1500 },
+    { "action": "verify", "find": ["Dashboard", "Welcome", "logout", "Log out"] },
+    { "action": "screenshot", "label": "logged-in" },
+    { "action": "click", "find": ["Add", "New", "add-item", "new-item"] },
+    { "action": "fill", "find": ["text", "title"], "value": "Agent Test Item" },
+    { "action": "click", "find": ["Save", "save", "submit"] },
+    { "action": "wait", "ms": 500 },
+    { "action": "verify", "find": ["Agent Test Item"] },
+    { "action": "screenshot", "label": "final" }
+  ]
+}

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowLab — Agent Test Target</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f7;color:#1d1d1f;min-height:100vh}
+.page{max-width:480px;margin:0 auto;padding:24px}
+h1{font-size:24px;margin-bottom:8px}
+.subtitle{color:#86868b;margin-bottom:24px;font-size:14px}
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+label{display:block;font-size:13px;color:#86868b;margin-bottom:4px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:15px;margin-bottom:12px;outline:none;transition:border .2s}
+input:focus,select:focus,textarea:focus{border-color:#0071e3}
+button{padding:10px 20px;border:none;border-radius:8px;font-size:15px;cursor:pointer;transition:opacity .2s}
+button:hover{opacity:.85}
+.btn-primary{background:#0071e3;color:#fff;width:100%}
+.btn-secondary{background:#e8e8ed;color:#1d1d1f}
+.btn-danger{background:#ff3b30;color:#fff}
+.btn-small{padding:6px 12px;font-size:13px}
+.checkbox-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.checkbox-row input{width:auto;margin:0}
+.toast{position:fixed;top:20px;right:20px;background:#1d1d1f;color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:50}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:24px;width:90%;max-width:400px}
+.modal h2{font-size:18px;margin-bottom:12px}
+.item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0f0f0}
+.item:last-child{border:none}
+.item-title{font-size:15px}
+.item-actions{display:flex;gap:8px}
+.hidden{display:none}
+.error{color:#ff3b30;font-size:13px;margin-bottom:8px}
+.loading{text-align:center;padding:20px;color:#86868b}
+.scroll-area{max-height:300px;overflow-y:auto}
+nav{display:flex;gap:8px;margin-bottom:16px}
+nav button{flex:1}
+</style>
+</head>
+<body>
+
+<div class="page">
+<h1>FlowLab</h1>
+<p class="subtitle">Agent Control Test Target</p>
+
+<!-- Auth Section -->
+<div id="auth-section">
+  <div class="card" id="signup-card">
+    <h2 style="font-size:18px;margin-bottom:16px">Sign Up</h2>
+    <label for="signup-name">Name</label>
+    <input id="signup-name" type="text" placeholder="Your name">
+    <label for="signup-email">Email</label>
+    <input id="signup-email" type="email" placeholder="you@example.com">
+    <label for="signup-password">Password</label>
+    <input id="signup-password" type="password" placeholder="••••••••">
+    <label for="signup-role">Role</label>
+    <select id="signup-role">
+      <option value="">Select role...</option>
+      <option value="developer">Developer</option>
+      <option value="designer">Designer</option>
+      <option value="manager">Manager</option>
+    </select>
+    <div class="checkbox-row">
+      <input id="signup-terms" type="checkbox">
+      <label for="signup-terms" style="margin:0">I agree to the terms</label>
+    </div>
+    <div id="signup-error" class="error hidden"></div>
+    <button class="btn-primary" id="signup-btn">Create Account</button>
+    <p style="text-align:center;margin-top:12px;font-size:13px;color:#86868b">
+      Already have an account? <a href="#" id="show-login">Log in</a>
+    </p>
+  </div>
+
+  <div class="card hidden" id="login-card">
+    <h2 style="font-size:18px;margin-bottom:16px">Log In</h2>
+    <label for="login-email">Email</label>
+    <input id="login-email" type="email" placeholder="you@example.com">
+    <label for="login-password">Password</label>
+    <input id="login-password" type="password" placeholder="••••••••">
+    <div id="login-error" class="error hidden"></div>
+    <button class="btn-primary" id="login-btn">Log In</button>
+    <p style="text-align:center;margin-top:12px;font-size:13px;color:#86868b">
+      No account? <a href="#" id="show-signup">Sign up</a>
+    </p>
+  </div>
+</div>
+
+<!-- App Section (after login) -->
+<div id="app-section" class="hidden">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <span id="welcome-msg" style="font-size:15px"></span>
+    <button class="btn-secondary btn-small" id="logout-btn">Log out</button>
+  </div>
+
+  <nav>
+    <button class="btn-primary btn-small" id="add-item-btn">+ New Item</button>
+  </nav>
+
+  <div class="card">
+    <div id="items-list"><p class="loading">No items yet</p></div>
+  </div>
+
+  <div class="card scroll-area" id="long-list">
+    <h3 style="font-size:15px;margin-bottom:8px">Scroll Test (50 rows)</h3>
+  </div>
+</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Modal: New/Edit Item -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modal-title">New Item</h2>
+    <label for="item-title">Title</label>
+    <input id="item-title" type="text" placeholder="Item title">
+    <label for="item-desc">Description</label>
+    <textarea id="item-desc" rows="3" placeholder="Optional description"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn-primary" id="modal-save" style="flex:1">Save</button>
+      <button class="btn-secondary" id="modal-cancel" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <h2>Delete Item?</h2>
+    <p style="margin:12px 0;color:#86868b;font-size:14px">This action cannot be undone.</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn-danger" id="confirm-yes" style="flex:1">Delete</button>
+      <button class="btn-secondary" id="confirm-no" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

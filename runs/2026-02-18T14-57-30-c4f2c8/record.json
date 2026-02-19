@@ -1,0 +1,254 @@
+{
+  "runId": "2026-02-18T14-57-30-c4f2c8",
+  "platform": "ios",
+  "name": "settings-nav",
+  "status": "passed",
+  "resumedFrom": null,
+  "startMs": 1771426650279,
+  "endMs": 1771426669900,
+  "durationMs": 19621,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "setup",
+      "params": {},
+      "startMs": 1771426650285,
+      "endMs": 1771426657695,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 1,
+      "action": "snapshot-0",
+      "params": {
+        "action": "snapshot"
+      },
+      "startMs": 1771426657695,
+      "endMs": 1771426662144,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "snap": [
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 640,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e8",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 686,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e9",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 663,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e10",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 52,
+              "w": 225,
+              "x": 714,
+              "y": 45
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e11",
+            "role": "StaticText",
+            "value": "iPhone 16 Pro Max"
+          },
+          {
+            "frame": {
+              "h": 52,
+              "w": 225,
+              "x": 714,
+              "y": 45
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e12",
+            "role": "StaticText",
+            "value": "iOS 26.0"
+          }
+        ]
+      }
+    },
+    {
+      "idx": 2,
+      "action": "screenshot-initial",
+      "params": {
+        "action": "screenshot",
+        "label": "initial"
+      },
+      "startMs": 1771426662144,
+      "endMs": 1771426663477,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T14-57-30-c4f2c8/artifacts/initial.png"
+      }
+    },
+    {
+      "idx": 3,
+      "action": "click-2",
+      "params": {
+        "action": "click",
+        "find": [
+          "通用",
+          "General"
+        ],
+        "retry": true
+      },
+      "startMs": 1771426663478,
+      "endMs": 1771426664984,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 4,
+      "action": "wait-3",
+      "params": {
+        "action": "wait",
+        "ms": 2000
+      },
+      "startMs": 1771426664984,
+      "endMs": 1771426666985,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 5,
+      "action": "verify-4",
+      "params": {
+        "action": "verify",
+        "find": [
+          "关于本机",
+          "About"
+        ]
+      },
+      "startMs": 1771426666985,
+      "endMs": 1771426667713,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 6,
+      "action": "screenshot-general",
+      "params": {
+        "action": "screenshot",
+        "label": "general"
+      },
+      "startMs": 1771426667713,
+      "endMs": 1771426668357,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T14-57-30-c4f2c8/artifacts/general.png"
+      }
+    },
+    {
+      "idx": 7,
+      "action": "click-6",
+      "params": {
+        "action": "click",
+        "find": [
+          "设置",
+          "Back",
+          "返回"
+        ],
+        "retry": true
+      },
+      "startMs": 1771426668357,
+      "endMs": 1771426668981,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 8,
+      "action": "screenshot-final",
+      "params": {
+        "action": "screenshot",
+        "label": "final"
+      },
+      "startMs": 1771426668981,
+      "endMs": 1771426669894,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T14-57-30-c4f2c8/artifacts/final.png"
+      }
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "failureTags": {},
+    "totalMs": 19621
+  }
+}

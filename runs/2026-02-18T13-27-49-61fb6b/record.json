@@ -1,0 +1,454 @@
+{
+  "runId": "2026-02-18T13-27-49-61fb6b",
+  "platform": "web",
+  "name": "flowlab-signup",
+  "status": "failed",
+  "resumedFrom": null,
+  "startMs": 1771421269342,
+  "endMs": 1771421272924,
+  "durationMs": 3582,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "open-0",
+      "params": {
+        "action": "open",
+        "url": "$FLOWLAB"
+      },
+      "startMs": 1771421269372,
+      "endMs": 1771421270480,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 1,
+      "action": "snapshot-1",
+      "params": {
+        "action": "snapshot"
+      },
+      "startMs": 1771421270480,
+      "endMs": 1771421270499,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "snap": [
+          {
+            "ref": "@e1",
+            "role": "text",
+            "tag": "input",
+            "label": "",
+            "value": "",
+            "name": "",
+            "x": 444,
+            "y": 178,
+            "w": 392,
+            "h": 39
+          },
+          {
+            "ref": "@e2",
+            "role": "email",
+            "tag": "input",
+            "label": "",
+            "value": "",
+            "name": "",
+            "x": 444,
+            "y": 249,
+            "w": 392,
+            "h": 39
+          },
+          {
+            "ref": "@e3",
+            "role": "password",
+            "tag": "input",
+            "label": "",
+            "value": "",
+            "name": "",
+            "x": 444,
+            "y": 320,
+            "w": 392,
+            "h": 39
+          },
+          {
+            "ref": "@e4",
+            "role": "select-one",
+            "tag": "select",
+            "label": "Select role...\n      Developer\n      Designer\n      Manager",
+            "value": "",
+            "name": "",
+            "x": 444,
+            "y": 391,
+            "w": 392,
+            "h": 41
+          },
+          {
+            "ref": "@e5",
+            "role": "checkbox",
+            "tag": "input",
+            "label": "",
+            "value": "on",
+            "name": "",
+            "x": 444,
+            "y": 446,
+            "w": 13,
+            "h": 13
+          },
+          {
+            "ref": "@e6",
+            "role": "submit",
+            "tag": "button",
+            "label": "Create Account",
+            "value": "",
+            "name": "",
+            "x": 444,
+            "y": 472,
+            "w": 392,
+            "h": 37
+          },
+          {
+            "ref": "@e7",
+            "role": "a",
+            "tag": "a",
+            "label": "Log in",
+            "value": "",
+            "name": "",
+            "x": 701,
+            "y": 521,
+            "w": 37,
+            "h": 16
+          }
+        ]
+      }
+    },
+    {
+      "idx": 2,
+      "action": "screenshot-initial",
+      "params": {
+        "action": "screenshot",
+        "label": "initial"
+      },
+      "startMs": 1771421270499,
+      "endMs": 1771421270587,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T13-27-49-61fb6b/artifacts/initial.png"
+      }
+    },
+    {
+      "idx": 3,
+      "action": "fill-3",
+      "params": {
+        "action": "fill",
+        "find": [
+          "text"
+        ],
+        "value": "Test User",
+        "retry": true
+      },
+      "startMs": 1771421270587,
+      "endMs": 1771421270618,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 4,
+      "action": "fill-4",
+      "params": {
+        "action": "fill",
+        "find": [
+          "email"
+        ],
+        "value": "test@flowlab.dev",
+        "retry": true
+      },
+      "startMs": 1771421270618,
+      "endMs": 1771421270656,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 5,
+      "action": "fill-5",
+      "params": {
+        "action": "fill",
+        "find": [
+          "password"
+        ],
+        "value": "Test1234!",
+        "retry": true
+      },
+      "startMs": 1771421270656,
+      "endMs": 1771421270736,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 6,
+      "action": "select-6",
+      "params": {
+        "action": "select",
+        "find": [
+          "select-one",
+          "select"
+        ],
+        "value": "developer",
+        "retry": true
+      },
+      "startMs": 1771421270736,
+      "endMs": 1771421270767,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 7,
+      "action": "click-7",
+      "params": {
+        "action": "click",
+        "find": [
+          "checkbox"
+        ],
+        "retry": true
+      },
+      "startMs": 1771421270767,
+      "endMs": 1771421270786,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 8,
+      "action": "click-8",
+      "params": {
+        "action": "click",
+        "find": [
+          "Sign Up",
+          "submit"
+        ]
+      },
+      "startMs": 1771421270786,
+      "endMs": 1771421270812,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 9,
+      "action": "wait-9",
+      "params": {
+        "action": "wait",
+        "ms": 1500
+      },
+      "startMs": 1771421270812,
+      "endMs": 1771421272315,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 10,
+      "action": "verify-10",
+      "params": {
+        "action": "verify",
+        "find": [
+          "Dashboard",
+          "Welcome",
+          "logout",
+          "Log out"
+        ]
+      },
+      "startMs": 1771421272315,
+      "endMs": 1771421272318,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 11,
+      "action": "screenshot-logged-in",
+      "params": {
+        "action": "screenshot",
+        "label": "logged-in"
+      },
+      "startMs": 1771421272318,
+      "endMs": 1771421272368,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T13-27-49-61fb6b/artifacts/logged-in.png"
+      }
+    },
+    {
+      "idx": 12,
+      "action": "click-12",
+      "params": {
+        "action": "click",
+        "find": [
+          "Add",
+          "New",
+          "add-item",
+          "new-item"
+        ]
+      },
+      "startMs": 1771421272368,
+      "endMs": 1771421272380,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 13,
+      "action": "fill-13",
+      "params": {
+        "action": "fill",
+        "find": [
+          "text",
+          "title"
+        ],
+        "value": "Agent Test Item"
+      },
+      "startMs": 1771421272380,
+      "endMs": 1771421272408,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 14,
+      "action": "click-14",
+      "params": {
+        "action": "click",
+        "find": [
+          "Save",
+          "save",
+          "submit"
+        ]
+      },
+      "startMs": 1771421272408,
+      "endMs": 1771421272418,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 15,
+      "action": "wait-15",
+      "params": {
+        "action": "wait",
+        "ms": 500
+      },
+      "startMs": 1771421272418,
+      "endMs": 1771421272921,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 16,
+      "action": "verify-16",
+      "params": {
+        "action": "verify",
+        "find": [
+          "Agent Test Item"
+        ]
+      },
+      "startMs": 1771421272921,
+      "endMs": 1771421272924,
+      "status": "failed",
+      "failureTag": "ASSERT_FAIL",
+      "failureMsg": "Agent Test Item not found",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 17,
+    "passed": 16,
+    "failed": 1,
+    "failureTags": {
+      "ASSERT_FAIL": 1
+    },
+    "totalMs": 3582
+  }
+}

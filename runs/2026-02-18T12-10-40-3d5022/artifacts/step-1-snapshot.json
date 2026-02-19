@@ -1,0 +1,808 @@
+[
+  {
+    "frame": {
+      "h": 36,
+      "w": 18,
+      "x": 74,
+      "y": 303
+    },
+    "interactive": true,
+    "label": "Action",
+    "ref": "@e1",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 66,
+      "w": 18,
+      "x": 74,
+      "y": 364
+    },
+    "interactive": true,
+    "label": "Volume Up",
+    "ref": "@e2",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 66,
+      "w": 18,
+      "x": 74,
+      "y": 443
+    },
+    "interactive": true,
+    "label": "Volume Down",
+    "ref": "@e3",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 103,
+      "w": 18,
+      "x": 512,
+      "y": 405
+    },
+    "interactive": true,
+    "label": "Sleep/Wake",
+    "ref": "@e4",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 64,
+      "w": 90,
+      "x": 141,
+      "y": 222
+    },
+    "interactive": true,
+    "label": "20:10",
+    "ref": "@e5",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 21,
+      "w": 140,
+      "x": 141,
+      "y": 300
+    },
+    "interactive": true,
+    "label": "辛苦了，该休息了",
+    "ref": "@e6",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 19,
+      "w": 43,
+      "x": 149,
+      "y": 187
+    },
+    "interactive": true,
+    "label": "20:10",
+    "ref": "@e7",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 18,
+      "x": 389,
+      "y": 191
+    },
+    "interactive": true,
+    "label": "cellularbars",
+    "ref": "@e8",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 11,
+      "w": 16,
+      "x": 415,
+      "y": 191
+    },
+    "interactive": true,
+    "label": "Wi-Fi",
+    "ref": "@e9",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 16,
+      "w": 35,
+      "x": 441,
+      "y": 189
+    },
+    "interactive": true,
+    "label": "battery.100",
+    "ref": "@e10",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 19,
+      "w": 32,
+      "x": 208,
+      "y": 236
+    },
+    "interactive": true,
+    "label": "关注",
+    "ref": "@e11",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 19,
+      "w": 32,
+      "x": 264,
+      "y": 236
+    },
+    "interactive": true,
+    "label": "发现",
+    "ref": "@e12",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 19,
+      "w": 32,
+      "x": 320,
+      "y": 236
+    },
+    "interactive": true,
+    "label": "北京",
+    "ref": "@e13",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 23,
+      "w": 44,
+      "x": 447,
+      "y": 234
+    },
+    "interactive": true,
+    "label": "Search",
+    "ref": "@e14",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 40,
+      "w": 78,
+      "x": 109,
+      "y": 954
+    },
+    "interactive": true,
+    "label": "首页",
+    "ref": "@e15",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 39,
+      "w": 78,
+      "x": 187,
+      "y": 954
+    },
+    "interactive": true,
+    "label": "市集",
+    "ref": "@e16",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 35,
+      "w": 48,
+      "x": 278,
+      "y": 956
+    },
+    "interactive": true,
+    "label": "Add",
+    "ref": "@e17",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 39,
+      "w": 78,
+      "x": 338,
+      "y": 954
+    },
+    "interactive": true,
+    "label": "消息",
+    "ref": "@e18",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 61,
+      "w": 86,
+      "x": 148,
+      "y": 260
+    },
+    "interactive": true,
+    "label": "20:10",
+    "ref": "@e19",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 20,
+      "w": 133,
+      "x": 148,
+      "y": 333
+    },
+    "interactive": true,
+    "label": "辛苦了，该休息了",
+    "ref": "@e20",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 186,
+      "w": 132,
+      "x": 138,
+      "y": 440
+    },
+    "interactive": true,
+    "label": "卡片 继续聊 刚才聊到一半",
+    "ref": "@e21",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 266,
+      "w": 129,
+      "x": 240,
+      "y": 381
+    },
+    "interactive": true,
+    "label": "卡片 小红书 看看有什么新的",
+    "ref": "@e22",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 279,
+      "w": 164,
+      "x": 321,
+      "y": 394
+    },
+    "interactive": true,
+    "label": "卡片 飞书 工作消息",
+    "ref": "@e23",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 182,
+      "w": 125,
+      "x": 441,
+      "y": 423
+    },
+    "interactive": true,
+    "label": "卡片 微信 有人找你",
+    "ref": "@e24",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 21,
+      "w": 88,
+      "x": 148,
+      "y": 685
+    },
+    "interactive": true,
+    "label": "你可能要用",
+    "ref": "@e25",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 95,
+      "w": 66,
+      "x": 144,
+      "y": 736
+    },
+    "interactive": true,
+    "label": "微信",
+    "ref": "@e26",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 95,
+      "w": 66,
+      "x": 231,
+      "y": 736
+    },
+    "interactive": true,
+    "label": "抖音",
+    "ref": "@e27",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 95,
+      "w": 66,
+      "x": 319,
+      "y": 736
+    },
+    "interactive": true,
+    "label": "小红书",
+    "ref": "@e28",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 95,
+      "w": 66,
+      "x": 406,
+      "y": 736
+    },
+    "interactive": true,
+    "label": "哔哩哔哩",
+    "ref": "@e29",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 56,
+      "w": 200,
+      "x": 202,
+      "y": 960
+    },
+    "interactive": true,
+    "label": "SayBar 静默",
+    "ref": "@e30",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 37,
+      "w": 78,
+      "x": 416,
+      "y": 955
+    },
+    "interactive": true,
+    "label": "我",
+    "ref": "@e31",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 11,
+      "w": 10,
+      "x": 263,
+      "y": 301
+    },
+    "interactive": true,
+    "label": "Play",
+    "ref": "@e32",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 33,
+      "w": 167,
+      "x": 314,
+      "y": 451
+    },
+    "interactive": true,
+    "label": "文件堆成山？用它秒变知识管理大师！",
+    "ref": "@e33",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 76,
+      "x": 336,
+      "y": 496
+    },
+    "interactive": true,
+    "label": "学术女工于发发",
+    "ref": "@e34",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 10,
+      "w": 11,
+      "x": 441,
+      "y": 497
+    },
+    "interactive": true,
+    "label": "Love",
+    "ref": "@e35",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 29,
+      "x": 458,
+      "y": 496
+    },
+    "interactive": true,
+    "label": "1,333",
+    "ref": "@e36",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 33,
+      "w": 167,
+      "x": 117,
+      "y": 511
+    },
+    "interactive": true,
+    "label": "全钛的日风眼镜，超级轻超级有型",
+    "ref": "@e37",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 76,
+      "x": 139,
+      "y": 556
+    },
+    "interactive": true,
+    "label": "金盛锡 SHINES",
+    "ref": "@e38",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 9,
+      "w": 11,
+      "x": 266,
+      "y": 557
+    },
+    "interactive": true,
+    "label": "Love",
+    "ref": "@e39",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 7,
+      "x": 283,
+      "y": 556
+    },
+    "interactive": true,
+    "label": "2",
+    "ref": "@e40",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 11,
+      "w": 10,
+      "x": 460,
+      "y": 552
+    },
+    "interactive": true,
+    "label": "Play",
+    "ref": "@e41",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 33,
+      "w": 167,
+      "x": 314,
+      "y": 723
+    },
+    "interactive": true,
+    "label": "我用 Gemini 3 写的塔罗牌 v2.0（已开源）",
+    "ref": "@e42",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 28,
+      "x": 336,
+      "y": 767
+    },
+    "interactive": true,
+    "label": "Ricky",
+    "ref": "@e43",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 10,
+      "w": 11,
+      "x": 449,
+      "y": 769
+    },
+    "interactive": true,
+    "label": "Love",
+    "ref": "@e44",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 21,
+      "x": 466,
+      "y": 767
+    },
+    "interactive": true,
+    "label": "353",
+    "ref": "@e45",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 17,
+      "w": 155,
+      "x": 117,
+      "y": 803
+    },
+    "interactive": true,
+    "label": "兴安岭 brunch 盘 新开窑",
+    "ref": "@e46",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 11,
+      "w": 10,
+      "x": 460,
+      "y": 824
+    },
+    "interactive": true,
+    "label": "Play",
+    "ref": "@e47",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 78,
+      "x": 139,
+      "y": 831
+    },
+    "interactive": true,
+    "label": "PiGoo 手作瓷器",
+    "ref": "@e48",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 10,
+      "w": 11,
+      "x": 243,
+      "y": 832
+    },
+    "interactive": true,
+    "label": "Love",
+    "ref": "@e49",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 30,
+      "x": 259,
+      "y": 831
+    },
+    "interactive": true,
+    "label": "2,536",
+    "ref": "@e50",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 17,
+      "w": 166,
+      "x": 314,
+      "y": 1025
+    },
+    "interactive": true,
+    "label": "山谷里的晨雾｜无人机视角",
+    "ref": "@e51",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 33,
+      "w": 167,
+      "x": 117,
+      "y": 1048
+    },
+    "interactive": true,
+    "label": "冬日拿铁日记：奶泡如何更细腻",
+    "ref": "@e52",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 56,
+      "x": 336,
+      "y": 1052
+    },
+    "interactive": true,
+    "label": "CloudWalk",
+    "ref": "@e53",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 10,
+      "w": 11,
+      "x": 441,
+      "y": 1054
+    },
+    "interactive": true,
+    "label": "Love",
+    "ref": "@e54",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 29,
+      "x": 458,
+      "y": 1052
+    },
+    "interactive": true,
+    "label": "1,280",
+    "ref": "@e55",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 44,
+      "x": 139,
+      "y": 1092
+    },
+    "interactive": true,
+    "label": "浅烘手冲",
+    "ref": "@e56",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 10,
+      "w": 11,
+      "x": 252,
+      "y": 1094
+    },
+    "interactive": true,
+    "label": "Love",
+    "ref": "@e57",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 13,
+      "w": 21,
+      "x": 269,
+      "y": 1092
+    },
+    "interactive": true,
+    "label": "842",
+    "ref": "@e58",
+    "role": "StaticText"
+  },
+  {
+    "frame": {
+      "h": 1065,
+      "w": 489,
+      "x": 60,
+      "y": 73
+    },
+    "interactive": true,
+    "label": "WallpaperAmber",
+    "ref": "@e59",
+    "role": "Image"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 45,
+      "x": 389,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "Home",
+    "ref": "@e60",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 43,
+      "x": 434,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "Save Screen",
+    "ref": "@e61",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 41,
+      "x": 477,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "Rotate",
+    "ref": "@e62",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 16,
+      "w": 16,
+      "x": 92,
+      "y": 100
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e63",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 16,
+      "w": 16,
+      "x": 138,
+      "y": 100
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e64",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 16,
+      "w": 16,
+      "x": 115,
+      "y": 100
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e65",
+    "role": "Button"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 215,
+      "x": 166,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e66",
+    "role": "StaticText",
+    "value": "iPhone 16 Pro"
+  },
+  {
+    "frame": {
+      "h": 52,
+      "w": 215,
+      "x": 166,
+      "y": 82
+    },
+    "interactive": true,
+    "label": "",
+    "ref": "@e67",
+    "role": "StaticText",
+    "value": "iOS 26.0"
+  }
+]

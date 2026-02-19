@@ -2,7 +2,7 @@
   "id": "MACOS-001",
   "name": "macOS 基础操作验证",
   "platform": "macos",
-  "target": {"app": "Finder"},
+  "target": {"app": "Calculator"},
   "steps": [
     {
       "description": "截取 Finder 快照",

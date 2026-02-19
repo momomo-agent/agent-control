@@ -5,6 +5,7 @@
 
 const { execSync, spawnSync } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
 // ── Find booted simulator ──
 function getBootedUDID() {
@@ -88,10 +89,75 @@ function refToPoint(ref, elements) {
   return { x: el.frame.x + el.frame.w / 2, y: el.frame.y + el.frame.h / 2 };
 }
 
+// ── Simulator window tap via macOS AX (most reliable on iOS 26+) ──
+function getSimPID() {
+  try {
+    return execSync('pgrep -x Simulator', { encoding: 'utf8', timeout: 2000 }).trim().split('\n')[0];
+  } catch { return null; }
+}
+
+function tapViaMacOSDriver(ref) {
+  const simPID = getSimPID();
+  if (!simPID) return false;
+  const macBin = path.join(__dirname, '..', 'macos-driver', '.build', 'debug', 'agent-control');
+  if (!fs.existsSync(macBin)) return false;
+  const r = spawnSync(macBin, ['click', ref, '--pid', simPID], { encoding: 'utf8', timeout: 5000 });
+  return r.status === 0;
+}
+
+function snapshotViaMacOS(interactiveOnly) {
+  const simPID = getSimPID();
+  if (!simPID) return null;
+  // Activate Simulator to ensure AX tree has app content
+  try { execSync('osascript -e \'tell application "Simulator" to activate\'', { timeout: 3000 }); } catch {}
+  const macBin = path.join(__dirname, '..', 'macos-driver', '.build', 'debug', 'agent-control');
+  if (!fs.existsSync(macBin)) return null;
+
+  function doSnap() {
+    const a = interactiveOnly ? ['snapshot', '-i', '--pid', simPID] : ['snapshot', '--pid', simPID];
+    const r = spawnSync(macBin, a, { encoding: 'utf8', timeout: 15000 });
+    try {
+      const els = JSON.parse(r.stdout);
+      const chromeLabels = ['Action', 'Volume Up', 'Volume Down', 'Sleep/Wake', 'Ring/Silent', 'Home', 'Save Screen', 'Rotate'];
+      const filtered = els.filter(e => !chromeLabels.includes(e.label));
+      return filtered.map((e, i) => ({ ...e, _macRef: e.ref, ref: `@e${i + 1}` }));
+    } catch { return []; }
+  }
+
+  let result = doSnap();
+  // Retry once if too few elements (focus may not have switched)
+  if (result.length < 3) {
+    spawnSync('sleep', ['0.5']);
+    try { execSync('osascript -e \'tell application "Simulator" to activate\'', { timeout: 3000 }); } catch {}
+    result = doSnap();
+  }
+  return result.length > 0 ? result : null;
+}
+
+// Map iOS @ref back to macOS @ref for tap (persisted across CLI calls)
+const MAC_SNAP_FILE = '/tmp/agent-control-ios-macsnap.json';
+function loadMacSnap() { try { return JSON.parse(fs.readFileSync(MAC_SNAP_FILE, 'utf8')); } catch { return null; } }
+function saveMacSnap(snap) { try { fs.writeFileSync(MAC_SNAP_FILE, JSON.stringify(snap)); } catch {} }
+let _lastMacSnap = loadMacSnap();
+
 // ── Actions ──
 function tap(x, y) {
+  // idb tap (may not work on iOS 26+)
   return spawnSync('idb', ['ui', 'tap', String(Math.round(x)), String(Math.round(y)), '--udid', UDID],
     { encoding: 'utf8', timeout: 5000 }).status === 0;
+}
+
+function tapByRef(ref) {
+  // Look up macOS ref from last snapshot
+  if (_lastMacSnap) {
+    const el = _lastMacSnap.find(e => e.ref === ref);
+    if (el && el._macRef && tapViaMacOSDriver(el._macRef)) return true;
+  }
+  // Fallback: idb coordinate tap
+  const els = snapshot(false);
+  const pt = refToPoint(ref, els);
+  if (!pt) return false;
+  return tap(pt.x, pt.y);
 }
 
 function typeText(text) {
@@ -140,10 +206,23 @@ let result;
 try {
   switch (cmd) {
     case 'snapshot': {
-      result = snapshot(args.includes('-i'));
+      const macSnap = snapshotViaMacOS(args.includes('-i'));
+      if (macSnap && macSnap.length > 0) {
+        _lastMacSnap = macSnap;
+        saveMacSnap(macSnap);
+        result = macSnap;
+      } else {
+        result = snapshot(args.includes('-i'));
+      }
       break;
     }
     case 'tap': case 'click': {
+      if (tapByRef(args[1])) {
+        result = { ok: true, action: 'tap', ref: args[1] };
+        _cachedElements = null;
+        _lastMacSnap = null;
+        break;
+      }
       const els = snapshot(false);
       const pt = refToPoint(args[1], els);
       if (!pt) { result = { ok: false, error: `${args[1]} not found` }; break; }

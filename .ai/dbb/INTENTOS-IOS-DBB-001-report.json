@@ -1,0 +1,121 @@
+{
+  "id": "INTENTOS-IOS-DBB-001",
+  "name": "IntentOS iOS DBB — state deep links + screenshots",
+  "platform": "ios",
+  "timestamp": "2026-02-18T04:53:03.752Z",
+  "pass": true,
+  "steps": [
+    {
+      "step": 1,
+      "action": "openurl intentos://state/home",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 2,
+      "action": "screenshot /tmp/intentos-01-home.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 3,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 4,
+      "action": "openurl intentos://state/vibe_dialog_keyboard",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 5,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 6,
+      "action": "screenshot /tmp/intentos-02-saybar-keyboard.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 7,
+      "action": "openurl intentos://state/vibe_thoughts",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 8,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 9,
+      "action": "screenshot /tmp/intentos-03-thoughts.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 10,
+      "action": "openurl intentos://state/notification",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 11,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 12,
+      "action": "screenshot /tmp/intentos-04-notification.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 13,
+      "action": "openurl intentos://state/app",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 14,
+      "action": "screenshot /tmp/intentos-05-app.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 15,
+      "action": "openurl intentos://state/app_noti",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 16,
+      "action": "screenshot /tmp/intentos-06-app-noti.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    }
+  ]
+}

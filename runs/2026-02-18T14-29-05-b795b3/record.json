@@ -1,0 +1,33 @@
+{
+  "runId": "2026-02-18T14-29-05-b795b3",
+  "platform": "web",
+  "name": "auto:Sign up with email test@flowlab.com, nam",
+  "status": "failed",
+  "resumedFrom": null,
+  "startMs": 1771424945305,
+  "endMs": 1771424966619,
+  "durationMs": 21314,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "parse",
+      "params": {},
+      "startMs": 1771424966619,
+      "endMs": 1771424966619,
+      "status": "failed",
+      "failureTag": "ASSERT_FAIL",
+      "failureMsg": "<think>**Clarifying UI requirements**\n\nI’m recognizing that we have an interacti",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "failureTags": {
+      "ASSERT_FAIL": 1
+    },
+    "totalMs": 21314
+  }
+}

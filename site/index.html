@@ -351,14 +351,14 @@ footer .right a:hover { color: var(--accent); }
         <span class="terminal-title">agent-control — observe → act → observe</span>
       </div>
       <div class="terminal-body">
-        <div class="typing-line"><span class="comment"># 1. Look at the screen</span></div>
-        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p macos observe</span></div>
-        <div class="typing-line"><span class="output">  📸 screenshot saved &nbsp; | &nbsp; 38 elements found</span><br><span class="output">  <span class="ref">@e21</span> StaticText "README" &nbsp; <span class="ref">@e28</span> StaticText "config"</span></div>
-        <div class="typing-line"><br><span class="comment"># 2. Decide and act</span></div>
-        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p macos act-observe dblclick <span class="ref">@e21</span></span></div>
-        <div class="typing-line"><span class="output">  <span class="ok">✓</span> dblclick @e21 &nbsp; | &nbsp; title → "BrainDown — README.md"</span></div>
-        <div class="typing-line"><br><span class="comment"># 3. Goal reached ✅</span></div>
-        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p macos act screenshot</span></div>
+        <div class="typing-line"><span class="comment"># 1. See the screen</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p web -e snapshot</span></div>
+        <div class="typing-line"><span class="output">  12 interactive elements</span><br><span class="output">  <span class="ref">@e8</span> text "Name" &nbsp; <span class="ref">@e10</span> email "Email" &nbsp; <span class="ref">@e18</span> submit "Create Account"</span></div>
+        <div class="typing-line"><br><span class="comment"># 2. Act</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p web fill <span class="ref">@e8</span> "Alice"</span></div>
+        <div class="typing-line"><span class="output">  <span class="ok">✓</span> { ok: true }</span></div>
+        <div class="typing-line"><br><span class="comment"># 3. Works on macOS and iOS too</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p ios -e snapshot</span></div>
       </div>
     </div>
   </div>
@@ -415,9 +415,9 @@ footer .right a:hover { color: var(--accent); }
       </div>
       <div class="arch-card ios">
         <div class="card-platform">iOS</div>
-        <h3>idb + simctl</h3>
-        <p>Facebook's iOS Development Bridge for accessibility tree, Apple's simctl for screenshots. Tap, swipe, type on any simulator app.</p>
-        <div class="tech">idb · xcrun simctl · Accessibility</div>
+        <h3>Simulator AX</h3>
+        <p>Operates iOS Simulator through macOS Accessibility API — reads the Simulator process's AX tree to see and tap iOS elements directly.</p>
+        <div class="tech">macOS AX · xcrun simctl · Simulator</div>
       </div>
     </div>
   </div>

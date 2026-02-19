@@ -1,84 +1,135 @@
 # agent-control
 
-> One protocol, three platforms. Give AI hands.
+**Give your AI agent eyes and hands.**
 
-AI operation layer that lets agents see and interact with any app through a unified `snapshot / click / fill / drag / screenshot` interface.
+One CLI, three platforms. Your agent sees the UI, picks an element, acts on it.
 
 ```
-┌─────────────┐
-│   AI Agent   │  ← brain (you provide)
-├─────────────┤
-│ agent-control│  ← eyes + hands (this project)
-├──────┬──────┬─────┬─────────┤
-│macOS │ Web  │ iOS │ Android │
-│ AX   │Playw.│ idb │  adb    │
-└──────┴──────┴─────┴─────────┘
+agent-control -p web -e snapshot
+
+→ 12 interactive elements (5×label, 1×text, 1×email, 1×password, 1×select, 1×checkbox, 1×submit, 1×a)
+  @e8  text "Name"
+  @e10 email "Email"
+  @e12 password "Password"
+  @e18 submit "Create Account"
+
+agent-control -p web click @e18
+→ { ok: true }
 ```
 
-## Install
+<p align="center">
+  <img src="docs/demo/web-screenshot.png" width="32%" />
+  <img src="docs/demo/macos-screenshot.png" width="32%" />
+  <img src="docs/demo/ios-screenshot.png" width="32%" />
+</p>
+<p align="center"><sub>Web · macOS · iOS — same protocol, same refs, same commands</sub></p>
+
+## Why
+
+AI agents are smart but blind. They can reason, plan, and decide — but they can't see a button or click it.
+
+agent-control gives them a universal interface to any GUI:
+- **See** → `snapshot` returns interactive elements with semantic labels
+- **Act** → `click @ref` / `fill @ref "text"` / `press key`
+- **Verify** → `screenshot` captures the result
+
+No Selenium. No Appium. No platform-specific test frameworks.  
+One protocol. Three platforms. Works today.
+
+## Quick Start
 
 ```bash
-npm i -g agent-control
-```
+git clone https://github.com/momomo-agent/agent-control
+cd agent-control && npm install
 
-macOS driver requires building the Swift binary:
-```bash
-cd node_modules/agent-control/macos-driver && swift build
-```
-
-## Usage
-
-```bash
-# macOS — operate any app via Accessibility API
-agent-control -p macos --pid $(pgrep TextEdit) snapshot -i
-agent-control -p macos --pid $(pgrep TextEdit) click @e3
-agent-control -p macos --pid $(pgrep TextEdit) screenshot out.png
-
-# Web — operate any page via Playwright
+# Web (auto-starts Playwright daemon)
 agent-control -p web open https://example.com
-agent-control -p web snapshot -i
-agent-control -p web fill @e1 "hello"
-agent-control -p web screenshot out.png
+agent-control -p web -e snapshot
+agent-control -p web click @e3
 
-# iOS — operate simulator via idb
-agent-control -p ios snapshot -i
-agent-control -p ios tap @e2
-agent-control -p ios screenshot out.png
+# macOS (any app, via Accessibility API)
+agent-control -p macos --pid $(pgrep TextEdit) -e snapshot
 
-# Android — operate device/emulator via adb
-agent-control -p android snapshot -i
-agent-control -p android tap @e2
-agent-control -p android screenshot out.png
-agent-control -p android open com.android.chrome
-agent-control -p android swipe up
+# iOS Simulator (via macOS AX on Simulator process)
+agent-control -p ios -e snapshot
 ```
 
-## Unified Actions
+## Commands
 
-| Action | macOS | Web | iOS | Android |
-|--------|-------|-----|-----|---------|
-| `snapshot` | AX tree | DOM tree | idb describe-all | uiautomator dump |
-| `click` | AXPress / CGEvent | mouse.click | idb tap | adb input tap |
-| `fill` | AXSetValue / keyboard | keyboard.type | idb text | adb input text |
-| `screenshot` | screencapture -l | page.screenshot | simctl io | adb screencap + pull |
-| `drag` | CGEvent | mouse.drag | idb swipe | adb input swipe |
-| `scroll` | AXScroll | mouse.wheel | idb swipe | adb input swipe |
-| `press` | CGEvent key | keyboard.press | idb key | adb input keyevent |
+| Command | What it does |
+|---------|-------------|
+| `snapshot [-e]` | See UI elements. `-e` = enhanced (filtered + summary) |
+| `click @ref` | Click / tap |
+| `fill @ref "text"` | Clear + type |
+| `select @ref "val"` | Select dropdown (web) |
+| `press <key>` | Keyboard key |
+| `screenshot [path]` | Save PNG |
+| `open <url>` | Navigate (web) |
+| `swipe <dir>` | Swipe (iOS) |
 
-## Goal Runner
+## How It Works
 
-Observe → Decide → Act loop with visual HTML reports:
+```
+Your Agent (brain)          agent-control (eyes + hands)
+     │                              │
+     │  snapshot -e                 │
+     │─────────────────────────────→│──→ Playwright / AX API / Simulator
+     │                              │
+     │  @e8 text "Name"             │
+     │  @e10 email "Email"          │
+     │  @e18 submit "Create Account"│
+     │←─────────────────────────────│
+     │                              │
+     │  fill @e8 "Alice"            │
+     │─────────────────────────────→│
+     │  { ok: true }                │
+     │←─────────────────────────────│
+```
+
+agent-control is **not** an agent. It's the hands and eyes that any agent can use.  
+You bring the brain (Claude, GPT, Gemini, local LLM — whatever). We handle the GUI.
+
+## Platforms
+
+| Platform | Driver | Notes |
+|----------|--------|-------|
+| **Web** | Playwright | Auto-starts daemon on port 3901. Headless Chromium. |
+| **macOS** | Swift + Accessibility API | Use `--pid` to target any app. Needs Accessibility permission. |
+| **iOS** | macOS AX on Simulator | Auto-detects booted sim. Uses Simulator's accessibility tree. |
+
+## Enhanced Snapshot (`-e`)
+
+Raw snapshot returns every element. Enhanced (`-e`) filters to interactive elements and adds a semantic summary — designed for LLM consumption:
+
+```json
+{
+  "total": 118,
+  "interactive": 4,
+  "summary": "4 interactive elements (4×submit). Key: \"Log out\", \"+ New Item\"",
+  "text": "@e7 button[submit] \"Log out\"\n@e9 button[submit] \"+ New Item\"",
+  "elements": [...]
+}
+```
+
+## Golden Flows (Regression Testing)
+
+JSON-defined flows to keep drivers honest:
 
 ```bash
-agent-control -p macos --pid 1234 observe --note "checking file tree"
-agent-control -p macos --pid 1234 act-observe dblclick @e5 --note "opening README"
-agent-control report    # generates HTML report with screenshots
+node run-all.js    # Runs all 3 platforms
+
+# Web: 18-step form signup
+# macOS: 11-step TextEdit CRUD
+# iOS: 9-step Settings navigation
+# Stability: 3/3 consecutive runs, zero flakes
 ```
 
-## Two Modes
+## Limitations
 
-- **DBB** — pre-orchestrated scenarios for regression/CI (`dbb-runner.js`)
-- **Goal** — observe→decide→act loop for autonomous operation (`goal-runner.js`)
+- iOS: Simulator only (no real device)
+- Web: No CAPTCHA/anti-bot bypass
+- macOS: Requires Accessibility permission in System Settings
+- Platforms run serially (focus is exclusive)
 
 ## License
 

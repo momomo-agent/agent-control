@@ -1,0 +1,26 @@
+[
+  {
+    "ref": "@e1",
+    "role": "submit",
+    "tag": "button",
+    "label": "Log out",
+    "value": "",
+    "name": "",
+    "x": 789,
+    "y": 101,
+    "w": 67,
+    "h": 27
+  },
+  {
+    "ref": "@e2",
+    "role": "submit",
+    "tag": "button",
+    "label": "+ New Item",
+    "value": "",
+    "name": "",
+    "x": 424,
+    "y": 144,
+    "w": 432,
+    "h": 27
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "id": "genui-demo",
+  "name": "IntentOS GenUI Demo — 发送意图并生成 UI",
+  "platform": "web",
+  "target": { "url": "http://localhost:3000" },
+  "steps": [
+    { "action": "open http://localhost:3000", "description": "打开 GenUI Demo", "wait": 3 },
+    { "action": "snapshot -i", "description": "查看初始页面" },
+    { "action": "fill @e1 点个拿铁", "description": "输入意图：点个拿铁", "wait": 1 },
+    { "action": "click @e2", "description": "点击发送按钮", "wait": 10 },
+    { "action": "snapshot -i", "description": "查看 OS 生成的 UI 结果" },
+    { "action": "screenshot /tmp/genui-final.png", "description": "截图最终结果" }
+  ]
+}

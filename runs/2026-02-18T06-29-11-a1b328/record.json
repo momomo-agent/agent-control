@@ -1,0 +1,142 @@
+{
+  "runId": "2026-02-18T06-29-11-a1b328",
+  "platform": "ios",
+  "name": "settings-nav",
+  "status": "passed",
+  "startMs": 1771396151028,
+  "endMs": 1771396167078,
+  "durationMs": 16050,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "launch-settings",
+      "params": {},
+      "startMs": 1771396151033,
+      "endMs": 1771396156103,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 1,
+      "action": "snapshot",
+      "params": {},
+      "startMs": 1771396156103,
+      "endMs": 1771396158356,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [
+        "step-1-snapshot.json"
+      ],
+      "retries": 0,
+      "result": {
+        "count": 23
+      }
+    },
+    {
+      "idx": 2,
+      "action": "screenshot",
+      "params": {
+        "label": "initial"
+      },
+      "startMs": 1771396158356,
+      "endMs": 1771396159012,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 3,
+      "action": "tap-general",
+      "params": {
+        "ref": "@e6"
+      },
+      "startMs": 1771396159013,
+      "endMs": 1771396161012,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ref": "@e6",
+        "action": "click",
+        "ok": true
+      }
+    },
+    {
+      "idx": 4,
+      "action": "verify-general",
+      "params": {},
+      "startMs": 1771396163014,
+      "endMs": 1771396163953,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [
+        "step-4-general-snapshot.json"
+      ],
+      "retries": 0,
+      "result": {
+        "navigated": true
+      }
+    },
+    {
+      "idx": 5,
+      "action": "screenshot",
+      "params": {
+        "label": "general"
+      },
+      "startMs": 1771396163953,
+      "endMs": 1771396164590,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 6,
+      "action": "go-back",
+      "params": {},
+      "startMs": 1771396164590,
+      "endMs": 1771396166361,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 7,
+      "action": "screenshot",
+      "params": {
+        "label": "final"
+      },
+      "startMs": 1771396166361,
+      "endMs": 1771396167078,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "failureTags": {},
+    "totalMs": 16050
+  }
+}

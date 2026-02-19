@@ -1,0 +1,18 @@
+{
+  "id": "genui-shopping",
+  "name": "GenUI — 购物比价场景（osToUser 多选项）",
+  "platform": "web",
+  "target": { "url": "http://localhost:3000" },
+  "steps": [
+    { "action": "open http://localhost:3000", "description": "打开页面", "wait": 3 },
+    { "action": "snapshot -i", "description": "初始状态" },
+    { "action": "fill @e1 帮我找一款降噪耳机，预算1000-2000，要蓝牙5.0以上，续航30小时", "description": "意图：购物比价（多筛选条件）", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看商品推荐 UI" },
+    { "action": "screenshot /tmp/genui-shopping-1.png", "description": "截图商品列表" },
+    { "action": "fill @e1 再便宜点，500以内有什么好的？要头戴式", "description": "追加条件：改预算+新约束", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看更新后的推荐" },
+    { "action": "screenshot /tmp/genui-shopping-2.png", "description": "截图对比" }
+  ]
+}

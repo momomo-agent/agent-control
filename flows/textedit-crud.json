@@ -1,0 +1,17 @@
+{
+  "name": "textedit-crud",
+  "platform": "macos",
+  "setup": { "exec": "open -a TextEdit", "wait": 1500, "keys": "Meta+n", "postWait": 1000 },
+  "steps": [
+    { "action": "snapshot" },
+    { "action": "screenshot", "label": "initial" },
+    { "action": "fill", "find": ["TextArea", "Text View"], "value": "Hello from agent-control!", "retry": true },
+    { "action": "verify", "contains": "Hello from agent-control" },
+    { "action": "keys", "value": "Meta+a" },
+    { "action": "fill", "find": ["TextArea", "Text View"], "value": "Edited by agent-control!" },
+    { "action": "verify", "contains": "Edited by agent-control" },
+    { "action": "screenshot", "label": "final" },
+    { "action": "keys", "value": "Meta+w", "wait": 500 },
+    { "action": "keys", "value": "Meta+d", "wait": 300 }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "runId": "2026-02-18T06-21-08-553a80",
+  "platform": "ios",
+  "name": "settings-nav",
+  "status": "failed",
+  "startMs": 1771395668982,
+  "endMs": 1771395677539,
+  "durationMs": 8557,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "launch-settings",
+      "params": {},
+      "startMs": 1771395669014,
+      "endMs": 1771395672850,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 1,
+      "action": "snapshot",
+      "params": {},
+      "startMs": 1771395672850,
+      "endMs": 1771395675739,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [
+        "step-1-snapshot.json"
+      ],
+      "retries": 0,
+      "result": {
+        "count": 8
+      }
+    },
+    {
+      "idx": 2,
+      "action": "screenshot",
+      "params": {
+        "label": "initial"
+      },
+      "startMs": 1771395675739,
+      "endMs": 1771395677537,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T06-21-08-553a80/artifacts/step-2-initial.png"
+      }
+    },
+    {
+      "idx": 3,
+      "action": "tap-general",
+      "params": {
+        "ref": null
+      },
+      "startMs": 1771395677539,
+      "endMs": 1771395677539,
+      "status": "failed",
+      "failureTag": "NOT_FOUND",
+      "failureMsg": "General not found",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "failureTags": {
+      "NOT_FOUND": 1
+    },
+    "totalMs": 8557
+  }
+}

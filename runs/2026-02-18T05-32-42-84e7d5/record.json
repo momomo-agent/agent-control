@@ -1,0 +1,236 @@
+{
+  "runId": "2026-02-18T05-32-42-84e7d5",
+  "platform": "web",
+  "name": "flowlab-signup",
+  "status": "failed",
+  "startMs": 1771392762265,
+  "endMs": 1771392777905,
+  "durationMs": 15640,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "open",
+      "params": {
+        "url": "file:///Users/kenefe/LOCAL/momo-agent/agent-control/flowlab/index.html"
+      },
+      "startMs": 1771392762326,
+      "endMs": 1771392763452,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "action": "open",
+        "url": "file:///Users/kenefe/LOCAL/momo-agent/agent-control/flowlab/index.html"
+      }
+    },
+    {
+      "idx": 1,
+      "action": "snapshot",
+      "params": {
+        "interactive": true
+      },
+      "startMs": 1771392764455,
+      "endMs": 1771392764509,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [
+        "step-1-snapshot.json"
+      ],
+      "retries": 0,
+      "result": {
+        "count": 7
+      }
+    },
+    {
+      "idx": 2,
+      "action": "screenshot",
+      "params": {
+        "label": "initial"
+      },
+      "startMs": 1771392764509,
+      "endMs": 1771392767204,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T05-32-42-84e7d5/artifacts/step-2-initial.png"
+      }
+    },
+    {
+      "idx": 3,
+      "action": "fill-name",
+      "params": {
+        "ref": "@e1"
+      },
+      "startMs": 1771392767205,
+      "endMs": 1771392768180,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "action": "fill",
+        "ref": "@e1",
+        "value": "Test User"
+      }
+    },
+    {
+      "idx": 4,
+      "action": "fill-email",
+      "params": {
+        "ref": "@e2"
+      },
+      "startMs": 1771392768180,
+      "endMs": 1771392768698,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "action": "fill",
+        "ref": "@e2",
+        "value": "test@flowlab.dev"
+      }
+    },
+    {
+      "idx": 5,
+      "action": "fill-password",
+      "params": {
+        "ref": "@e3"
+      },
+      "startMs": 1771392768698,
+      "endMs": 1771392769285,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "action": "fill",
+        "ref": "@e3",
+        "value": "Test1234!"
+      }
+    },
+    {
+      "idx": 6,
+      "action": "select-role",
+      "params": {
+        "ref": "@e4"
+      },
+      "startMs": 1771392769286,
+      "endMs": 1771392776183,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ref": "@e4"
+      }
+    },
+    {
+      "idx": 7,
+      "action": "check-terms",
+      "params": {
+        "ref": "@e5"
+      },
+      "startMs": 1771392776183,
+      "endMs": 1771392776891,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "action": "click",
+        "ref": "@e5"
+      }
+    },
+    {
+      "idx": 8,
+      "action": "click-signup",
+      "params": {
+        "ref": "@e6"
+      },
+      "startMs": 1771392776891,
+      "endMs": 1771392777079,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "action": "click",
+        "ref": "@e6"
+      }
+    },
+    {
+      "idx": 9,
+      "action": "verify-login",
+      "params": {},
+      "startMs": 1771392777584,
+      "endMs": 1771392777606,
+      "status": "failed",
+      "failureTag": "ASSERT_FAIL",
+      "failureMsg": "logout button not found after signup",
+      "artifacts": [
+        "step-9-post-login-snapshot.json"
+      ],
+      "retries": 0
+    },
+    {
+      "idx": 10,
+      "action": "screenshot",
+      "params": {
+        "label": "logged-in"
+      },
+      "startMs": 1771392777606,
+      "endMs": 1771392777905,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T05-32-42-84e7d5/artifacts/step-10-logged-in.png"
+      }
+    },
+    {
+      "idx": 11,
+      "action": "click-new-item",
+      "params": {
+        "ref": null
+      },
+      "startMs": 1771392777905,
+      "endMs": 1771392777905,
+      "status": "failed",
+      "failureTag": "NOT_FOUND",
+      "failureMsg": "add item button not found",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "passed": 10,
+    "failed": 2,
+    "failureTags": {
+      "ASSERT_FAIL": 1,
+      "NOT_FOUND": 1
+    },
+    "totalMs": 15640
+  }
+}

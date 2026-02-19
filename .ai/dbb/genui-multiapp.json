@@ -1,0 +1,18 @@
+{
+  "id": "genui-multiapp",
+  "name": "GenUI — 多应用联动场景（跨域意图链）",
+  "platform": "web",
+  "target": { "url": "http://localhost:3000" },
+  "steps": [
+    { "action": "open http://localhost:3000", "description": "打开页面", "wait": 3 },
+    { "action": "snapshot -i", "description": "初始状态" },
+    { "action": "fill @e1 明天早上8点提醒我开会，然后帮我叫个车从家到公司，顺便买杯美式", "description": "意图：三合一联动（提醒+打车+点餐）", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看多任务 UI" },
+    { "action": "screenshot /tmp/genui-multiapp-1.png", "description": "截图多任务结果" },
+    { "action": "fill @e1 取消打车，改成骑共享单车，咖啡换成热巧克力", "description": "批量修改已有意图", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看修改后的 UI" },
+    { "action": "screenshot /tmp/genui-multiapp-2.png", "description": "截图修改结果" }
+  ]
+}

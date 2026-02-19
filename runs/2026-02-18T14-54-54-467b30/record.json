@@ -1,0 +1,336 @@
+{
+  "runId": "2026-02-18T14-54-54-467b30",
+  "platform": "ios",
+  "name": "settings-nav",
+  "status": "failed",
+  "resumedFrom": null,
+  "startMs": 1771426494972,
+  "endMs": 1771426532284,
+  "durationMs": 37312,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "setup",
+      "params": {},
+      "startMs": 1771426494980,
+      "endMs": 1771426509973,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {}
+    },
+    {
+      "idx": 1,
+      "action": "snapshot-0",
+      "params": {
+        "action": "snapshot"
+      },
+      "startMs": 1771426509973,
+      "endMs": 1771426515051,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "snap": [
+          {
+            "frame": {
+              "h": 85,
+              "w": 376,
+              "x": 666,
+              "y": 276
+            },
+            "interactive": true,
+            "label": "Apple账户、登录以访问iCloud数据、App Store、Apple服务等。",
+            "ref": "@e5",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 394
+            },
+            "interactive": true,
+            "label": "Apple智能已就绪",
+            "ref": "@e6",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 477
+            },
+            "interactive": true,
+            "label": "通用",
+            "ref": "@e7",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 526
+            },
+            "interactive": true,
+            "label": "辅助功能",
+            "ref": "@e8",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 575
+            },
+            "interactive": true,
+            "label": "操作按钮",
+            "ref": "@e9",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 624
+            },
+            "interactive": true,
+            "label": "待机显示",
+            "ref": "@e10",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 674
+            },
+            "interactive": true,
+            "label": "搜索",
+            "ref": "@e11",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 723
+            },
+            "interactive": true,
+            "label": "相机",
+            "ref": "@e12",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 772
+            },
+            "interactive": true,
+            "label": "主屏幕与App资源库",
+            "ref": "@e13",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 821
+            },
+            "interactive": true,
+            "label": "Apple智能与Siri",
+            "ref": "@e14",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 904
+            },
+            "interactive": true,
+            "label": "屏幕时间",
+            "ref": "@e15",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 49,
+              "w": 376,
+              "x": 666,
+              "y": 986
+            },
+            "interactive": true,
+            "label": "隐私与安全性",
+            "ref": "@e16",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 640,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e20",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 686,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e21",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 663,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e22",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 52,
+              "w": 225,
+              "x": 714,
+              "y": 45
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e23",
+            "role": "StaticText",
+            "value": "iPhone 16 Pro Max"
+          },
+          {
+            "frame": {
+              "h": 52,
+              "w": 225,
+              "x": 714,
+              "y": 45
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e24",
+            "role": "StaticText",
+            "value": "iOS 26.0"
+          }
+        ]
+      }
+    },
+    {
+      "idx": 2,
+      "action": "screenshot-initial",
+      "params": {
+        "action": "screenshot",
+        "label": "initial"
+      },
+      "startMs": 1771426515051,
+      "endMs": 1771426518819,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-18T14-54-54-467b30/artifacts/initial.png"
+      }
+    },
+    {
+      "idx": 3,
+      "action": "click-2",
+      "params": {
+        "action": "click",
+        "find": [
+          "通用",
+          "General"
+        ],
+        "retry": true
+      },
+      "startMs": 1771426518820,
+      "endMs": 1771426527021,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 4,
+      "action": "wait-3",
+      "params": {
+        "action": "wait",
+        "ms": 2000
+      },
+      "startMs": 1771426527034,
+      "endMs": 1771426529055,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 5,
+      "action": "verify-4",
+      "params": {
+        "action": "verify",
+        "find": [
+          "关于本机",
+          "About"
+        ]
+      },
+      "startMs": 1771426529055,
+      "endMs": 1771426532283,
+      "status": "failed",
+      "failureTag": "ASSERT_FAIL",
+      "failureMsg": "关于本机 not found",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "passed": 5,
+    "failed": 1,
+    "failureTags": {
+      "ASSERT_FAIL": 1
+    },
+    "totalMs": 37312
+  }
+}

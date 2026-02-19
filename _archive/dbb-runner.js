@@ -97,7 +97,7 @@ function runScenario(scenarioPath) {
       for (let ci = 0; ci < step.chain.length; ci++) {
         if (ci > 0) tokens.push(';');
         const c = step.chain[ci];
-        tokens.push(c.action);
+        tokens.push(...c.action.split(/\s+/));
         if (c.ref) tokens.push(c.ref);
         if (c.text) tokens.push(c.text);
         if (c.url) tokens.push(c.url);
@@ -106,7 +106,7 @@ function runScenario(scenarioPath) {
       }
       displayArgs = tokens.join(' ');
     } else {
-      tokens.push(step.action);
+      tokens.push(...step.action.split(/\s+/));
       if (step.ref) tokens.push(step.ref);
       if (step.text) tokens.push(step.text);
       if (step.path) tokens.push(step.path);

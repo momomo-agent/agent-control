@@ -1,0 +1,30 @@
+{
+  "id": "WEB-001",
+  "name": "Web 基础操作验证",
+  "platform": "web",
+  "timestamp": "2026-02-18T04:45:28.162Z",
+  "pass": true,
+  "steps": [
+    {
+      "step": 1,
+      "action": "open https://example.com",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 2,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 3,
+      "action": "screenshot /tmp/ac-web-test.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    }
+  ]
+}
