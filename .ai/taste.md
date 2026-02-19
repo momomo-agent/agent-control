@@ -14,8 +14,8 @@
 - 零配置启动，不需要写 config 文件
 
 ### 2. 响应速度
-- snapshot < 500ms
-- click/fill 等操作 < 200ms
+- snapshot < 500ms (Android Experimental: ~4s due to uiautomator dump)
+- click/fill 等操作 < 200ms (Android: ~0.4s with snapshot cache)
 - screenshot < 1s
 
 ### 3. 输出可读性

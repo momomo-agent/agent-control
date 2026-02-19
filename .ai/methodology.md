@@ -17,10 +17,10 @@
     ┌──────┼──────────┐
     │      │          │
     v      v          v
-┌──────┐┌──────┐┌──────────┐
-│ Web  ││macOS ││   iOS    │
-│Playw.││ AX   ││ Sim AX   │
-└──────┘└──────┘└──────────┘
+┌──────┐┌──────┐┌──────────┐┌─────────┐
+│ Web  ││macOS ││   iOS    ││ Android │
+│Playw.││ AX   ││ Sim AX   ││adb+uia. │
+└──────┘└──────┘└──────────┘└─────────┘
 ```
 
 ## 统一协议
@@ -63,8 +63,12 @@
 - `agent-control --platform macos click @e1`
 
 ### Phase 2: iOS Driver
-- 基于 idb，复用 macOS 的 Accessibility 思路
-- 模拟器 + 真机
+- macOS AX API 操作 Simulator 进程（idb tap 在 iOS 26 失效）
+- 模拟器 only
+
+### Phase 2.5: Android Driver (Experimental)
+- adb + uiautomator dump，坐标点击
+- emulator 或真机，snapshot ~4s（uiautomator 瓶颈）
 
 ### Phase 3: DBB 集成
 - 与开发方法论的 DBB 流程打通
@@ -75,5 +79,6 @@
 - macOS driver: Swift CLI（直接调 AX API，零依赖）
 - Web driver: Node + Playwright
 - iOS driver: macOS AX API 操作 Simulator 进程（idb tap 在 iOS 26 不可用）
+- Android driver: Node + adb + uiautomator dump（Experimental，snapshot ~4s）
 - 协议层: Node CLI（路由到各 driver）
 - 通信: stdout JSON（简单、可管道）
