@@ -21,6 +21,7 @@
   --macos: #f472b6;
   --web: #60a5fa;
   --ios: #fbbf24;
+  --android: #a3e635;
   --mono: 'JetBrains Mono', monospace;
   --serif: 'Instrument Serif', Georgia, serif;
 }
@@ -117,6 +118,7 @@ nav .links a:hover { color: var(--text); }
 .platform-badge.macos .dot { background: var(--macos); }
 .platform-badge.web .dot { background: var(--web); }
 .platform-badge.ios .dot { background: var(--ios); }
+.platform-badge.android .dot { background: var(--android); }
 
 /* ── Terminal demo ── */
 .terminal {
@@ -226,6 +228,7 @@ nav .links a:hover { color: var(--text); }
 .arch-card.macos .card-platform { color: var(--macos); }
 .arch-card.web .card-platform { color: var(--web); }
 .arch-card.ios .card-platform { color: var(--ios); }
+.arch-card.android .card-platform { color: var(--android); }
 .arch-card h3 { font-size: 16px; font-weight: 500; margin-bottom: 12px; }
 .arch-card p { font-size: 13px; color: var(--text2); line-height: 1.7; }
 .arch-card .tech { margin-top: 16px; font-size: 11px; color: #555; }
@@ -341,6 +344,7 @@ footer .right a:hover { color: var(--accent); }
       <div class="platform-badge macos"><span class="dot"></span> macOS</div>
       <div class="platform-badge web"><span class="dot"></span> Web</div>
       <div class="platform-badge ios"><span class="dot"></span> iOS</div>
+      <div class="platform-badge android"><span class="dot"></span> Android</div>
     </div>
 
     <div class="terminal">
@@ -399,7 +403,7 @@ footer .right a:hover { color: var(--accent); }
 
 <section class="arch-section" id="platforms">
   <div class="container">
-    <h2>Three Drivers, One Protocol</h2>
+    <h2>Four Drivers, One Protocol</h2>
     <div class="arch-grid">
       <div class="arch-card macos">
         <div class="card-platform">macOS</div>
@@ -418,6 +422,12 @@ footer .right a:hover { color: var(--accent); }
         <h3>Simulator AX</h3>
         <p>Operates iOS Simulator through macOS Accessibility API — reads the Simulator process's AX tree to see and tap iOS elements directly.</p>
         <div class="tech">macOS AX · xcrun simctl · Simulator</div>
+      </div>
+      <div class="arch-card android">
+        <div class="card-platform">Android <span style="font-size:10px;opacity:0.6">Experimental</span></div>
+        <h3>adb + uiautomator</h3>
+        <p>Dumps the UI hierarchy via uiautomator, taps by coordinates, swipes, launches apps. Works with emulators and physical devices over adb.</p>
+        <div class="tech">adb · uiautomator · Android SDK</div>
       </div>
     </div>
   </div>
