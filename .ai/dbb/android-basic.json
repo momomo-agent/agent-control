@@ -1,0 +1,43 @@
+{
+  "id": "ANDROID-001",
+  "name": "Android 基础操作验证",
+  "platform": "android",
+  "target": {},
+  "steps": [
+    {
+      "description": "截取主屏幕快照",
+      "action": "snapshot -i",
+      "wait": 1
+    },
+    {
+      "description": "上滑打开应用抽屉",
+      "action": "swipe up",
+      "wait": 2
+    },
+    {
+      "description": "截取应用抽屉快照",
+      "action": "snapshot -i",
+      "wait": 1
+    },
+    {
+      "description": "打开 Settings",
+      "action": "open com.android.settings",
+      "wait": 3
+    },
+    {
+      "description": "截取 Settings 快照",
+      "action": "snapshot -i",
+      "wait": 1
+    },
+    {
+      "description": "按 Home 键回到主屏",
+      "action": "press home",
+      "wait": 2
+    },
+    {
+      "description": "截取最终主屏快照",
+      "action": "snapshot -i",
+      "wait": 1
+    }
+  ]
+}

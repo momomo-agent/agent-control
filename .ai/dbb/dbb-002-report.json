@@ -1,0 +1,23 @@
+{
+  "id": "dbb-002",
+  "name": "Web 表单填写与提交",
+  "platform": "web",
+  "timestamp": "2026-02-16T15:30:32.306Z",
+  "pass": true,
+  "steps": [
+    {
+      "step": 1,
+      "action": "open https://httpbin.org/forms/post ; snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": "elements.length >= 10"
+    },
+    {
+      "step": 2,
+      "action": "open https://httpbin.org/forms/post ; fill @e1 Momo ; fill @e2 13800138000 ; click @e5 ; click @e7 ; screenshot",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    }
+  ]
+}

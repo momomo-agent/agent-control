@@ -1,0 +1,23 @@
+{
+  "id": "IOS-001",
+  "name": "iOS 基础验证",
+  "platform": "ios",
+  "timestamp": "2026-02-18T04:44:44.607Z",
+  "pass": true,
+  "steps": [
+    {
+      "step": 1,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 2,
+      "action": "screenshot /tmp/ac-ios-test.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    }
+  ]
+}

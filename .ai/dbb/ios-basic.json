@@ -1,0 +1,18 @@
+{
+  "id": "IOS-001",
+  "name": "iOS 基础验证",
+  "platform": "ios",
+  "target": {},
+  "steps": [
+    {
+      "description": "截取快照",
+      "action": "snapshot -i",
+      "wait": 1
+    },
+    {
+      "description": "截图",
+      "action": "screenshot /tmp/ac-ios-test.png",
+      "wait": 1
+    }
+  ]
+}

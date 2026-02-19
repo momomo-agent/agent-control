@@ -1,0 +1,29 @@
+{
+  "id": "INTENTOS-IOS-DBB-001",
+  "name": "IntentOS iOS DBB — state deep links + screenshots",
+  "platform": "ios",
+  "target": {},
+  "steps": [
+    {"name": "Cold Start (Home)", "action": "openurl intentos://state/home"},
+    {"name": "Home screenshot", "action": "screenshot /tmp/intentos-01-home.png"},
+    {"name": "Home snapshot", "action": "snapshot -i"},
+
+    {"name": "SayBar Keyboard State", "action": "openurl intentos://state/vibe_dialog_keyboard"},
+    {"name": "Keyboard snapshot", "action": "snapshot -i"},
+    {"name": "Keyboard screenshot", "action": "screenshot /tmp/intentos-02-saybar-keyboard.png"},
+
+    {"name": "Thoughts Space", "action": "openurl intentos://state/vibe_thoughts"},
+    {"name": "Thoughts snapshot", "action": "snapshot -i"},
+    {"name": "Thoughts screenshot", "action": "screenshot /tmp/intentos-03-thoughts.png"},
+
+    {"name": "Notification Center", "action": "openurl intentos://state/notification"},
+    {"name": "Notification snapshot", "action": "snapshot -i"},
+    {"name": "Notification screenshot", "action": "screenshot /tmp/intentos-04-notification.png"},
+
+    {"name": "In-App State (optional)", "action": "openurl intentos://state/app"},
+    {"name": "In-App screenshot", "action": "screenshot /tmp/intentos-05-app.png"},
+
+    {"name": "In-App Notification (optional)", "action": "openurl intentos://state/app_noti"},
+    {"name": "In-App Noti screenshot", "action": "screenshot /tmp/intentos-06-app-noti.png"}
+  ]
+}

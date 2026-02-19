@@ -1,0 +1,23 @@
+{
+  "id": "dbb-001",
+  "name": "BrainDown 文件浏览",
+  "platform": "macos",
+  "timestamp": "2026-02-16T15:30:10.331Z",
+  "pass": true,
+  "steps": [
+    {
+      "step": 1,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": "elements.length > 5"
+    },
+    {
+      "step": 2,
+      "action": "screenshot /tmp/dbb-001-snapshot.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    }
+  ]
+}

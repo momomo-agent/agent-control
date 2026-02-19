@@ -1,0 +1,23 @@
+{
+  "id": "MACOS-001",
+  "name": "macOS 基础操作验证",
+  "platform": "macos",
+  "timestamp": "2026-02-18T04:45:09.685Z",
+  "pass": true,
+  "steps": [
+    {
+      "step": 1,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 2,
+      "action": "screenshot /tmp/ac-macos-test.png",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    }
+  ]
+}

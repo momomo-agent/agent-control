@@ -1,0 +1,18 @@
+{
+  "id": "genui-decision",
+  "name": "GenUI — 决策辅助场景（osAsksUser 缺信息追问）",
+  "platform": "web",
+  "target": { "url": "http://localhost:3000" },
+  "steps": [
+    { "action": "open http://localhost:3000", "description": "打开页面", "wait": 3 },
+    { "action": "snapshot -i", "description": "初始状态" },
+    { "action": "fill @e1 帮我买个生日礼物", "description": "意图：模糊需求，触发 osAsksUser 追问", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看追问 UI（应该问对象、预算等）" },
+    { "action": "screenshot /tmp/genui-decision-1.png", "description": "截图追问界面" },
+    { "action": "fill @e1 送女朋友，预算500，她喜欢猫和手工艺品", "description": "补充信息后重新发送", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看个性化推荐 UI" },
+    { "action": "screenshot /tmp/genui-decision-2.png", "description": "截图推荐结果" }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "genui-travel",
+  "name": "GenUI — 旅行规划场景（osAsksUser 多轮决策）",
+  "platform": "web",
+  "target": { "url": "http://localhost:3000" },
+  "steps": [
+    { "action": "open http://localhost:3000", "description": "打开页面", "wait": 3 },
+    { "action": "snapshot -i", "description": "初始状态" },
+    { "action": "fill @e1 我下周要去东京出差3天，帮我安排行程，白天开会晚上想逛逛", "description": "意图：出差+旅行混合规划", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看行程规划 UI" },
+    { "action": "screenshot /tmp/genui-travel-1.png", "description": "截图行程" },
+    { "action": "fill @e1 第二天晚上想吃米其林，预算人均500人民币，要有中文菜单", "description": "追加：具体某天的餐厅需求", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 15 },
+    { "action": "snapshot -i", "description": "查看餐厅推荐" },
+    { "action": "screenshot /tmp/genui-travel-2.png", "description": "截图餐厅" }
+  ]
+}

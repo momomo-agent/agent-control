@@ -1,0 +1,19 @@
+{
+  "id": "genui-complex",
+  "name": "IntentOS GenUI — 复杂意图测试",
+  "platform": "web",
+  "target": { "url": "http://localhost:3000" },
+  "steps": [
+    { "action": "open http://localhost:3000", "description": "打开页面", "wait": 3 },
+    { "action": "snapshot -i", "description": "初始状态" },
+    { "action": "fill @e1 帮我订明天下午3点的会议室，4个人，需要投影仪和白板", "description": "意图1：订会议室（多条件）", "wait": 1 },
+    { "action": "click @e2", "description": "发送", "wait": 12 },
+    { "action": "snapshot -i", "description": "查看会议室 UI" },
+    { "action": "fill input 附近有什么好吃的，我想吃日料，人均200以内，最好有包间", "description": "意图2：找餐厅（多筛选）", "wait": 1 },
+    { "action": "click button", "description": "发送", "wait": 12 },
+    { "action": "snapshot -i", "description": "查看餐厅 UI" },
+    { "action": "fill input 帮我规划一下周末两天的行程，想去爬山和逛博物馆，带小孩", "description": "意图3：行程规划（复杂）", "wait": 1 },
+    { "action": "click button", "description": "发送", "wait": 12 },
+    { "action": "snapshot -i", "description": "查看行程 UI" }
+  ]
+}

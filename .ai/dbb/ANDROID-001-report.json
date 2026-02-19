@@ -1,0 +1,58 @@
+{
+  "id": "ANDROID-001",
+  "name": "Android 基础操作验证",
+  "platform": "android",
+  "timestamp": "2026-02-18T04:45:41.097Z",
+  "pass": true,
+  "steps": [
+    {
+      "step": 1,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 2,
+      "action": "swipe up",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 3,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 4,
+      "action": "open com.android.settings",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 5,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 6,
+      "action": "press home",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    },
+    {
+      "step": 7,
+      "action": "snapshot -i",
+      "ok": true,
+      "passed": true,
+      "expect": null
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "MACOS-001",
+  "name": "macOS 基础操作验证",
+  "platform": "macos",
+  "target": {"app": "Calculator"},
+  "steps": [
+    {
+      "description": "截取 Finder 快照",
+      "action": "snapshot -i",
+      "wait": 1
+    },
+    {
+      "description": "截图",
+      "action": "screenshot /tmp/ac-macos-test.png",
+      "wait": 1
+    }
+  ]
+}
