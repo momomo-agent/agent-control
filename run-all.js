@@ -55,7 +55,7 @@ function runOne(f) {
 (async () => {
   // All sequential: web first (fastest), then iOS, then macOS
   // Parallel causes focus conflicts on macOS
-  const order = ['web', 'ios', 'macos'];
+  const order = ['web', 'ios', 'macos', 'android'];
   const sorted = [...flows].sort((a, b) => {
     const pa = JSON.parse(fs.readFileSync(a, 'utf8')).platform;
     const pb = JSON.parse(fs.readFileSync(b, 'utf8')).platform;

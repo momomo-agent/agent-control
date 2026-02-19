@@ -1,0 +1,400 @@
+{
+  "runId": "2026-02-19T05-50-39-00b1b4",
+  "platform": "android",
+  "name": "settings-nav-android",
+  "status": "failed",
+  "resumedFrom": null,
+  "startMs": 1771480239554,
+  "endMs": 1771480262115,
+  "durationMs": 22561,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "open-0",
+      "params": {
+        "action": "open",
+        "app": "com.android.settings"
+      },
+      "startMs": 1771480239569,
+      "endMs": 1771480243101,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 1,
+      "action": "wait-1",
+      "params": {
+        "action": "wait",
+        "ms": 2000
+      },
+      "startMs": 1771480243101,
+      "endMs": 1771480245114,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 2,
+      "action": "snapshot-2",
+      "params": {
+        "action": "snapshot"
+      },
+      "startMs": 1771480245114,
+      "endMs": 1771480251008,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "snap": [
+          {
+            "ref": "@e1",
+            "role": "FrameLayout",
+            "text": "Keyboard",
+            "clickable": false,
+            "cx": 540,
+            "cy": 305
+          },
+          {
+            "ref": "@e2",
+            "role": "ImageButton",
+            "text": "Navigate up",
+            "clickable": true,
+            "cx": 84,
+            "cy": 156
+          },
+          {
+            "ref": "@e3",
+            "role": "RecyclerView",
+            "text": "",
+            "clickable": false,
+            "cx": 540,
+            "cy": 1303
+          },
+          {
+            "ref": "@e4",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 798
+          },
+          {
+            "ref": "@e5",
+            "role": "TextView",
+            "text": "On-screen keyboard",
+            "clickable": false,
+            "cx": 336,
+            "cy": 770
+          },
+          {
+            "ref": "@e6",
+            "role": "TextView",
+            "text": "Gboard and Google Voice Typing",
+            "clickable": false,
+            "cx": 377,
+            "cy": 839
+          },
+          {
+            "ref": "@e7",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 1032
+          },
+          {
+            "ref": "@e8",
+            "role": "TextView",
+            "text": "Physical keyboard",
+            "clickable": false,
+            "cx": 314,
+            "cy": 1004
+          },
+          {
+            "ref": "@e9",
+            "role": "TextView",
+            "text": "qwerty2",
+            "clickable": false,
+            "cx": 148,
+            "cy": 1073
+          },
+          {
+            "ref": "@e10",
+            "role": "TextView",
+            "text": "Tools",
+            "clickable": false,
+            "cx": 552,
+            "cy": 1250
+          },
+          {
+            "ref": "@e11",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 1419
+          },
+          {
+            "ref": "@e12",
+            "role": "TextView",
+            "text": "Spell checker",
+            "clickable": false,
+            "cx": 250,
+            "cy": 1391
+          },
+          {
+            "ref": "@e13",
+            "role": "TextView",
+            "text": "Gboard spell checker",
+            "clickable": false,
+            "cx": 268,
+            "cy": 1460
+          },
+          {
+            "ref": "@e14",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 1678
+          },
+          {
+            "ref": "@e15",
+            "role": "TextView",
+            "text": "Personal dictionary",
+            "clickable": false,
+            "cx": 330,
+            "cy": 1625
+          },
+          {
+            "ref": "@e16",
+            "role": "TextView",
+            "text": "Add words to be used in apps such as Spell checker",
+            "clickable": false,
+            "cx": 552,
+            "cy": 1718
+          },
+          {
+            "ref": "@e17",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 1908
+          },
+          {
+            "ref": "@e18",
+            "role": "TextView",
+            "text": "Pointer speed",
+            "clickable": false,
+            "cx": 257,
+            "cy": 1908
+          }
+        ]
+      }
+    },
+    {
+      "idx": 3,
+      "action": "screenshot-3",
+      "params": {
+        "action": "screenshot"
+      },
+      "startMs": 1771480251008,
+      "endMs": 1771480252093,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T05-50-39-00b1b4/artifacts/screenshot.png"
+      }
+    },
+    {
+      "idx": 4,
+      "action": "swipe-4",
+      "params": {
+        "action": "swipe",
+        "direction": "up"
+      },
+      "startMs": 1771480252093,
+      "endMs": 1771480252910,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 5,
+      "action": "wait-5",
+      "params": {
+        "action": "wait",
+        "ms": 800
+      },
+      "startMs": 1771480252910,
+      "endMs": 1771480253712,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 6,
+      "action": "swipe-6",
+      "params": {
+        "action": "swipe",
+        "direction": "up"
+      },
+      "startMs": 1771480253712,
+      "endMs": 1771480254543,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 7,
+      "action": "wait-7",
+      "params": {
+        "action": "wait",
+        "ms": 800
+      },
+      "startMs": 1771480254544,
+      "endMs": 1771480255346,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 8,
+      "action": "swipe-8",
+      "params": {
+        "action": "swipe",
+        "direction": "up"
+      },
+      "startMs": 1771480255346,
+      "endMs": 1771480256182,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 9,
+      "action": "wait-9",
+      "params": {
+        "action": "wait",
+        "ms": 800
+      },
+      "startMs": 1771480256182,
+      "endMs": 1771480256986,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 10,
+      "action": "swipe-10",
+      "params": {
+        "action": "swipe",
+        "direction": "up"
+      },
+      "startMs": 1771480256986,
+      "endMs": 1771480257710,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 11,
+      "action": "wait-11",
+      "params": {
+        "action": "wait",
+        "ms": 800
+      },
+      "startMs": 1771480257710,
+      "endMs": 1771480258512,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 12,
+      "action": "click-12",
+      "params": {
+        "action": "click",
+        "find": [
+          "About emulated device",
+          "About phone"
+        ]
+      },
+      "startMs": 1771480258512,
+      "endMs": 1771480262115,
+      "status": "failed",
+      "failureTag": "NOT_FOUND",
+      "failureMsg": "About emulated device not found",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 13,
+    "passed": 12,
+    "failed": 1,
+    "failureTags": {
+      "NOT_FOUND": 1
+    },
+    "totalMs": 22561
+  }
+}

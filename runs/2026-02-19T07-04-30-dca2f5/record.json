@@ -1,0 +1,349 @@
+{
+  "runId": "2026-02-19T07-04-30-dca2f5",
+  "platform": "ios",
+  "name": "settings-nav",
+  "status": "passed",
+  "resumedFrom": null,
+  "startMs": 1771484670108,
+  "endMs": 1771484694187,
+  "durationMs": 24079,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "shell-0",
+      "params": {
+        "action": "shell",
+        "cmd": "xcrun simctl terminate booted com.apple.Preferences 2>/dev/null || true"
+      },
+      "startMs": 1771484670118,
+      "endMs": 1771484671124,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 1,
+      "action": "wait-1",
+      "params": {
+        "action": "wait",
+        "ms": 500
+      },
+      "startMs": 1771484671124,
+      "endMs": 1771484671626,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 2,
+      "action": "shell-2",
+      "params": {
+        "action": "shell",
+        "cmd": "xcrun simctl openurl booted 'App-prefs:root'"
+      },
+      "startMs": 1771484671626,
+      "endMs": 1771484673052,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 3,
+      "action": "wait-3",
+      "params": {
+        "action": "wait",
+        "ms": 3000
+      },
+      "startMs": 1771484673052,
+      "endMs": 1771484676054,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 4,
+      "action": "shell-4",
+      "params": {
+        "action": "shell",
+        "cmd": "open -a Simulator"
+      },
+      "startMs": 1771484676054,
+      "endMs": 1771484676726,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 5,
+      "action": "wait-5",
+      "params": {
+        "action": "wait",
+        "ms": 1000
+      },
+      "startMs": 1771484676726,
+      "endMs": 1771484677728,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 6,
+      "action": "snapshot-6",
+      "params": {
+        "action": "snapshot"
+      },
+      "startMs": 1771484677728,
+      "endMs": 1771484683332,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "snap": [
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 640,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e8",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 686,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e9",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 16,
+              "w": 16,
+              "x": 663,
+              "y": 63
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e10",
+            "role": "Button"
+          },
+          {
+            "frame": {
+              "h": 52,
+              "w": 225,
+              "x": 714,
+              "y": 45
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e11",
+            "role": "StaticText",
+            "value": "iPhone 16 Pro Max"
+          },
+          {
+            "frame": {
+              "h": 52,
+              "w": 225,
+              "x": 714,
+              "y": 45
+            },
+            "interactive": true,
+            "label": "",
+            "ref": "@e12",
+            "role": "StaticText",
+            "value": "iOS 26.0"
+          }
+        ]
+      }
+    },
+    {
+      "idx": 7,
+      "action": "screenshot-initial",
+      "params": {
+        "action": "screenshot",
+        "label": "initial"
+      },
+      "startMs": 1771484683333,
+      "endMs": 1771484685668,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T07-04-30-dca2f5/artifacts/initial.png"
+      }
+    },
+    {
+      "idx": 8,
+      "action": "click-8",
+      "params": {
+        "action": "click",
+        "find": [
+          "通用",
+          "General"
+        ],
+        "retry": true
+      },
+      "startMs": 1771484685669,
+      "endMs": 1771484688047,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 9,
+      "action": "wait-9",
+      "params": {
+        "action": "wait",
+        "ms": 2000
+      },
+      "startMs": 1771484688051,
+      "endMs": 1771484690056,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 10,
+      "action": "verify-10",
+      "params": {
+        "action": "verify",
+        "find": [
+          "关于本机",
+          "About"
+        ]
+      },
+      "startMs": 1771484690056,
+      "endMs": 1771484691122,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 11,
+      "action": "screenshot-general",
+      "params": {
+        "action": "screenshot",
+        "label": "general"
+      },
+      "startMs": 1771484691122,
+      "endMs": 1771484691900,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T07-04-30-dca2f5/artifacts/general.png"
+      }
+    },
+    {
+      "idx": 12,
+      "action": "click-12",
+      "params": {
+        "action": "click",
+        "find": [
+          "设置",
+          "Back",
+          "返回"
+        ],
+        "retry": true
+      },
+      "startMs": 1771484691900,
+      "endMs": 1771484692780,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 13,
+      "action": "screenshot-final",
+      "params": {
+        "action": "screenshot",
+        "label": "final"
+      },
+      "startMs": 1771484692780,
+      "endMs": 1771484694164,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T07-04-30-dca2f5/artifacts/final.png"
+      }
+    }
+  ],
+  "summary": {
+    "total": 14,
+    "passed": 14,
+    "failed": 0,
+    "failureTags": {},
+    "totalMs": 24079
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "settings-about-android",
+  "platform": "android",
+  "description": "Open About page, verify activity, screenshot",
+  "steps": [
+    { "action": "shell", "cmd": "am force-stop com.android.settings" },
+    { "action": "wait", "ms": 1000 },
+    { "action": "shell", "cmd": "am start -a android.settings.DEVICE_INFO_SETTINGS" },
+    { "action": "verifyActivity", "contains": "com.android.settings" },
+    { "action": "screenshot" },
+    { "action": "press", "key": "back" }
+  ]
+}

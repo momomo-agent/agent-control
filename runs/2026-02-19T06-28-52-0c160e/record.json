@@ -1,0 +1,127 @@
+{
+  "runId": "2026-02-19T06-28-52-0c160e",
+  "platform": "android",
+  "name": "settings-about-android",
+  "status": "passed",
+  "resumedFrom": null,
+  "startMs": 1771482532430,
+  "endMs": 1771482556056,
+  "durationMs": 23626,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "shell-0",
+      "params": {
+        "action": "shell",
+        "cmd": "am force-stop com.android.settings"
+      },
+      "startMs": 1771482532455,
+      "endMs": 1771482533580,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 1,
+      "action": "wait-1",
+      "params": {
+        "action": "wait",
+        "ms": 1000
+      },
+      "startMs": 1771482533580,
+      "endMs": 1771482534581,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 2,
+      "action": "shell-2",
+      "params": {
+        "action": "shell",
+        "cmd": "am start -a android.settings.DEVICE_INFO_SETTINGS"
+      },
+      "startMs": 1771482534581,
+      "endMs": 1771482535366,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 3,
+      "action": "verifyActivity-3",
+      "params": {
+        "action": "verifyActivity",
+        "contains": "com.android.settings"
+      },
+      "startMs": 1771482535366,
+      "endMs": 1771482544813,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 4,
+      "action": "screenshot-4",
+      "params": {
+        "action": "screenshot"
+      },
+      "startMs": 1771482544813,
+      "endMs": 1771482549067,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T06-28-52-0c160e/artifacts/screenshot.png"
+      }
+    },
+    {
+      "idx": 5,
+      "action": "press-5",
+      "params": {
+        "action": "press",
+        "key": "back"
+      },
+      "startMs": 1771482549067,
+      "endMs": 1771482556054,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "failureTags": {},
+    "totalMs": 23626
+  }
+}

@@ -42,6 +42,48 @@ function ac(platform, ...args) {
   try { return JSON.parse((r.stdout || '').trim()); } catch { return { raw: r.stdout, stderr: r.stderr }; }
 }
 
+// Android: direct adb calls (skip Node process spawn)
+function adbCmd(cmd) {
+  try { return execSync(`adb shell '${cmd.replace(/'/g, "'\\''")}'`, { encoding: 'utf8', timeout: 15000 }).trim(); }
+  catch (e) { return e.stdout?.trim() || ''; }
+}
+function androidSnap() {
+  let xml = '';
+  for (let i = 0; i < 3; i++) {
+    try { xml = execSync('adb exec-out "uiautomator dump /proc/self/fd/1 2>/dev/null"', { encoding: 'utf8', timeout: 8000 }); } catch {}
+    if (xml.includes('<node')) break;
+    spawnSync('sleep', ['1']);
+  }
+  if (!xml.includes('<node')) return [];
+  const els = []; let c = 0;
+  const re = /<node\s+([^>]+?)(?:\/>|>)/g; let m;
+  while ((m = re.exec(xml)) !== null) {
+    const a = m[1];
+    const g = n => { const r = a.match(new RegExp(`${n}="([^"]*)"`)); return r ? r[1] : ''; };
+    const text = g('text'), desc = g('content-desc'), cls = g('class'), bounds = g('bounds');
+    const clickable = g('clickable') === 'true', focusable = g('focusable') === 'true';
+    const bm = bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+    if (!bm) continue;
+    const [,x1,y1,x2,y2] = bm.map(Number);
+    if (x2-x1 === 0 && y2-y1 === 0) continue;
+    const isInteractive = clickable || (focusable && g('enabled') === 'true');
+    if (!isInteractive && !text && !desc) continue;
+    c++;
+    els.push({ ref: `@e${c}`, role: cls.split('.').pop(), text: text || desc, clickable, cx: Math.round(x1+(x2-x1)/2), cy: Math.round(y1+(y2-y1)/2) });
+  }
+  return els;
+}
+function androidClick(ref, els) {
+  const el = (els || androidSnapCache || []).find(e => e.ref === ref);
+  if (!el) return false;
+  adbCmd(`input tap ${el.cx} ${el.cy}`);
+  return true;
+}
+function androidSS(p) {
+  try { execSync(`adb exec-out screencap -p > "${p}"`, { timeout: 10000 }); return fs.existsSync(p); } catch { return false; }
+}
+let androidSnapCache = null;
+
 // iOS: direct macOS AX binary for Simulator
 function simPID() {
   try { return execSync('pgrep -x Simulator', { encoding: 'utf8', timeout: 2000 }).trim().split('\n')[0]; }
@@ -85,6 +127,7 @@ function findRef(els, hints) {
     const lh = h.toLowerCase();
     const el = els.find(e =>
       (e.label||'').toLowerCase().includes(lh) ||
+      (e.text||'').toLowerCase().includes(lh) ||
       (e.name||'').toLowerCase().includes(lh) ||
       (e.role||'').toLowerCase().includes(lh) ||
       (e.value||'').toLowerCase().includes(lh)
@@ -98,14 +141,21 @@ function findRef(els, hints) {
 async function execStep(step, ctx) {
   const P = ctx.platform;
   const isIOS = P === 'ios';
+  const isAndroid = P === 'android';
 
   const doSnap = async () => {
     if (isIOS) return iosSnap();
+    if (isAndroid) { androidSnapCache = androidSnap(); return androidSnapCache; }
     return await ac(P, 'snapshot', '-i');
   };
 
   switch (step.action) {
     case 'open': {
+      if (step.app && isAndroid) {
+        adbCmd(`monkey -p ${step.app} -c android.intent.category.LAUNCHER 1`);
+        await sleep(1000);
+        return { ok: true };
+      }
       const url = (step.url || '').replace('$FLOWLAB', FLOWLAB);
       const r = await ac(P, 'open', url);
       if (!r.ok) return { ok: false, tag: 'DRIVER_ERROR', msg: r.error || 'open failed' };
@@ -113,13 +163,17 @@ async function execStep(step, ctx) {
       return { ok: true };
     }
     case 'snapshot': {
-      const snap = await doSnap();
+      let snap = await doSnap();
+      if (isAndroid && (!Array.isArray(snap) || snap.length === 0)) {
+        await sleep(3000); snap = await doSnap();
+      }
       if (Array.isArray(snap) && snap.length > 0) { ctx.snap = snap; return { ok: true, snap }; }
       return { ok: false, tag: 'NOT_READY', msg: 'no elements' };
     }
     case 'screenshot': {
       const p = path.join(ctx.artifactsDir, `${step.label || 'screenshot'}.png`);
       if (isIOS) { iosSS(p); return { ok: true, path: p }; }
+      if (isAndroid) { androidSS(p); return { ok: true, path: p }; }
       const r = await ac(P, 'screenshot', p);
       return { ok: true, path: p };
     }
@@ -127,9 +181,22 @@ async function execStep(step, ctx) {
       await sleep(step.ms || 1000);
       return { ok: true };
     }
-    case 'keys': {
-      const r = await ac(P, 'press', step.value);
+    case 'keys': case 'press': {
+      const key = step.value || step.key || '';
+      if (isAndroid) { const km = { home:'KEYCODE_HOME',back:'KEYCODE_BACK',enter:'KEYCODE_ENTER' }; adbCmd(`input keyevent ${km[key]||'KEYCODE_'+key.toUpperCase()}`); }
+      else { await ac(P, 'press', key); }
       if (step.wait) await sleep(step.wait);
+      return { ok: true };
+    }
+    case 'swipe': {
+      if (isAndroid) { adbCmd('input swipe 540 1560 540 660 200'); }
+      else { await ac(P, 'swipe', step.direction || 'up'); }
+      if (step.wait) await sleep(step.wait);
+      return { ok: true };
+    }
+    case 'shell': {
+      if (isAndroid && step.cmd) { adbCmd(step.cmd); }
+      else if (step.cmd) { try { execSync(step.cmd, { timeout: 10000 }); } catch {} }
       return { ok: true };
     }
     case 'fill': {
@@ -148,7 +215,15 @@ async function execStep(step, ctx) {
       return r.ok ? { ok: true } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error };
     }
     case 'click': {
-      const snap = await doSnap();
+      // Android: try cached snap first, only re-dump if not found
+      if (isAndroid) {
+        let snap = androidSnapCache || ctx.snap;
+        let ref = findRef(snap, step.find);
+        if (!ref) { snap = await doSnap(); ref = findRef(snap, step.find); }
+        if (!ref) return { ok: false, tag: 'NOT_FOUND', msg: `${step.find[0]} not found` };
+        return androidClick(ref, snap) ? { ok: true } : { ok: false, tag: 'NOT_FOUND', msg: `${ref} tap failed` };
+      }
+      const snap = isIOS ? iosSnap() : await doSnap();
       const ref = findRef(snap || ctx.snap, step.find);
       if (!ref) return { ok: false, tag: 'NOT_FOUND', msg: `${step.find[0]} not found` };
       if (isIOS) { iosClick(ref); return { ok: true }; }
@@ -157,14 +232,32 @@ async function execStep(step, ctx) {
     }
     case 'verify': {
       if (isIOS) focusSim();
-      const snap = isIOS ? iosSnap() : await ac(P, 'snapshot');
+      let snap = isIOS ? iosSnap() : isAndroid ? androidSnap() : await ac(P, 'snapshot');
+      // iOS/Android: retry once if snap looks thin
+      if ((isIOS || isAndroid) && (!Array.isArray(snap) || snap.length < 3)) {
+        await sleep(2000);
+        if (isIOS) focusSim();
+        snap = isIOS ? iosSnap() : androidSnap();
+      }
       if (step.contains) {
-        const found = Array.isArray(snap) && snap.some(e => (e.value||'').includes(step.contains));
+        const found = Array.isArray(snap) && snap.some(e => (e.value||e.text||e.label||'').includes(step.contains));
         return found ? { ok: true } : { ok: false, tag: 'ASSERT_FAIL', msg: `"${step.contains}" not found` };
       }
       if (step.find) {
         const ref = findRef(snap, step.find);
         return ref ? { ok: true } : { ok: false, tag: 'ASSERT_FAIL', msg: `${step.find[0]} not found` };
+      }
+      return { ok: true };
+    }
+    case 'verifyActivity': {
+      if (isAndroid && step.contains) {
+        for (let i = 0; i < 6; i++) {
+          const out = adbCmd('dumpsys window | grep -E "mCurrentFocus|mFocusedApp"');
+          if (out.includes(step.contains)) return { ok: true };
+          await sleep(1000);
+        }
+        const out = adbCmd('dumpsys window | grep -E "mCurrentFocus|mFocusedApp"');
+        return out.includes(step.contains) ? { ok: true } : { ok: false, tag: 'ASSERT_FAIL', msg: `"${step.contains}" not in: ${out.slice(0,120)}` };
       }
       return { ok: true };
     }

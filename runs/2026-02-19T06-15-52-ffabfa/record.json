@@ -1,0 +1,381 @@
+{
+  "runId": "2026-02-19T06-15-52-ffabfa",
+  "platform": "android",
+  "name": "settings-nav-android",
+  "status": "failed",
+  "resumedFrom": null,
+  "startMs": 1771481752580,
+  "endMs": 1771481780971,
+  "durationMs": 28391,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "shell-0",
+      "params": {
+        "action": "shell",
+        "cmd": "am force-stop com.android.settings"
+      },
+      "startMs": 1771481752601,
+      "endMs": 1771481753625,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 1,
+      "action": "wait-1",
+      "params": {
+        "action": "wait",
+        "ms": 1000
+      },
+      "startMs": 1771481753625,
+      "endMs": 1771481754630,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 2,
+      "action": "shell-2",
+      "params": {
+        "action": "shell",
+        "cmd": "am start -a android.settings.SETTINGS"
+      },
+      "startMs": 1771481754631,
+      "endMs": 1771481757180,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 3,
+      "action": "wait-3",
+      "params": {
+        "action": "wait",
+        "ms": 3000
+      },
+      "startMs": 1771481757180,
+      "endMs": 1771481760189,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 4,
+      "action": "snapshot-4",
+      "params": {
+        "action": "snapshot"
+      },
+      "startMs": 1771481760189,
+      "endMs": 1771481775534,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "snap": [
+          {
+            "ref": "@e1",
+            "role": "ImageView",
+            "text": "Profile picture, double tap to open Google Account",
+            "clickable": true,
+            "cx": 936,
+            "cy": 312
+          },
+          {
+            "ref": "@e2",
+            "role": "TextView",
+            "text": "Settings",
+            "clickable": false,
+            "cx": 269,
+            "cy": 457
+          },
+          {
+            "ref": "@e3",
+            "role": "ViewGroup",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 679
+          },
+          {
+            "ref": "@e4",
+            "role": "ImageButton",
+            "text": "",
+            "clickable": false,
+            "cx": 144,
+            "cy": 679
+          },
+          {
+            "ref": "@e5",
+            "role": "TextView",
+            "text": "Search settings",
+            "clickable": false,
+            "cx": 430,
+            "cy": 679
+          },
+          {
+            "ref": "@e6",
+            "role": "ScrollView",
+            "text": "",
+            "clickable": false,
+            "cx": 540,
+            "cy": 1477
+          },
+          {
+            "ref": "@e7",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": false,
+            "cx": 540,
+            "cy": 1477
+          },
+          {
+            "ref": "@e8",
+            "role": "RecyclerView",
+            "text": "",
+            "clickable": false,
+            "cx": 540,
+            "cy": 1477
+          },
+          {
+            "ref": "@e9",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 937
+          },
+          {
+            "ref": "@e10",
+            "role": "TextView",
+            "text": "Network &amp; internet",
+            "clickable": false,
+            "cx": 464,
+            "cy": 909
+          },
+          {
+            "ref": "@e11",
+            "role": "TextView",
+            "text": "Mobile, Wi‑Fi, hotspot",
+            "clickable": false,
+            "cx": 416,
+            "cy": 978
+          },
+          {
+            "ref": "@e12",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 1201
+          },
+          {
+            "ref": "@e13",
+            "role": "TextView",
+            "text": "Connected devices",
+            "clickable": false,
+            "cx": 470,
+            "cy": 1173
+          },
+          {
+            "ref": "@e14",
+            "role": "TextView",
+            "text": "Bluetooth, pairing",
+            "clickable": false,
+            "cx": 379,
+            "cy": 1242
+          },
+          {
+            "ref": "@e15",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 1465
+          },
+          {
+            "ref": "@e16",
+            "role": "TextView",
+            "text": "Apps",
+            "clickable": false,
+            "cx": 285,
+            "cy": 1437
+          },
+          {
+            "ref": "@e17",
+            "role": "TextView",
+            "text": "Assistant, recent apps, default apps",
+            "clickable": false,
+            "cx": 550,
+            "cy": 1506
+          },
+          {
+            "ref": "@e18",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 1729
+          },
+          {
+            "ref": "@e19",
+            "role": "TextView",
+            "text": "Notifications",
+            "clickable": false,
+            "cx": 387,
+            "cy": 1701
+          },
+          {
+            "ref": "@e20",
+            "role": "TextView",
+            "text": "Notification history, conversations",
+            "clickable": false,
+            "cx": 533,
+            "cy": 1770
+          },
+          {
+            "ref": "@e21",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 1993
+          },
+          {
+            "ref": "@e22",
+            "role": "TextView",
+            "text": "Battery",
+            "clickable": false,
+            "cx": 312,
+            "cy": 1965
+          },
+          {
+            "ref": "@e23",
+            "role": "TextView",
+            "text": "100%",
+            "clickable": false,
+            "cx": 268,
+            "cy": 2034
+          },
+          {
+            "ref": "@e24",
+            "role": "LinearLayout",
+            "text": "",
+            "clickable": true,
+            "cx": 540,
+            "cy": 2137
+          },
+          {
+            "ref": "@e25",
+            "role": "TextView",
+            "text": "Storage",
+            "clickable": false,
+            "cx": 320,
+            "cy": 2168
+          }
+        ]
+      }
+    },
+    {
+      "idx": 5,
+      "action": "screenshot-5",
+      "params": {
+        "action": "screenshot"
+      },
+      "startMs": 1771481775534,
+      "endMs": 1771481776135,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T06-15-52-ffabfa/artifacts/screenshot.png"
+      }
+    },
+    {
+      "idx": 6,
+      "action": "shell-6",
+      "params": {
+        "action": "shell",
+        "cmd": "am start -a android.settings.DEVICE_INFO_SETTINGS"
+      },
+      "startMs": 1771481776135,
+      "endMs": 1771481776859,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 7,
+      "action": "wait-7",
+      "params": {
+        "action": "wait",
+        "ms": 3000
+      },
+      "startMs": 1771481776859,
+      "endMs": 1771481779861,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 8,
+      "action": "verifyActivity-8",
+      "params": {
+        "action": "verifyActivity",
+        "contains": "DeviceInfo"
+      },
+      "startMs": 1771481779861,
+      "endMs": 1771481780971,
+      "status": "failed",
+      "failureTag": "ASSERT_FAIL",
+      "failureMsg": "Activity \"DeviceInfo\" not found in: mCurrentFocus=null",
+      "artifacts": [],
+      "retries": 0
+    }
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 8,
+    "failed": 1,
+    "failureTags": {
+      "ASSERT_FAIL": 1
+    },
+    "totalMs": 28391
+  }
+}

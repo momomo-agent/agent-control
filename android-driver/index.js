@@ -18,9 +18,12 @@ const fs = require('fs');
 const path = require('path');
 
 const SERIAL = process.env.ANDROID_SERIAL || null;
+const SNAP_CACHE = '/tmp/agent-control-android-snap.json';
 
 // Cache last snapshot so tap/fill don't re-dump
 let _cachedElements = null;
+function loadSnapCache() { try { return JSON.parse(fs.readFileSync(SNAP_CACHE, 'utf8')); } catch { return null; } }
+function saveSnapCache(els) { try { fs.writeFileSync(SNAP_CACHE, JSON.stringify(els)); } catch {} }
 
 function adb(args, opts = {}) {
   const cmd = SERIAL ? `adb -s ${SERIAL} ${args}` : `adb ${args}`;
@@ -44,16 +47,14 @@ function snapshot(interactiveOnly) {
   const serial = getSerial();
   if (!serial) return { ok: false, error: 'no device connected' };
 
-  // Dump UI hierarchy (retry up to 3 times for "null root node")
+  // Dump UI hierarchy — exec-out to stdout (faster than dump+pull)
+  const DUMP_PATH = '/proc/self/fd/1';
   let xml = '';
   for (let attempt = 0; attempt < 3; attempt++) {
-    const dumpResult = adb('shell uiautomator dump /sdcard/ui.xml');
-    if (dumpResult.includes('ERROR') || dumpResult.includes('null root')) {
-      // Wait and retry
-      spawnSync('sleep', ['2']);
-      continue;
-    }
-    xml = adb('shell cat /sdcard/ui.xml');
+    try {
+      xml = execSync(`adb ${SERIAL ? `-s ${SERIAL} ` : ''}exec-out "uiautomator dump ${DUMP_PATH} 2>/dev/null"`,
+        { encoding: 'utf8', timeout: 15000 }).trim();
+    } catch {}
     if (xml.includes('<node')) break;
     spawnSync('sleep', ['2']);
   }
@@ -90,7 +91,8 @@ function snapshot(interactiveOnly) {
     const w = x2 - x1, h = y2 - y1;
     if (w === 0 && h === 0) continue;
 
-    if (interactiveOnly && !clickable && !focusable && !text && !desc) continue;
+    const isInteractive = clickable || (focusable && enabled);
+    if (interactiveOnly && !isInteractive && !text && !desc) continue;
 
     counter++;
     const role = cls.split('.').pop() || cls;
@@ -108,11 +110,12 @@ function snapshot(interactiveOnly) {
   }
 
   _cachedElements = elements;
+  saveSnapCache(elements);
   return elements;
 }
 
 function findElement(ref, elements) {
-  if (!elements) elements = _cachedElements || snapshot(true);
+  if (!elements) elements = _cachedElements || loadSnapCache() || snapshot(false);
   if (Array.isArray(elements)) {
     return elements.find(e => e.ref === ref) || null;
   }
@@ -177,7 +180,7 @@ function run(args) {
 
     case 'swipe': {
       const dir = args[1] || 'up';
-      const amount = parseInt(args[2]) || 500;
+      const amount = parseInt(args[2]) || 900;
       const cx = 540, cy = 1110; // center of typical screen
       const map = {
         up: [cx, cy + amount / 2, cx, cy - amount / 2],

@@ -84,12 +84,14 @@
 |------|------|------|--------|
 | Web | FlowLab signup（表单填写+验证） | 18 | 3/3 连过 |
 | macOS | TextEdit CRUD（创建+编辑+保存） | 11 | 3/3 连过 |
-| iOS | Settings 导航（进入通用→关于本机） | 9 | 3/3 连过 |
+| iOS | Settings 导航（进入通用→关于本机） | 14 | 3/3 连过 |
+| Android | Settings About（深链接+验证） | 6 | 3/3 连过 [Experimental] |
 
 ### 支持范围
 - Web: 任意 URL，Playwright headless Chromium
 - macOS: 任意 app（需 Accessibility 权限），通过 `--pid` 指定
 - iOS: Simulator only（自动检测 booted device）
+- Android: Experimental — emulator 或真机（通过 adb），uiautomator dump ~4s
 
 ### 已知限制
 - iOS 真机未支持（只做了 Simulator）
@@ -107,3 +109,34 @@
 - iOS Simulator 的 `terminate + launch` 会恢复上次页面状态，用 `openurl App-prefs:root` 强制回主页
 - macOS/iOS 都需要窗口焦点，并行执行时必须串行
 - Playwright 浏览器也会抢焦点，全部串行最稳定
+- Android `uiautomator dump` 写 `/sdcard/` 会 Permission denied，改用 `/proc/self/fd/1` 直接输出到 stdout
+- Android 跨进程 ref 查找需要文件级 snapshot cache（`/tmp/agent-control-android-snap.json`）
+- iOS flow 的 setup exec 不能塞太多 shell 命令，拆成 dsl-runner 原生步骤更稳定
+
+## Round 4 — Android 四端对外 (2026-02-19)
+
+### Android Driver 从空壳到可用
+- `android-driver/index.js` 修复 dump 路径（`/sdcard/` → `/proc/self/fd/1` exec-out 直接输出）
+- 跨进程 ref 查找：文件级 snapshot cache，click 从 4s → 0.4s
+- `snapshot-enhance.js` 支持 Android（`clickable` + `text` 标签）
+- swipe 默认距离 500 → 900，减少滚动次数
+
+### dsl-runner Android 快速路径
+- 所有 Android 操作（open/click/swipe/press/screenshot/snapshot/verify）绕过 `node cli.js` 进程 spawn
+- 直接调 `adb shell` / `adb exec-out`，单次操作从 3s → 0.4s
+- `verifyActivity` 用 `dumpsys window` 验证当前 Activity（轮询等待，最多 6s）
+- `shell` action 支持所有平台（Android 走 adb，其他走 execSync）
+
+### iOS 稳定性修复
+- setup exec 拆成 dsl-runner 原生步骤（shell + wait），避免一串 shell 被 SIGTERM
+- verify 加 retry（snap < 3 元素时等 2s 重试）
+- flow 从 8 步扩展到 14 步（含 setup 步骤）
+
+### 四端 run-all 验证
+- `node run-all.js` 四端全过：Web 18/18 (5s) · iOS 14/14 (24s) · macOS 11/11 (9s) · Android 6/6 (23s)
+- Android 单独连跑 3/3 零 flake
+
+### 对外发布更新
+- README: "One CLI, four platforms"，加 Android quickstart + limitations
+- 官网 site/index.html: 加 Android badge（lime `#a3e635`）+ arch card（Experimental 标签）
+- features.json: F016-F025 Android 基础命令全部验证通过

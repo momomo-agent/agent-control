@@ -2,7 +2,7 @@
 
 **Give your AI agent eyes and hands.**
 
-One CLI, three platforms. Your agent sees the UI, picks an element, acts on it.
+One CLI, four platforms. Your agent sees the UI, picks an element, acts on it.
 
 ```
 agent-control -p web -e snapshot
@@ -22,7 +22,7 @@ agent-control -p web click @e18
   <img src="docs/demo/macos-screenshot.png" width="32%" />
   <img src="docs/demo/ios-screenshot.png" width="32%" />
 </p>
-<p align="center"><sub>Web · macOS · iOS — same protocol, same refs, same commands</sub></p>
+<p align="center"><sub>Web · macOS · iOS · Android — same protocol, same refs, same commands</sub></p>
 
 ## Why
 
@@ -52,6 +52,10 @@ agent-control -p macos --pid $(pgrep TextEdit) -e snapshot
 
 # iOS Simulator (via macOS AX on Simulator process)
 agent-control -p ios -e snapshot
+
+# Android (via adb + uiautomator)
+agent-control -p android -e snapshot
+agent-control -p android click @e5
 ```
 
 ## Commands
@@ -65,7 +69,7 @@ agent-control -p ios -e snapshot
 | `press <key>` | Keyboard key |
 | `screenshot [path]` | Save PNG |
 | `open <url>` | Navigate (web) |
-| `swipe <dir>` | Swipe (iOS) |
+| `swipe <dir>` | Swipe (iOS/Android) |
 
 ## How It Works
 
@@ -96,6 +100,7 @@ You bring the brain (Claude, GPT, Gemini, local LLM — whatever). We handle the
 | **Web** | Playwright | Auto-starts daemon on port 3901. Headless Chromium. |
 | **macOS** | Swift + Accessibility API | Use `--pid` to target any app. Needs Accessibility permission. |
 | **iOS** | macOS AX on Simulator | Auto-detects booted sim. Uses Simulator's accessibility tree. |
+| **Android** | adb + uiautomator | Experimental. Requires running emulator or device via `adb`. |
 
 ## Enhanced Snapshot (`-e`)
 
@@ -116,12 +121,13 @@ Raw snapshot returns every element. Enhanced (`-e`) filters to interactive eleme
 JSON-defined flows to keep drivers honest:
 
 ```bash
-node run-all.js    # Runs all 3 platforms
+node run-all.js    # Runs all 4 platforms
 
-# Web: 18-step form signup
-# macOS: 11-step TextEdit CRUD
-# iOS: 9-step Settings navigation
-# Stability: 3/3 consecutive runs, zero flakes
+# Web: 18-step form signup (5s)
+# macOS: 11-step TextEdit CRUD (9s)
+# iOS: 14-step Settings navigation (24s)
+# Android: 6-step Settings About (23s) [Experimental]
+# Stability: 3/3 consecutive runs, zero flakes (all platforms)
 ```
 
 ## Limitations
@@ -129,6 +135,7 @@ node run-all.js    # Runs all 3 platforms
 - iOS: Simulator only (no real device)
 - Web: No CAPTCHA/anti-bot bypass
 - macOS: Requires Accessibility permission in System Settings
+- Android: Experimental — `uiautomator dump` can be slow (~4s) on emulators; occasional empty dumps
 - Platforms run serially (focus is exclusive)
 
 ## License
