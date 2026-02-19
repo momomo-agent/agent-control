@@ -140,3 +140,23 @@
 - README: "One CLI, four platforms"，加 Android quickstart + limitations
 - 官网 site/index.html: 加 Android badge（lime `#a3e635`）+ arch card（Experimental 标签）
 - features.json: F016-F025 Android 基础命令全部验证通过
+
+## Round 5 — iOS 切回 idb (2026-02-19)
+
+### 背景
+- 重新测试发现 idb tap 在 iOS 26 Simulator 上正常工作，之前"不工作"是误判（坐标/焦点问题）
+- macOS AX hack（focusSim + cliclick + Simulator AX tree）是不必要的复杂度
+
+### 改动
+- `ios-driver/index.js` 重写：纯 idb（describe-all/tap/text/swipe/button），去掉所有 macOS AX 代码
+- `dsl-runner.js` 清理：删除 iosSnap/iosClick/iosSS/focusSim/simPID/MAC_BIN，iOS 走统一 `ac()` 路径
+- `flows/settings-nav.json` 简化：去掉 `open -a Simulator` 步骤，12 步（原 14 步）
+- 文件级 snapshot cache（`/tmp/agent-control-ios-snap.json`）避免跨进程 ref 丢失
+
+### 验证
+- iOS 单独连跑 3/3 零 flake（32-40s）
+- run-all 4/4：Web 18/18 (4.5s) · iOS 12/12 (31s) · macOS 11/11 (9s) · Android 6/6 (22s)
+
+### 教训
+- 之前 idb tap "不工作"是误判，应该多测几次再下结论
+- macOS AX hack 引入了 focusSim/cliclick 等脆弱依赖，idb 方案更干净

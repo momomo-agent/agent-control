@@ -6,8 +6,6 @@
     { "action": "wait", "ms": 500 },
     { "action": "shell", "cmd": "xcrun simctl openurl booted 'App-prefs:root'" },
     { "action": "wait", "ms": 3000 },
-    { "action": "shell", "cmd": "open -a Simulator" },
-    { "action": "wait", "ms": 1000 },
     { "action": "snapshot" },
     { "action": "screenshot", "label": "initial" },
     { "action": "click", "find": ["通用", "General"], "retry": true },

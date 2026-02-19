@@ -19,7 +19,7 @@
     v      v          v
 ┌──────┐┌──────┐┌──────────┐┌─────────┐
 │ Web  ││macOS ││   iOS    ││ Android │
-│Playw.││ AX   ││ Sim AX   ││adb+uia. │
+│Playw.││ AX   ││  idb     ││adb+uia. │
 └──────┘└──────┘└──────────┘└─────────┘
 ```
 
@@ -63,8 +63,8 @@
 - `agent-control --platform macos click @e1`
 
 ### Phase 2: iOS Driver
-- macOS AX API 操作 Simulator 进程（idb tap 在 iOS 26 失效）
-- 模拟器 only
+- idb (describe-all + tap + text)，纯 idb 方案
+- 模拟器 only（未来可支持真机）
 
 ### Phase 2.5: Android Driver (Experimental)
 - adb + uiautomator dump，坐标点击
@@ -78,7 +78,7 @@
 
 - macOS driver: Swift CLI（直接调 AX API，零依赖）
 - Web driver: Node + Playwright
-- iOS driver: macOS AX API 操作 Simulator 进程（idb tap 在 iOS 26 不可用）
+- iOS driver: Node + idb (describe-all/tap/text/swipe/button)
 - Android driver: Node + adb + uiautomator dump（Experimental，snapshot ~4s）
 - 协议层: Node CLI（路由到各 driver）
 - 通信: stdout JSON（简单、可管道）

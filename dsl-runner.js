@@ -10,7 +10,6 @@ const { RunRecord } = require('./run-record');
 const { canRetry, getPolicy } = require('./retry');
 
 const CLI = path.join(__dirname, 'cli.js');
-const MAC_BIN = path.join(__dirname, 'macos-driver', '.build', 'debug', 'agent-control');
 const FLOWLAB = `file://${path.join(__dirname, 'flowlab', 'index.html')}`;
 const DAEMON_PORT = 3901;
 const http = require('http');
@@ -84,42 +83,6 @@ function androidSS(p) {
 }
 let androidSnapCache = null;
 
-// iOS: direct macOS AX binary for Simulator
-function simPID() {
-  try { return execSync('pgrep -x Simulator', { encoding: 'utf8', timeout: 2000 }).trim().split('\n')[0]; }
-  catch { return null; }
-}
-function focusSim() {
-  try { execSync('osascript -e \'tell application "Simulator" to activate\'', { timeout: 3000 }); } catch {}
-}
-
-function iosSnap() {
-  focusSim();
-  function doSnap() {
-    const r = spawnSync(MAC_BIN, ['snapshot', '--pid', simPID()], { encoding: 'utf8', timeout: 15000 });
-    try {
-      const els = JSON.parse(r.stdout);
-      const chrome = ['Action','Volume Up','Volume Down','Sleep/Wake','Ring/Silent','Home','Save Screen','Rotate'];
-      return els.filter(e => !chrome.includes(e.label));
-    } catch { return []; }
-  }
-  let result = doSnap();
-  if (result.length < 3) {
-    spawnSync('sleep', ['0.5']);
-    focusSim();
-    result = doSnap();
-  }
-  return result;
-}
-function iosClick(ref) {
-  const r = spawnSync(MAC_BIN, ['click', ref, '--pid', simPID()], { encoding: 'utf8', timeout: 5000 });
-  return r.status === 0;
-}
-function iosSS(p) {
-  spawnSync('xcrun', ['simctl', 'io', 'booted', 'screenshot', p], { timeout: 10000 });
-  return fs.existsSync(p);
-}
-
 // ── Ref finder ──
 function findRef(els, hints) {
   if (!Array.isArray(els)) return null;
@@ -140,11 +103,9 @@ function findRef(els, hints) {
 // ── DSL Step Executor ──
 async function execStep(step, ctx) {
   const P = ctx.platform;
-  const isIOS = P === 'ios';
   const isAndroid = P === 'android';
 
   const doSnap = async () => {
-    if (isIOS) return iosSnap();
     if (isAndroid) { androidSnapCache = androidSnap(); return androidSnapCache; }
     return await ac(P, 'snapshot', '-i');
   };
@@ -172,7 +133,6 @@ async function execStep(step, ctx) {
     }
     case 'screenshot': {
       const p = path.join(ctx.artifactsDir, `${step.label || 'screenshot'}.png`);
-      if (isIOS) { iosSS(p); return { ok: true, path: p }; }
       if (isAndroid) { androidSS(p); return { ok: true, path: p }; }
       const r = await ac(P, 'screenshot', p);
       return { ok: true, path: p };
@@ -203,7 +163,6 @@ async function execStep(step, ctx) {
       const snap = await doSnap();
       const ref = findRef(snap || ctx.snap, step.find);
       if (!ref) return { ok: false, tag: 'NOT_FOUND', msg: `${step.find[0]} not found` };
-      if (isIOS) { iosClick(ref); return { ok: true }; } // iOS fill = click (no text input in Settings)
       const r = await ac(P, 'fill', ref, step.value);
       return r.ok ? { ok: true } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error };
     }
@@ -223,21 +182,17 @@ async function execStep(step, ctx) {
         if (!ref) return { ok: false, tag: 'NOT_FOUND', msg: `${step.find[0]} not found` };
         return androidClick(ref, snap) ? { ok: true } : { ok: false, tag: 'NOT_FOUND', msg: `${ref} tap failed` };
       }
-      const snap = isIOS ? iosSnap() : await doSnap();
+      const snap = await doSnap();
       const ref = findRef(snap || ctx.snap, step.find);
       if (!ref) return { ok: false, tag: 'NOT_FOUND', msg: `${step.find[0]} not found` };
-      if (isIOS) { iosClick(ref); return { ok: true }; }
       const r = await ac(P, 'click', ref);
       return r.ok ? { ok: true } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error };
     }
     case 'verify': {
-      if (isIOS) focusSim();
-      let snap = isIOS ? iosSnap() : isAndroid ? androidSnap() : await ac(P, 'snapshot');
-      // iOS/Android: retry once if snap looks thin
-      if ((isIOS || isAndroid) && (!Array.isArray(snap) || snap.length < 3)) {
+      let snap = isAndroid ? androidSnap() : await ac(P, 'snapshot');
+      if (isAndroid && (!Array.isArray(snap) || snap.length < 3)) {
         await sleep(2000);
-        if (isIOS) focusSim();
-        snap = isIOS ? iosSnap() : androidSnap();
+        snap = androidSnap();
       }
       if (step.contains) {
         const found = Array.isArray(snap) && snap.some(e => (e.value||e.text||e.label||'').includes(step.contains));

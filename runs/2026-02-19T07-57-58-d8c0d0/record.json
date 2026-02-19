@@ -1,0 +1,407 @@
+{
+  "runId": "2026-02-19T07-57-58-d8c0d0",
+  "platform": "ios",
+  "name": "settings-nav",
+  "status": "passed",
+  "resumedFrom": null,
+  "startMs": 1771487878928,
+  "endMs": 1771487911726,
+  "durationMs": 32798,
+  "steps": [
+    {
+      "idx": 0,
+      "action": "shell-0",
+      "params": {
+        "action": "shell",
+        "cmd": "xcrun simctl terminate booted com.apple.Preferences 2>/dev/null || true"
+      },
+      "startMs": 1771487878946,
+      "endMs": 1771487879483,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 1,
+      "action": "wait-1",
+      "params": {
+        "action": "wait",
+        "ms": 500
+      },
+      "startMs": 1771487879483,
+      "endMs": 1771487880007,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 2,
+      "action": "shell-2",
+      "params": {
+        "action": "shell",
+        "cmd": "xcrun simctl openurl booted 'App-prefs:root'"
+      },
+      "startMs": 1771487880007,
+      "endMs": 1771487881573,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 3,
+      "action": "wait-3",
+      "params": {
+        "action": "wait",
+        "ms": 3000
+      },
+      "startMs": 1771487881573,
+      "endMs": 1771487884574,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 4,
+      "action": "snapshot-4",
+      "params": {
+        "action": "snapshot"
+      },
+      "startMs": 1771487884574,
+      "endMs": 1771487892659,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "snap": [
+          {
+            "ref": "@e1",
+            "role": "Button",
+            "label": "Apple账户、登录以访问iCloud数据、App Store、Apple服务等。",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 162,
+              "w": 400,
+              "h": 90
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e2",
+            "role": "Button",
+            "label": "Apple智能已就绪",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 288,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e3",
+            "role": "Button",
+            "label": "通用",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 375,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e4",
+            "role": "Button",
+            "label": "辅助功能",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 427,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e5",
+            "role": "Button",
+            "label": "操作按钮",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 480,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e6",
+            "role": "Button",
+            "label": "待机显示",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 532,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e7",
+            "role": "Button",
+            "label": "搜索",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 584,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e8",
+            "role": "Button",
+            "label": "相机",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 637,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e9",
+            "role": "Button",
+            "label": "主屏幕与App资源库",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 689,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e10",
+            "role": "Button",
+            "label": "Apple智能与Siri",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 741,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e11",
+            "role": "Button",
+            "label": "屏幕时间",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 829,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          },
+          {
+            "ref": "@e12",
+            "role": "Button",
+            "label": "隐私与安全性",
+            "value": null,
+            "frame": {
+              "x": 20,
+              "y": 916,
+              "w": 400,
+              "h": 52
+            },
+            "interactive": true
+          }
+        ]
+      }
+    },
+    {
+      "idx": 5,
+      "action": "screenshot-initial",
+      "params": {
+        "action": "screenshot",
+        "label": "initial"
+      },
+      "startMs": 1771487892659,
+      "endMs": 1771487894703,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T07-57-58-d8c0d0/artifacts/initial.png"
+      }
+    },
+    {
+      "idx": 6,
+      "action": "click-6",
+      "params": {
+        "action": "click",
+        "find": [
+          "通用",
+          "General"
+        ],
+        "retry": true
+      },
+      "startMs": 1771487894704,
+      "endMs": 1771487898663,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 7,
+      "action": "wait-7",
+      "params": {
+        "action": "wait",
+        "ms": 2000
+      },
+      "startMs": 1771487898663,
+      "endMs": 1771487900666,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 8,
+      "action": "verify-8",
+      "params": {
+        "action": "verify",
+        "find": [
+          "关于本机",
+          "About"
+        ]
+      },
+      "startMs": 1771487900666,
+      "endMs": 1771487904764,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 9,
+      "action": "screenshot-general",
+      "params": {
+        "action": "screenshot",
+        "label": "general"
+      },
+      "startMs": 1771487904764,
+      "endMs": 1771487906902,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T07-57-58-d8c0d0/artifacts/general.png"
+      }
+    },
+    {
+      "idx": 10,
+      "action": "click-10",
+      "params": {
+        "action": "click",
+        "find": [
+          "设置",
+          "Back",
+          "返回"
+        ],
+        "retry": true
+      },
+      "startMs": 1771487906902,
+      "endMs": 1771487909824,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "idx": 11,
+      "action": "screenshot-final",
+      "params": {
+        "action": "screenshot",
+        "label": "final"
+      },
+      "startMs": 1771487909824,
+      "endMs": 1771487911725,
+      "status": "passed",
+      "failureTag": null,
+      "failureMsg": null,
+      "artifacts": [],
+      "retries": 0,
+      "result": {
+        "ok": true,
+        "path": "/Users/kenefe/LOCAL/momo-agent/agent-control/runs/2026-02-19T07-57-58-d8c0d0/artifacts/final.png"
+      }
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0,
+    "failureTags": {},
+    "totalMs": 32798
+  }
+}
