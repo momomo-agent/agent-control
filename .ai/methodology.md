@@ -1,84 +1,45 @@
-# Methodology — Agent Control
+# Methodology — agent-control
 
 ## 架构
 
 ```
-┌─────────────────────────────────┐
-│         统一协议层 (CLI)          │
-│  snapshot / click / fill / drag  │
-│  rightclick / scroll / screenshot│
-└──────────┬──────────────────────┘
-           │
-     ┌─────┴─────┐
-     │  Driver    │
-     │  Router    │
-     └─────┬─────┘
-           │
-    ┌──────┼──────────┐
-    │      │          │
-    v      v          v
-┌──────┐┌──────┐┌──────────┐┌─────────┐
-│ Web  ││macOS ││   iOS    ││ Android │
-│Playw.││ AX   ││  idb     ││adb+uia. │
-└──────┘└──────┘└──────────┘└─────────┘
+Agent (任意 LLM)
+  ↓ CLI / JSON
+agent-control
+  ├── cli.js          ← 统一入口，路由到 driver
+  ├── snapshot-enhance.js ← 过滤交互元素 + 语义摘要
+  ├── goal-runner.js  ← goal-based: observe → decide → act 循环
+  ├── dsl-runner.js   ← script-based: JSON flow 声明式执行
+  ├── run-record.js   ← 执行记录 + artifact 收集
+  ├── run-all.js      ← 多平台串行回归
+  └── drivers/
+      ├── web-driver/     (Playwright, HTTP daemon :3901)
+      ├── macos-driver/   (Swift, Accessibility API)
+      ├── ios-driver/     (idb + simctl)
+      └── android-driver/ (adb + uiautomator)
 ```
 
-## 统一协议
+## 技术决策
 
-所有 driver 必须实现这些命令：
+| 决策 | 选择 | WHY |
+|------|------|-----|
+| 语言 | Node.js (driver层) + Swift (macOS) | Node 跨平台快，macOS AX 必须 Swift |
+| Web 方案 | Playwright daemon | 常驻进程避免每次启动浏览器的 3s 开销 |
+| iOS 方案 | idb 原生命令 | 比 macOS AX 操作 Simulator 更稳定直接 |
+| Android | uiautomator dump | 唯一免 root 方案，但慢 (~4s) |
+| ref 系统 | @e{N} 语义引用 | agent 不需要知道坐标，用语义标签操作 |
+| 增强快照 | -e flag 过滤 | 原始 snapshot 太多噪音，LLM 需要精简输入 |
 
-| 命令 | 说明 |
-|------|------|
-| `snapshot` | 返回可交互元素列表，每个元素有 @ref |
-| `click @ref` | 点击 |
-| `dblclick @ref` | 双击 |
-| `rightclick @ref` | 右键 / 长按 |
-| `fill @ref "text"` | 清空并输入 |
-| `type @ref "text"` | 追加输入 |
-| `press Key` | 按键 |
-| `hover @ref` | 悬停 |
-| `drag @ref1 @ref2` | 拖拽（ref 到 ref） |
-| `drag @ref dx,dy` | 拖拽（ref + 偏移） |
-| `scroll @ref down 200` | 滚动 |
-| `screenshot` | 全屏截图 |
-| `screenshot @ref` | 元素截图 |
+## 两条路径
 
-## Ref 系统
+1. **Script-based (dsl-runner)** — JSON 定义步骤，确定性执行，适合回归测试
+2. **Goal-based (goal-runner)** — agent 看状态决策下一步，适合探索性任务
 
-- 每次 snapshot 生成临时 ref（@e1, @e2...）
-- ref 包含：标签、角色、值、位置
-- 操作后 ref 可能失效，需要重新 snapshot
+当前重心从 script-based 转向 goal-based。
 
-## MVP 路线
+## 代码规范
 
-### Phase 0: macOS Driver（先打通一条链路）
-- Swift CLI，通过 Accessibility API 操作
-- 目标：能对 BrainDown 跑 snapshot + click + fill + screenshot
-- 输出：JSON 格式的元素列表
-
-### Phase 1: 协议层 + Web Driver
-- Node CLI 作为统一入口
-- Web driver 包装 Playwright（复用 agent-browser 思路）
-- `agent-control --platform web snapshot`
-- `agent-control --platform macos click @e1`
-
-### Phase 2: iOS Driver
-- idb (describe-all + tap + text)，纯 idb 方案
-- 模拟器 only（未来可支持真机）
-
-### Phase 2.5: Android Driver (Experimental)
-- adb + uiautomator dump，坐标点击
-- emulator 或真机，snapshot ~4s（uiautomator 瓶颈）
-
-### Phase 3: DBB 集成
-- 与开发方法论的 DBB 流程打通
-- scenario → 自动执行 → 截图 → 审查 → report
-
-## 技术选型
-
-- macOS driver: Swift CLI（直接调 AX API，零依赖）
-- Web driver: Node + Playwright
-- iOS driver: Node + idb (describe-all/tap/text/swipe/button)
-- Android driver: Node + adb + uiautomator dump（Experimental，snapshot ~4s）
-- 协议层: Node CLI（路由到各 driver）
-- 通信: stdout JSON（简单、可管道）
+- 单文件 ≤ 400 行（goal-runner 已 336，接近上限）
+- 无 TypeScript（轻量 CLI 工具，JS 够用）
+- driver 之间零耦合，通过 cli.js 统一路由
+- 所有 driver 输出 JSON，enhance 层统一后处理

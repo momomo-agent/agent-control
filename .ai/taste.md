@@ -1,33 +1,29 @@
-# Taste — Agent Control
+# Taste — agent-control
 
 ## 参照物
 
-- **agent-browser** — snapshot + ref 的交互模式，简洁的 CLI 接口
-- **Accessibility Inspector** (Xcode) — macOS/iOS 元素树的标杆
-- **Playwright** — 稳定、快速、API 设计优雅
+1. **Playwright CLI** — 简洁的命令行 API，`page.click()` 一行搞定
+2. **Apple Accessibility Inspector** — 语义化元素树，role + label + value
+3. **adb shell input** — 极简操作接口，tap/swipe/text 三个命令覆盖 90% 场景
 
 ## 品味标准
 
-### 1. 极简接口
-- 命令数量 ≤ 15 个，覆盖 95% 操作场景
-- 学习成本 < 5 分钟（AI 看一遍 help 就能用）
-- 零配置启动，不需要写 config 文件
+### CLI 体验
+- 命令 ≤ 5 个 token：`agent-control -p web click @e3`
+- 错误信息带 hint，不只报错码
+- snapshot 输出人类可读，LLM 也能直接消费
 
-### 2. 响应速度
-- snapshot < 500ms (Android Experimental: ~4s due to uiautomator dump)
-- click/fill 等操作 < 200ms (Android: ~0.4s with snapshot cache)
-- screenshot < 1s
+### 代码质量
+- 每个 driver 独立可运行，不依赖其他 driver
+- 新平台接入只需实现 snapshot/click/fill/screenshot 四个方法
+- 零配置启动：clone → npm install → 能跑
 
-### 3. 输出可读性
-- snapshot 输出人类和 AI 都能一眼看懂
-- 错误信息明确，不需要猜
+### goal-runner 体验
+- observe 返回结构化状态 + 语义摘要，agent 一看就知道当前在哪
+- act-observe 自动 diff，agent 知道操作产生了什么变化
+- report 生成可视化 HTML，人类一眼看懂执行过程
 
-### 4. 稳定性
-- UI 改了不影响操作（ref 基于语义不基于坐标）
-- 元素找不到时优雅降级，不崩溃
-
-## 反面教材
-
-- Appium — 太重、启动慢、配置复杂
-- XCUITest — 只能 iOS、跟 Xcode 绑死
-- Selenium — 过时、不稳定、API 啰嗦
+## 反面教材（不要变成这样）
+- Appium：配置地狱，启动要 30 秒
+- Selenium Grid：过度工程化，简单操作也要写一堆 boilerplate
+- 内置 LLM 决策：agent-control 是手不是脑，不要越界

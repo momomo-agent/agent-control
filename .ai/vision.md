@@ -1,42 +1,21 @@
-# Vision — Agent Control
+# Vision — agent-control
 
-> AI agent 的眼睛和手。看一步，决策一步，做一步。
+**让 AI agent 像人一样操作任何 GUI。**
 
-## 一句话
+## WHY
 
-跨平台 UI 操作层。AI agent 通过统一协议操作 Web/macOS/iOS 应用，每一步都能看到 UI 状态、做出决策、验证结果。
+AI agent 有脑子但没有手。能推理、能规划、能决策，但看不到按钮也点不了。
+agent-control 是通用的 GUI 操作协议：看到 → 操作 → 验证，一套接口跑四个平台。
 
-## 核心竞争力
+## 核心价值
 
-**Goal-based observe→decide→act 循环。**
-
-不是录制回放，不是预定义脚本。agent 看到当前 UI 状态后自己决定下一步：
-
-1. **看** — snapshot 拿到当前可交互元素
-2. **想** — 基于目标判断下一步操作
-3. **做** — click/fill/select 执行操作
-4. **验** — before/after diff 确认操作效果
-5. **循环** — 直到目标达成
-
-这是 agent-control 区别于 Selenium/Playwright/Appium 的根本差异。那些是自动化测试工具，agent-control 是 **agent 的感知-行动接口**。
-
-## 两层架构
-
-```
-Goal Runner（核心）— 看→想→做→验 循环，agent 自主决策
-    ↓
-DSL Runner（保障）— 已知好路径固化为 JSON，回归验证 driver 没退化
-    ↓
-Driver 层 — Web(Playwright) / macOS(AX API) / iOS(Simulator AX)
-```
+1. **统一协议** — Web/macOS/iOS/Android，同一套 snapshot + click + fill
+2. **语义优先** — ref 优先（accessibility label、text content），坐标兜底
+3. **agent 无关** — 不绑定任何 LLM，你带脑子，我给手和眼
+4. **goal-based** — 从脚本驱动走向目标驱动：agent 看屏幕状态自主决策下一步
 
 ## 不做什么
 
-- 不做重型测试框架
-- 不做 GUI 录制回放
-- 不做通用 RPA
-- 只服务 AI agent
-
-## 成功标准
-
-给 agent 一个自然语言目标，它能在三个平台上自主完成任务并产出可验证的执行报告。
+- 不做 agent（不内置 LLM 决策）
+- 不做测试框架（不是 Selenium/Appium 替代品）
+- 不做 RPA（不录制回放固定流程）

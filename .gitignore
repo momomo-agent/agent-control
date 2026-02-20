@@ -2,3 +2,7 @@ node_modules/
 .build/
 *.png
 recordings/
+runs/
+/tmp/
+web-driver/node_modules/
+.DS_Store
