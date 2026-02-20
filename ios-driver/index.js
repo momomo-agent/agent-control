@@ -88,7 +88,24 @@ let result;
 try {
   switch (cmd) {
     case 'snapshot': result = snapshot(args.includes('-i')); break;
-    case 'tap': case 'click': result = tapRef(args[1]); break;
+    case 'tap': case 'click': {
+      const ref = args.find(a => a && a.startsWith('@'));
+      const nums = args.slice(1).filter(a => /^\d+$/.test(a));
+      if (ref) { result = tapRef(ref); }
+      else if (nums.length >= 2) {
+        const ok = tap(parseInt(nums[0]), parseInt(nums[1]));
+        result = ok ? { ok: true, action: 'tap', x: +nums[0], y: +nums[1] } : { ok: false, error: 'tap failed' };
+      } else { result = { ok: false, error: 'usage: click @ref | click x y' }; }
+      break;
+    }
+    case 'drag': {
+      const nums = args.slice(1).filter(a => /^\d+$/.test(a));
+      if (nums.length < 4) { result = { ok: false, error: 'usage: drag x1 y1 x2 y2' }; break; }
+      const [x1, y1, x2, y2] = nums.slice(0, 4).map(Number);
+      const ok = idb('ui', 'swipe', String(x1), String(y1), String(x2), String(y2), '--duration', '0.5').status === 0;
+      result = ok ? { ok: true, action: 'drag', from: { x: x1, y: y1 }, to: { x: x2, y: y2 } } : { ok: false, error: 'drag failed' };
+      break;
+    }
     case 'fill': {
       const r = tapRef(args[1]);
       if (!r.ok) { result = r; break; }

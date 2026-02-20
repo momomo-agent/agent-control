@@ -234,6 +234,43 @@ enum AXActions {
         return true
     }
 
+    // MARK: - Coordinate Click
+
+    static func clickAt(x: CGFloat, y: CGFloat, button: String = "left") -> Bool {
+        let point = CGPoint(x: x, y: y)
+        let isRight = button == "right"
+        let downType: CGEventType = isRight ? .rightMouseDown : .leftMouseDown
+        let upType: CGEventType = isRight ? .rightMouseUp : .leftMouseUp
+        let btn: CGMouseButton = isRight ? .right : .left
+        let down = CGEvent(mouseEventSource: nil, mouseType: downType, mouseCursorPosition: point, mouseButton: btn)
+        let up = CGEvent(mouseEventSource: nil, mouseType: upType, mouseCursorPosition: point, mouseButton: btn)
+        down?.post(tap: .cghidEventTap)
+        usleep(50_000)
+        up?.post(tap: .cghidEventTap)
+        return true
+    }
+
+    // MARK: - Coordinate Drag
+
+    static func dragCoord(x1: CGFloat, y1: CGFloat, x2: CGFloat, y2: CGFloat) -> Bool {
+        let fp = CGPoint(x: x1, y: y1)
+        let tp = CGPoint(x: x2, y: y2)
+        let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: fp, mouseButton: .left)
+        down?.post(tap: .cghidEventTap)
+        usleep(50_000)
+        let steps = 10
+        for i in 1...steps {
+            let t = CGFloat(i) / CGFloat(steps)
+            let p = CGPoint(x: fp.x + (tp.x - fp.x) * t, y: fp.y + (tp.y - fp.y) * t)
+            let move = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDragged, mouseCursorPosition: p, mouseButton: .left)
+            move?.post(tap: .cghidEventTap)
+            usleep(20_000)
+        }
+        let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: tp, mouseButton: .left)
+        up?.post(tap: .cghidEventTap)
+        return true
+    }
+
     // MARK: - Scroll
 
     static func scroll(direction: String, amount: Int32) -> Bool {

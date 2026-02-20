@@ -183,13 +183,14 @@ Options:
 
 Commands:
   snapshot [-i] [-e]      See UI elements
-  click @ref              Click/tap
+  click @ref|x y [--right] Click/tap (ref or coordinates)
+  drag @r1 @r2|x1 y1 x2 y2 Drag between refs or coordinates
   fill @ref "text"        Clear + type
   select @ref "value"     Select dropdown (web)
   press <key>             Keyboard key
   screenshot [path]       Save PNG
   open <url>              Navigate (web)
-  swipe <dir>             Swipe (iOS)
+  swipe <dir>             Swipe (iOS/Android)
   close                   Close browser (web)`);
   process.exit(0);
 }

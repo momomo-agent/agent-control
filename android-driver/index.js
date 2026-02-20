@@ -178,6 +178,15 @@ function run(args) {
       return { ok: true, action: 'fill', ref, value: text };
     }
 
+    case 'drag': {
+      const nums = args.slice(1).filter(a => /^\d+$/.test(a));
+      if (nums.length < 4) return { ok: false, error: 'usage: drag x1 y1 x2 y2 [durationMs]' };
+      const [x1, y1, x2, y2] = nums.slice(0, 4).map(Number);
+      const dur = nums[4] ? parseInt(nums[4]) : 500;
+      adb(`shell input swipe ${x1} ${y1} ${x2} ${y2} ${dur}`);
+      return { ok: true, action: 'drag', from: { x: x1, y: y1 }, to: { x: x2, y: y2 } };
+    }
+
     case 'swipe': {
       const dir = args[1] || 'up';
       const amount = parseInt(args[2]) || 900;

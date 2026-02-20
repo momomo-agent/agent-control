@@ -110,6 +110,7 @@ async function snapshot(page, interactiveOnly) {
       '[role="radio"]', '[role="tab"]', '[role="menuitem"]',
       '[role="slider"]', '[role="switch"]', '[role="combobox"]',
       '[tabindex]:not([tabindex="-1"])', '[contenteditable="true"]',
+      '[aria-label]', 'canvas',
     ];
     const selector = interactiveOnly ? interactiveSelectors.join(',') : 'body *';
     const els = document.querySelectorAll(selector);
@@ -180,11 +181,30 @@ async function executeCommand(args, page, browser, context) {
       }
       case 'click': {
         const ref = args.find(a => a.startsWith('@'));
-        if (!ref) { result = { ok: false, error: 'no ref' }; break; }
-        const resolved = await resolveRef(page, ref);
-        if (!resolved) { result = { ok: false, error: 'not found' }; break; }
-        await page.mouse.click(resolved.x, resolved.y);
-        result = { ok: true, action: 'click', ref };
+        const nums = args.filter(a => /^\d+$/.test(a));
+        let x, y;
+        if (ref) {
+          const resolved = await resolveRef(page, ref);
+          if (!resolved) { result = { ok: false, error: 'not found' }; break; }
+          x = resolved.x; y = resolved.y;
+        } else if (nums.length >= 2) {
+          x = parseInt(nums[0]); y = parseInt(nums[1]);
+        } else { result = { ok: false, error: 'usage: click @ref | click x y' }; break; }
+        const btn = args.includes('--right') ? 'right' : 'left';
+        await page.mouse.click(x, y, { button: btn });
+        result = { ok: true, action: 'click', x, y, button: btn };
+        break;
+      }
+      case 'drag': {
+        const nums = args.filter(a => /^\d+$/.test(a));
+        if (nums.length < 4) { result = { ok: false, error: 'usage: drag x1 y1 x2 y2 [steps]' }; break; }
+        const [x1, y1, x2, y2] = nums.slice(0, 4).map(Number);
+        const steps = nums[5] ? parseInt(nums[4]) : 10;
+        await page.mouse.move(x1, y1);
+        await page.mouse.down();
+        await page.mouse.move(x2, y2, { steps });
+        await page.mouse.up();
+        result = { ok: true, action: 'drag', from: { x: x1, y: y1 }, to: { x: x2, y: y2 } };
         break;
       }
       case 'dblclick': {

@@ -22,12 +22,21 @@ struct AgentControl {
             printJSON(output)
 
         case "click":
-            guard let ref = args.dropFirst().first(where: { $0.hasPrefix("@") }) else {
-                fputs("error: missing @ref\n", stderr)
+            let ref = args.dropFirst().first(where: { $0.hasPrefix("@") })
+            let nums = args.dropFirst().compactMap { Double($0) }
+            let btn = args.contains("--right") ? "right" : "left"
+            if let ref = ref {
+                let ok = btn == "right"
+                    ? AXActions.rightclick(ref: ref, appPID: pid)
+                    : AXActions.click(ref: ref, appPID: pid)
+                printResult(ok, action: "click", ref: ref)
+            } else if nums.count >= 2 {
+                let ok = AXActions.clickAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn)
+                printResult(ok, action: "click", ref: "\(Int(nums[0])),\(Int(nums[1]))")
+            } else {
+                fputs("error: usage: click @ref | click x y\n", stderr)
                 exit(1)
             }
-            let ok = AXActions.click(ref: ref, appPID: pid)
-            printResult(ok, action: "click", ref: ref)
 
         case "dblclick":
             guard let ref = args.dropFirst().first(where: { $0.hasPrefix("@") }) else {
@@ -79,12 +88,17 @@ struct AgentControl {
 
         case "drag":
             let refs = args.dropFirst().filter { $0.hasPrefix("@") }
-            guard refs.count == 2 else {
-                fputs("error: drag requires two @refs\n", stderr)
+            let nums = args.dropFirst().compactMap { Double($0) }
+            if refs.count == 2 {
+                let ok = AXActions.drag(fromRef: refs[0], toRef: refs[1], appPID: pid)
+                printResult(ok, action: "drag", ref: "\(refs[0]) → \(refs[1])")
+            } else if nums.count >= 4 {
+                let ok = AXActions.dragCoord(x1: CGFloat(nums[0]), y1: CGFloat(nums[1]), x2: CGFloat(nums[2]), y2: CGFloat(nums[3]))
+                printResult(ok, action: "drag", ref: "\(Int(nums[0])),\(Int(nums[1])) → \(Int(nums[2])),\(Int(nums[3]))")
+            } else {
+                fputs("error: usage: drag @from @to | drag x1 y1 x2 y2\n", stderr)
                 exit(1)
             }
-            let ok = AXActions.drag(fromRef: refs[0], toRef: refs[1], appPID: pid)
-            printResult(ok, action: "drag", ref: "\(refs[0]) → \(refs[1])")
 
         case "scroll":
             let dir = args.count > 1 ? args[1] : "down"

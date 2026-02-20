@@ -1,0 +1,23 @@
+{
+  "name": "intera-curve-sugar-dbb",
+  "platform": "web",
+  "description": "DBB: 曲线预览图 + Sugar右键菜单 + 属性级delay",
+  "setup": { "url": "http://localhost:5174/" },
+  "steps": [
+    { "action": "screenshot", "name": "initial", "path": "initial.png" },
+    { "action": "keys", "key": "r", "comment": "切换到矩形工具" },
+    { "action": "wait", "ms": 300 },
+    { "action": "click", "ref": "artboard", "selector": ".artboard-frame", "offset": { "x": 30, "y": 30 } },
+    { "action": "drag", "from": { "selector": ".artboard-frame", "offset": { "x": 30, "y": 30 } }, "to": { "selector": ".artboard-frame", "offset": { "x": 180, "y": 180 } }, "comment": "画矩形" },
+    { "action": "wait", "ms": 500 },
+    { "action": "screenshot", "name": "after-rect", "path": "after-rect.png" },
+    { "action": "click", "selector": ".add-state-btn", "comment": "添加第二状态" },
+    { "action": "wait", "ms": 500 },
+    { "action": "verify", "selector": ".curve-preview", "comment": "F301: 曲线预览图应出现" },
+    { "action": "screenshot", "name": "curve-preview", "path": "curve-preview.png" },
+    { "action": "click", "selector": ".layer-item", "button": "right", "comment": "右键图层" },
+    { "action": "wait", "ms": 300 },
+    { "action": "verify", "selector": ".ctx-menu", "comment": "F302: 右键菜单应出现" },
+    { "action": "screenshot", "name": "sugar-menu", "path": "sugar-menu.png" }
+  ]
+}
