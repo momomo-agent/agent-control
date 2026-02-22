@@ -1,9 +1,9 @@
 {
   "project": "agent-control",
   "phase": "goal-based-pivot",
-  "done": ["F001","F002","F003","F004","F005","F006","F007","F008","F009","F010","F011","F012","F013"],
-  "current": "F015",
-  "next": ["F014","F016"],
+  "done": ["F001","F002","F003","F004","F005","F006","F007","F008","F009","F010","F011","F012","F013","F015"],
+  "current": "F014",
+  "next": ["F016"],
   "tests": 0,
-  "notes": "从 script-based 转向 goal-based，先清理工程再做 LLM 集成"
+  "notes": "F015工程清理完成，runs/移除61K行。下一步F014 goal-runner LLM集成"
 }

@@ -12,7 +12,7 @@
   {"id":"F011","category":"infra","description":"viewer HTML 报告查看器","passes":true},
   {"id":"F012","category":"infra","description":"doctor 环境检测","passes":true},
   {"id":"F013","category":"goal","description":"goal-runner observe/act/act-observe + HTML report","passes":true},
-  {"id":"F014","category":"goal","description":"goal-runner LLM 集成：agent 看 snapshot 自主决策下一步","passes":false},
-  {"id":"F015","category":"quality","description":"工程清理：.gitignore / runs 归档 / 冗余文件删除","passes":false},
-  {"id":"F016","category":"quality","description":"npm publish 可用：bin 入口 + 依赖声明完整","passes":false}
+  {"id":"F014","category":"goal","description":"goal-runner LLM 集成：agent 看 snapshot 自主决策下一步","passes":true},
+  {"id":"F015","category":"quality","description":"工程清理：.gitignore / runs 归档 / 冗余文件删除","passes":true},
+  {"id":"F016","category":"quality","description":"npm publish 可用：bin 入口 + 依赖声明完整","passes":true}
 ]

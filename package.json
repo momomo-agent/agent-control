@@ -21,11 +21,20 @@
   },
   "files": [
     "cli.js",
+    "auto.js",
+    "doctor.js",
+    "snapshot-enhance.js",
+    "goal-runner.js",
+    "dsl-runner.js",
+    "run-all.js",
+    "run-record.js",
+    "retry.js",
+    "viewer.js",
     "web-driver/",
     "ios-driver/",
+    "android-driver/",
     "macos-driver/.build/debug/agent-control",
-    "goal-runner.js",
-    "dbb-runner.js",
+    "flows/",
     "README.md",
     "LICENSE"
   ]

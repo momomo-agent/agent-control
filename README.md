@@ -116,6 +116,28 @@ Raw snapshot returns every element. Enhanced (`-e`) filters to interactive eleme
 }
 ```
 
+## Environment Check
+
+```bash
+agent-control doctor            # check all platforms
+agent-control doctor -p web     # check web only
+```
+
+Checks Node version, Playwright, Accessibility permission, Simulator status, etc. Tells you exactly what to fix.
+
+## Auto Mode (LLM-Driven)
+
+Let an LLM autonomously operate the UI toward a goal:
+
+```bash
+export AC_API_KEY=sk-...        # OpenAI or compatible
+export AC_MODEL=gpt-4o-mini     # optional, default gpt-4o-mini
+
+agent-control auto -p web --goal "Sign up with name Alice" --url https://example.com/signup
+```
+
+The agent loops: snapshot → LLM decides next action → execute → repeat until done or stuck. Works with any OpenAI-compatible API (`AC_API_URL`).
+
 ## Golden Flows (Regression Testing)
 
 JSON-defined flows to keep drivers honest:

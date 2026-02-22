@@ -159,39 +159,62 @@ if (!drivers[platform]) {
   process.exit(1);
 }
 
+// Top-level subcommands → delegate
+const subcommands = {
+  auto: 'auto.js',
+  doctor: 'doctor.js',
+  'run-all': 'run-all.js',
+  goal: 'goal-runner.js',
+  viewer: 'viewer.js',
+};
+if (subcommands[driverArgs[0]]) {
+  const { spawnSync: ss } = require('child_process');
+  const r = ss('node', [path.join(ROOT, subcommands[driverArgs[0]]), ...args.slice(args.indexOf(driverArgs[0]) + 1)], { stdio: 'inherit', encoding: 'utf8' });
+  process.exit(r.status || 0);
+}
+
 if (driverArgs.length === 0 || driverArgs[0] === 'help' || driverArgs[0] === '--help') {
-  console.log(`agent-control — AI agent 的眼睛和手
+  console.log(`agent-control — Give AI hands.
 
 Usage:
-  agent-control -p <platform> [--pid <pid>] [-e] <command> [args...]
-
-Examples:
-  agent-control -p web open https://example.com
-  agent-control -p web -e snapshot              # enhanced: filtered + summary
-  agent-control -p web click @e3
-  agent-control -p macos --pid $(pgrep TextEdit) -e snapshot
-  agent-control -p ios -e snapshot
+  agent-control -p <platform> [-e] [--pid <pid>] <command> [args...]
+  agent-control <subcommand> [args...]
 
 Platforms:
   web       Playwright (auto-starts daemon)
-  macos     Accessibility API (use --pid to target app)
-  ios       Simulator via macOS AX
+  macos     Accessibility API (--pid to target app)
+  ios       Simulator via idb
+  android   Emulator via uiautomator (experimental)
+
+Driver commands:
+  snapshot [-i] [-e]        See UI elements
+  click @ref | x y          Click/tap
+  drag @r1 @r2              Drag between refs or coordinates
+  fill @ref "text"          Clear + type
+  select @ref "value"       Select dropdown (web)
+  press <key>               Keyboard key
+  screenshot [path]         Save PNG
+  open <url>                Navigate (web)
+  swipe <dir>               Swipe (iOS/Android)
+  close                     Close browser (web)
+
+Subcommands:
+  auto    -p <plat> --goal "..." [--url <url>]   LLM-driven goal loop
+  doctor  [-p <plat>]                            Environment check
+  run-all [--json]                               Run all flows
+  goal    -p <plat> observe|act|act-observe ...  Step-by-step goal runner
+  viewer                                         Open HTML report viewer
 
 Options:
-  -e, --enhanced    Snapshot: filter interactive + semantic summary
+  -e, --enhanced    Filter interactive elements + semantic summary
   --pid <pid>       Target specific app (macOS)
 
-Commands:
-  snapshot [-i] [-e]      See UI elements
-  click @ref|x y [--right] Click/tap (ref or coordinates)
-  drag @r1 @r2|x1 y1 x2 y2 Drag between refs or coordinates
-  fill @ref "text"        Clear + type
-  select @ref "value"     Select dropdown (web)
-  press <key>             Keyboard key
-  screenshot [path]       Save PNG
-  open <url>              Navigate (web)
-  swipe <dir>             Swipe (iOS/Android)
-  close                   Close browser (web)`);
+Examples:
+  agent-control doctor
+  agent-control -p web open https://example.com
+  agent-control -p web -e snapshot
+  agent-control -p web click @e3
+  agent-control auto -p web --goal "Sign up" --url https://example.com`);
   process.exit(0);
 }
 
