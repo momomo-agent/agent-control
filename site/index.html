@@ -195,6 +195,58 @@ nav .links a:hover { color: var(--text); }
   padding-bottom: 60px;
 }
 
+/* ── Two Modes ── */
+.modes-section { padding: 80px 0; }
+.modes-section h2 {
+  font-family: var(--serif);
+  font-size: 42px;
+  font-weight: 400;
+  margin-bottom: 16px;
+  letter-spacing: -1px;
+}
+.modes-section .desc { color: var(--text2); margin-bottom: 48px; max-width: 560px; }
+.modes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.mode-card {
+  background: var(--bg2);
+  padding: 36px;
+}
+.mode-card:hover { background: var(--bg3); }
+.mode-card .mode-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+}
+.mode-card.auto .mode-label { color: var(--accent); }
+.mode-card.flow .mode-label { color: var(--web); }
+.mode-card h3 { font-size: 16px; font-weight: 500; margin-bottom: 12px; }
+.mode-card p { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 20px; }
+.mode-card pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-x: auto;
+  color: var(--text2);
+}
+.mode-card pre .prompt { color: var(--accent); }
+.mode-card pre .flag { color: var(--ios); }
+.mode-card pre .str { color: var(--accent2); }
+.mode-card pre .cm { color: #555; }
+@media (max-width: 768px) {
+  .modes-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Architecture ── */
 .arch-section { padding: 80px 0; }
 .arch-section h2 {
@@ -298,13 +350,15 @@ footer .right a:hover { color: var(--accent); }
 /* ── Typing animation ── */
 .typing-line { opacity: 0; animation: typeFade 0.3s ease-out forwards; }
 .typing-line:nth-child(1) { animation-delay: 0.5s; }
-.typing-line:nth-child(2) { animation-delay: 1.2s; }
+.typing-line:nth-child(2) { animation-delay: 1.0s; }
 .typing-line:nth-child(3) { animation-delay: 1.5s; }
-.typing-line:nth-child(4) { animation-delay: 2.5s; }
-.typing-line:nth-child(5) { animation-delay: 3.2s; }
+.typing-line:nth-child(4) { animation-delay: 2.2s; }
+.typing-line:nth-child(5) { animation-delay: 3.0s; }
 .typing-line:nth-child(6) { animation-delay: 3.5s; }
-.typing-line:nth-child(7) { animation-delay: 4.5s; }
+.typing-line:nth-child(7) { animation-delay: 4.2s; }
 .typing-line:nth-child(8) { animation-delay: 5.0s; }
+.typing-line:nth-child(9) { animation-delay: 5.5s; }
+.typing-line:nth-child(10) { animation-delay: 6.0s; }
 @keyframes typeFade { to { opacity: 1; } }
 
 /* ── Responsive ── */
@@ -324,6 +378,7 @@ footer .right a:hover { color: var(--accent); }
     <div class="logo">agent<span>-control</span></div>
     <div class="links">
       <a href="#loop">How it works</a>
+      <a href="#modes">Usage</a>
       <a href="#platforms">Platforms</a>
       <a href="#actions">Actions</a>
       <a href="https://github.com/momomo-agent/agent-control">GitHub</a>
@@ -355,14 +410,16 @@ footer .right a:hover { color: var(--accent); }
         <span class="terminal-title">agent-control — observe → act → observe</span>
       </div>
       <div class="terminal-body">
-        <div class="typing-line"><span class="comment"># 1. See the screen</span></div>
-        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p web -e snapshot</span></div>
+        <div class="typing-line"><span class="comment"># Quick start</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">npm install -g agent-control</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control doctor</span></div>
+        <div class="typing-line"><span class="output">  <span class="ok">✅</span> Node.js >= 18 &nbsp; <span class="ok">✅</span> Playwright &nbsp; <span class="ok">✅</span> Chromium &nbsp; All checks passed.</span></div>
+        <div class="typing-line"><br><span class="comment"># See the screen</span></div>
+        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p web snapshot</span></div>
         <div class="typing-line"><span class="output">  12 interactive elements</span><br><span class="output">  <span class="ref">@e8</span> text "Name" &nbsp; <span class="ref">@e10</span> email "Email" &nbsp; <span class="ref">@e18</span> submit "Create Account"</span></div>
-        <div class="typing-line"><br><span class="comment"># 2. Act</span></div>
+        <div class="typing-line"><br><span class="comment"># Act</span></div>
         <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p web fill <span class="ref">@e8</span> "Alice"</span></div>
         <div class="typing-line"><span class="output">  <span class="ok">✓</span> { ok: true }</span></div>
-        <div class="typing-line"><br><span class="comment"># 3. Works on macOS and iOS too</span></div>
-        <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control -p ios -e snapshot</span></div>
       </div>
     </div>
   </div>
@@ -396,6 +453,37 @@ footer .right a:hover { color: var(--accent); }
         <div class="loop-icon">🔄</div>
         <div class="loop-label">Repeat</div>
         <div class="loop-desc">Until the goal is reached</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="modes-section" id="modes">
+  <div class="container">
+    <h2>Two Ways to Use</h2>
+    <p class="desc">Let the AI figure it out, or define every step. Pick the right tool for the job.</p>
+    <div class="modes-grid">
+      <div class="mode-card auto">
+        <div class="mode-label">Auto Mode</div>
+        <h3>Give a goal, AI decides how</h3>
+        <p>Natural language objective → LLM loops snapshot→think→act until done. Best for exploratory tasks, testing new apps, one-off automation.</p>
+        <pre><span class="prompt">$ </span>agent-control <span class="flag">auto</span> <span class="flag">-p</span> web \
+  <span class="str">"Sign up with name Alice and email alice@test.com"</span>
+
+<span class="cm"># AI observes the form, fills fields, clicks submit</span>
+<span class="cm"># No scripting needed</span></pre>
+      </div>
+      <div class="mode-card flow">
+        <div class="mode-label">Flow DSL</div>
+        <h3>Define steps, run deterministically</h3>
+        <p>JSON-declared action sequences with verify/retry. Best for regression tests, CI pipelines, repeatable workflows.</p>
+        <pre><span class="cm">// signup-flow.json</span>
+{ <span class="str">"platform"</span>: <span class="str">"web"</span>,
+  <span class="str">"steps"</span>: [
+    { <span class="str">"action"</span>: <span class="str">"fill"</span>, <span class="str">"find"</span>: [<span class="str">"Name"</span>], <span class="str">"value"</span>: <span class="str">"Alice"</span> },
+    { <span class="str">"action"</span>: <span class="str">"click"</span>, <span class="str">"find"</span>: [<span class="str">"Create Account"</span>] },
+    { <span class="str">"action"</span>: <span class="str">"verify"</span>, <span class="str">"contains"</span>: <span class="str">"Welcome"</span> }
+  ] }</pre>
       </div>
     </div>
   </div>
