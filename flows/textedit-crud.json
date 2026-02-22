@@ -1,11 +1,12 @@
 {
   "name": "textedit-crud",
   "platform": "macos",
-  "setup": { "exec": "open -a TextEdit", "wait": 1500, "keys": "Meta+n", "postWait": 1000 },
+  "setup": { "exec": "osascript -e 'tell application \"TextEdit\" to quit' 2>/dev/null; sleep 1; open -a TextEdit; sleep 2; osascript -e 'tell application \"System Events\" to keystroke \"n\" using command down'", "wait": 1500 },
   "steps": [
     { "action": "snapshot" },
     { "action": "screenshot", "label": "initial" },
     { "action": "fill", "find": ["TextArea", "Text View"], "value": "Hello from agent-control!", "retry": true },
+    { "action": "wait", "ms": 500 },
     { "action": "verify", "contains": "Hello from agent-control" },
     { "action": "keys", "value": "Meta+a" },
     { "action": "fill", "find": ["TextArea", "Text View"], "value": "Edited by agent-control!" },

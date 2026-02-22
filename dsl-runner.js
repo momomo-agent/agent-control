@@ -16,6 +16,19 @@ const http = require('http');
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+function ensureWebDaemon() {
+  const STATE = '/tmp/agent-control-web.json';
+  try { const s = JSON.parse(fs.readFileSync(STATE, 'utf8')); process.kill(s.pid, 0); return; } catch {}
+  const { spawn } = require('child_process');
+  const child = spawn('node', [path.join(__dirname, 'web-driver', 'index.js'), 'open', 'about:blank'], { detached: true, stdio: 'ignore' });
+  child.unref();
+  for (let i = 0; i < 20; i++) {
+    spawnSync('sleep', ['0.3']);
+    try { const s = JSON.parse(fs.readFileSync(STATE, 'utf8')); process.kill(s.pid, 0); return; } catch {}
+  }
+  throw new Error('Failed to start web daemon');
+}
+
 function httpCmd(args) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify({ args });
@@ -232,6 +245,7 @@ async function main() {
   const run = new RunRecord(P, flow.name);
   const ctx = { platform: P, snap: null, artifactsDir: run.artifactsDir };
 
+  if (P === 'web') ensureWebDaemon();
   console.error(`▶ DSL flow "${flow.name}" on ${P} [${run.runId}]`);
 
   // Setup

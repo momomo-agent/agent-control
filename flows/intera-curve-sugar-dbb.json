@@ -1,6 +1,7 @@
 {
   "name": "intera-curve-sugar-dbb",
   "platform": "web",
+  "env": "intera-dev",
   "description": "DBB: 曲线预览图 + Sugar右键菜单 + 属性级delay",
   "setup": { "url": "http://localhost:5174/" },
   "steps": [

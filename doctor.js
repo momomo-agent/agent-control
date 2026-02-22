@@ -47,23 +47,19 @@ check('Screen resolution', 'all', () => {
 // ── Web ──
 check('Playwright installed', 'web', () => {
   try {
-    require.resolve('playwright', { paths: [path.join(__dirname, 'web-driver')] });
+    require.resolve('playwright');
     return { ok: true };
   } catch {
-    return { ok: false, fix: 'cd web-driver && npm install playwright' };
+    return { ok: false, fix: 'npm install playwright' };
   }
 });
 
 check('Chromium binary', 'web', () => {
-  const out = run("npx playwright install --dry-run chromium 2>&1 | head -3");
-  if (out && out.includes('already')) return { ok: true };
-  // Try launching
   try {
-    const { chromium } = require(path.join(__dirname, 'web-driver', 'node_modules', 'playwright'));
-    return { ok: true, detail: 'playwright available' };
-  } catch {
-    return { ok: false, fix: 'npx playwright install chromium' };
-  }
+    const pw = require('playwright');
+    if (pw.chromium?.executablePath()) return { ok: true };
+  } catch {}
+  return { ok: false, fix: 'npx playwright install chromium' };
 });
 
 // ── macOS ──

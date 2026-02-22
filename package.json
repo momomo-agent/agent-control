@@ -25,16 +25,11 @@
     "doctor.js",
     "snapshot-enhance.js",
     "goal-runner.js",
-    "dsl-runner.js",
-    "run-all.js",
-    "run-record.js",
     "retry.js",
-    "viewer.js",
     "web-driver/",
     "ios-driver/",
     "android-driver/",
     "macos-driver/.build/debug/agent-control",
-    "flows/",
     "README.md",
     "LICENSE"
   ]
