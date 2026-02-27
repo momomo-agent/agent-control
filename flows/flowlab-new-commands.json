@@ -1,0 +1,22 @@
+{
+  "name": "flowlab-new-commands",
+  "platform": "web",
+  "description": "验证 wait/find/eval/url/reload 新命令",
+  "steps": [
+    { "action": "shell", "cmd": "sleep 0.5" },
+    { "action": "open", "url": "$FLOWLAB" },
+    { "action": "wait", "args": ["--idle", "3000"] },
+    { "action": "url" },
+    { "action": "find", "args": ["email"] },
+    { "action": "find", "args": ["password"] },
+    { "action": "eval", "args": ["document.title"] },
+    { "action": "eval", "args": ["document.querySelectorAll('input').length"] },
+    { "action": "snapshot", "enhanced": true },
+    { "action": "fill", "find": ["Email"], "value": "test@example.com" },
+    { "action": "screenshot" },
+    { "action": "reload" },
+    { "action": "wait", "args": ["--idle", "3000"] },
+    { "action": "eval", "args": ["document.querySelector('input[type=email]').value"] },
+    { "action": "screenshot" }
+  ]
+}

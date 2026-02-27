@@ -229,6 +229,30 @@ async function execStep(step, ctx) {
       }
       return { ok: true };
     }
+    case 'find': {
+      const r = await ac(P, 'find', ...(step.args || [step.query || '']));
+      return r.ok !== false ? { ok: true, data: r } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error || 'find failed' };
+    }
+    case 'eval': {
+      const r = await ac(P, 'eval', ...(step.args || [step.expr || '']));
+      return r.ok !== false ? { ok: true, data: r } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error || 'eval failed' };
+    }
+    case 'url': {
+      const r = await ac(P, 'url');
+      return r.ok !== false ? { ok: true, data: r } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error || 'url failed' };
+    }
+    case 'reload': {
+      const r = await ac(P, 'reload');
+      return r.ok !== false ? { ok: true, data: r } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error || 'reload failed' };
+    }
+    case 'back': {
+      const r = await ac(P, 'back');
+      return r.ok !== false ? { ok: true, data: r } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error || 'back failed' };
+    }
+    case 'forward': {
+      const r = await ac(P, 'forward');
+      return r.ok !== false ? { ok: true, data: r } : { ok: false, tag: 'DRIVER_ERROR', msg: r.error || 'forward failed' };
+    }
     default:
       return { ok: false, tag: 'UNKNOWN', msg: `unknown action: ${step.action}` };
   }

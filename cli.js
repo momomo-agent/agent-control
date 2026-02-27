@@ -19,6 +19,7 @@ const args = process.argv.slice(2);
 // ── Parse --platform and --enhanced ──
 let platform = null;
 let enhanced = false;
+let compact = false;
 let pidArg = null;
 let driverArgs = [];
 
@@ -27,6 +28,8 @@ for (let i = 0; i < args.length; i++) {
     platform = args[i + 1]; i++;
   } else if (args[i] === '--enhanced' || args[i] === '-e') {
     enhanced = true;
+  } else if (args[i] === '--compact' || args[i] === '-c') {
+    compact = true; enhanced = true;
   } else if (args[i] === '--pid') {
     pidArg = args[i + 1]; i++;
   } else {
@@ -44,6 +47,16 @@ if (driverArgs[0] === 'doctor') {
 if (driverArgs[0] === 'demo') {
   const r = spawnSync(process.execPath, [path.join(ROOT, 'demo.js'), ...driverArgs.slice(1)], { stdio: 'inherit' });
   process.exit(r.status || 0);
+}
+if (driverArgs[0] === 'find' && platform !== 'web') {
+  // CLI-level find: snapshot + filter for non-web platforms
+  const query = driverArgs.slice(1).join(' ').toLowerCase();
+  if (!query) { console.error('usage: agent-control -p <platform> find <text>'); process.exit(1); }
+  // Replace driverArgs to run snapshot -i, then filter
+  driverArgs = ['snapshot', '-i'];
+  enhanced = true;
+  // Store query for post-processing
+  global.__findQuery = query;
 }
 
 // ── Auto-detect platform ──
@@ -92,7 +105,19 @@ function maybeEnhance(r) {
       process.exit(1);
     }
     const result = enhance(arr, { platform });
-    console.log(JSON.stringify(result, null, 2));
+    if (global.__findQuery) {
+      const q = global.__findQuery;
+      const matches = result.elements.filter(el => {
+        const t = [el.label, el.value, el.name, el.text, el.role, el.tag].filter(Boolean).join(' ').toLowerCase();
+        return t.includes(q);
+      });
+      console.log(JSON.stringify({ ok: true, action: 'find', query: q, count: matches.length, elements: matches }));
+    } else if (compact) {
+      console.log(result.summary);
+      console.log(result.text);
+    } else {
+      console.log(JSON.stringify(result, null, 2));
+    }
   } catch { process.stdout.write(out + '\n'); }
   process.exit(r.status || 0);
 }
@@ -142,7 +167,13 @@ const drivers = {
           try {
             const els = JSON.parse(body);
             const arr = Array.isArray(els) ? els : Object.values(els);
-            console.log(JSON.stringify(enhance(arr, { platform }), null, 2));
+            const r = enhance(arr, { platform });
+            if (compact) {
+              console.log(r.summary);
+              console.log(r.text);
+            } else {
+              console.log(JSON.stringify(r, null, 2));
+            }
           } catch { process.stdout.write(body); }
         } else {
           process.stdout.write(body + '\n');
