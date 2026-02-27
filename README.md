@@ -87,6 +87,10 @@ node cli.js doctor -p web   # 只检查 Web
 | `press <key>` | Keyboard key |
 | `screenshot [path]` | Save PNG |
 | `open <url>` | Navigate (web) |
+| `drag @from @to` | Drag between elements |
+| `wait --idle` | Wait for network idle |
+| `wait @ref` | Wait for element visible |
+| `wait --url <pattern>` | Wait for URL change |
 | `swipe <dir>` | Swipe (iOS/Android) |
 
 ## How It Works

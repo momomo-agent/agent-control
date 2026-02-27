@@ -296,9 +296,36 @@ async function executeCommand(args, page, browser, context) {
           const video = page.video();
           if (video) { videoPath = await video.path(); }
         } catch {}
-        // Close the recording context
         try { await page.context().close(); } catch {}
         result = { ok: true, action: 'stop-video', path: videoPath };
+        break;
+      }
+      case 'wait': {
+        // wait @ref [timeout_ms]  — 等元素可见
+        // wait --url <pattern> [timeout_ms]  — 等 URL 变化
+        // wait --idle [timeout_ms]  — 等网络空闲
+        const wArgs = args.slice(1);
+        const wTimeoutIdx = wArgs.findIndex(a => /^\d+$/.test(a));
+        const wTimeout = wTimeoutIdx >= 0 ? parseInt(wArgs[wTimeoutIdx]) : 5000;
+        if (wArgs[0] === '--url') {
+          const pattern = wArgs[1] || '**';
+          await page.waitForURL(pattern, { timeout: wTimeout });
+          result = { ok: true, action: 'wait-url', url: page.url() };
+        } else if (wArgs[0] === '--idle' || wArgs.length === 0) {
+          await page.waitForLoadState('networkidle', { timeout: wTimeout });
+          result = { ok: true, action: 'wait-idle' };
+        } else if (wArgs[0] && wArgs[0].startsWith('@')) {
+          const resolved = await resolveRef(page, wArgs[0]);
+          if (!resolved) { result = { ok: false, error: `ref ${wArgs[0]} not found` }; break; }
+          await page.waitForSelector(resolved.selector, { state: 'visible', timeout: wTimeout });
+          result = { ok: true, action: 'wait-ref', ref: wArgs[0] };
+        } else if (wArgs[0]) {
+          await page.waitForSelector(wArgs[0], { state: 'visible', timeout: wTimeout });
+          result = { ok: true, action: 'wait-selector', selector: wArgs[0] };
+        } else {
+          await page.waitForLoadState('networkidle', { timeout: wTimeout });
+          result = { ok: true, action: 'wait-idle' };
+        }
         break;
       }
       default:

@@ -22,14 +22,21 @@
   "files": [
     "cli.js",
     "auto.js",
+    "demo.js",
     "doctor.js",
     "snapshot-enhance.js",
     "goal-runner.js",
+    "dsl-runner.js",
+    "run-record.js",
+    "run-all.js",
     "retry.js",
+    "viewer.js",
+    "flowlab/",
     "web-driver/",
     "ios-driver/",
     "android-driver/",
     "macos-driver/.build/debug/agent-control",
+    "flows/",
     "README.md",
     "LICENSE"
   ]
