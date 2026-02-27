@@ -36,6 +36,16 @@ for (let i = 0; i < args.length; i++) {
 // Append --pid after command for drivers that expect it
 if (pidArg) driverArgs.push('--pid', pidArg);
 
+// ── Subcommand shortcuts ──
+if (driverArgs[0] === 'doctor') {
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'doctor.js'), ...driverArgs.slice(1)], { stdio: 'inherit' });
+  process.exit(r.status || 0);
+}
+if (driverArgs[0] === 'demo') {
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'demo.js'), ...driverArgs.slice(1)], { stdio: 'inherit' });
+  process.exit(r.status || 0);
+}
+
 // ── Auto-detect platform ──
 if (!platform) {
   const cmd = driverArgs[0];

@@ -41,21 +41,39 @@ One protocol. Three platforms. Works today.
 ```bash
 git clone https://github.com/momomo-agent/agent-control
 cd agent-control && npm install
+```
 
-# Web (auto-starts Playwright daemon)
-agent-control -p web open https://example.com
-agent-control -p web -e snapshot
-agent-control -p web click @e3
+### 30 秒体验 (Web)
 
-# macOS (any app, via Accessibility API)
-agent-control -p macos --pid $(pgrep TextEdit) -e snapshot
+```bash
+node cli.js demo web
+```
 
-# iOS Simulator (via macOS AX on Simulator process)
-agent-control -p ios -e snapshot
+自动完成：环境检查 → 启动 driver → 打开测试页 → 快照 → 截图。零配置。
 
-# Android (via adb + uiautomator)
-agent-control -p android -e snapshot
-agent-control -p android click @e5
+### 手动使用
+
+```bash
+# Web — 零依赖，开箱即用
+node cli.js -p web open https://example.com
+node cli.js -p web -e snapshot
+node cli.js -p web click @e3
+
+# macOS — 需要辅助功能权限
+node cli.js -p macos --pid $(pgrep TextEdit) -e snapshot
+
+# iOS Simulator — 需要 Xcode + 已启动的模拟器
+node cli.js -p ios -e snapshot
+
+# Android — 需要 adb + 已连接设备/模拟器
+node cli.js -p android -e snapshot
+```
+
+### 环境检查
+
+```bash
+node cli.js doctor          # 检查所有平台
+node cli.js doctor -p web   # 只检查 Web
 ```
 
 ## Commands
