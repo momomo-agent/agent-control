@@ -179,6 +179,17 @@ async function executeCommand(args, page, browser, context) {
         result = els;
         break;
       }
+      case 'find': {
+        const query = args.slice(1).join(' ').toLowerCase();
+        if (!query) { result = { ok: false, error: 'no search query' }; break; }
+        const allEls = await snapshot(page, true);
+        const matches = allEls.filter(el => {
+          const text = [el.label, el.value, el.name, el.placeholder, el.role, el.tag].filter(Boolean).join(' ').toLowerCase();
+          return text.includes(query);
+        });
+        result = { ok: true, action: 'find', query, count: matches.length, elements: matches };
+        break;
+      }
       case 'click': {
         const ref = args.find(a => a.startsWith('@'));
         const nums = args.filter(a => /^\d+$/.test(a));
