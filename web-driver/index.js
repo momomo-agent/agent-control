@@ -328,6 +328,32 @@ async function executeCommand(args, page, browser, context) {
         }
         break;
       }
+      case 'eval': {
+        const expr = args.slice(1).join(' ');
+        if (!expr) { result = { ok: false, error: 'no expression' }; break; }
+        const val = await page.evaluate(expr);
+        result = { ok: true, action: 'eval', value: val };
+        break;
+      }
+      case 'url': {
+        result = { ok: true, action: 'url', url: page.url() };
+        break;
+      }
+      case 'back': {
+        await page.goBack({ timeout: 10000 });
+        result = { ok: true, action: 'back', url: page.url() };
+        break;
+      }
+      case 'forward': {
+        await page.goForward({ timeout: 10000 });
+        result = { ok: true, action: 'forward', url: page.url() };
+        break;
+      }
+      case 'reload': {
+        await page.reload({ timeout: 15000 });
+        result = { ok: true, action: 'reload', url: page.url() };
+        break;
+      }
       default:
         result = { ok: false, error: `unknown command '${cmd}'` };
     }

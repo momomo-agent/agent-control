@@ -91,6 +91,10 @@ node cli.js doctor -p web   # 只检查 Web
 | `wait --idle` | Wait for network idle |
 | `wait @ref` | Wait for element visible |
 | `wait --url <pattern>` | Wait for URL change |
+| `eval <js>` | Execute JS in page (web) |
+| `url` | Get current page URL (web) |
+| `back` / `forward` | Browser navigation (web) |
+| `reload` | Reload page (web) |
 | `swipe <dir>` | Swipe (iOS/Android) |
 
 ## How It Works
