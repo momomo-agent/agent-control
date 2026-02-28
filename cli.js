@@ -32,6 +32,8 @@ for (let i = 0; i < args.length; i++) {
     compact = true; enhanced = true;
   } else if (args[i] === '--pid') {
     pidArg = args[i + 1]; i++;
+  } else if (args[i] === '--app') {
+    driverArgs.push('--app', args[i + 1]); i++;
   } else {
     driverArgs.push(args[i]);
   }
@@ -248,13 +250,16 @@ Subcommands:
 
 Options:
   -e, --enhanced    Filter interactive elements + semantic summary
-  --pid <pid>       Target specific app (macOS)
+  --pid <pid>       Target specific app by PID (macOS)
+  --app <name>      Target app by name or bundleId (macOS)
 
 Examples:
   agent-control doctor
   agent-control -p web open https://example.com
   agent-control -p web -e snapshot
   agent-control -p web click @e3
+  agent-control -p macos --app Finder snapshot -i
+  agent-control -p macos screenshot --app com.apple.controlcenter /tmp/menubar.png
   agent-control auto -p web --goal "Sign up" --url https://example.com`);
   process.exit(0);
 }

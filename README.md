@@ -61,6 +61,11 @@ node cli.js -p web click @e3
 
 # macOS — 需要辅助功能权限
 node cli.js -p macos --pid $(pgrep TextEdit) -e snapshot
+node cli.js -p macos --app Finder snapshot -i
+
+# macOS — Electron / Menubar 应用
+node cli.js -p macos --app "Slack" -e snapshot
+node cli.js -p macos screenshot --app com.apple.controlcenter /tmp/menubar.png
 
 # iOS Simulator — 需要 Xcode + 已启动的模拟器
 node cli.js -p ios -e snapshot
@@ -81,6 +86,7 @@ node cli.js doctor -p web   # 只检查 Web
 | Command | What it does |
 |---------|-------------|
 | `snapshot [-e]` | See UI elements. `-e` = enhanced (filtered + summary) |
+| `snapshot --app <name>` | Target specific app by name or bundleId (macOS) |
 | `click @ref` | Click / tap |
 | `fill @ref "text"` | Clear + type |
 | `select @ref "val"` | Select dropdown (web) |
@@ -124,7 +130,7 @@ You bring the brain (Claude, GPT, Gemini, local LLM — whatever). We handle the
 | Platform | Driver | Notes |
 |----------|--------|-------|
 | **Web** | Playwright | Auto-starts daemon on port 3901. Headless Chromium. |
-| **macOS** | Swift + Accessibility API | Use `--pid` to target any app. Needs Accessibility permission. |
+| **macOS** | Swift + Accessibility API | Use `--pid` or `--app` to target any app. Supports menubar apps and Electron. Needs Accessibility permission. |
 | **iOS** | idb | Auto-detects booted sim. Uses idb describe-all + tap. |
 | **Android** | adb + uiautomator | Experimental. Requires running emulator or device via `adb`. |
 
