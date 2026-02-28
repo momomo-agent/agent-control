@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 // MARK: - CLI Entry Point
 
@@ -143,6 +144,15 @@ struct AgentControl {
         if let idx = args.firstIndex(of: "--pid"), idx + 1 < args.count {
             return pid_t(args[idx + 1])
         }
+        // --app "Name" or --app bundleId → resolve to PID
+        if let idx = args.firstIndex(of: "--app"), idx + 1 < args.count {
+            let name = args[idx + 1]
+            let apps = NSWorkspace.shared.runningApplications
+            if let a = apps.first(where: { $0.localizedName == name || $0.bundleIdentifier == name }) {
+                return a.processIdentifier
+            }
+            fputs("error: app '\(name)' not found\n", stderr)
+        }
         return nil
     }
 
@@ -181,6 +191,7 @@ struct AgentControl {
 
         Options:
           --pid <pid>    指定目标应用 PID（默认前台应用）
+          --app <name>   指定目标应用名称或 bundleId
           -i             snapshot 只返回可交互元素
         """)
     }

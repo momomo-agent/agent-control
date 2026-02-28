@@ -88,7 +88,7 @@ enum AXScanner {
         let clickableRoles: Set<String> = [
             "AXButton", "AXTextField", "AXTextArea", "AXCheckBox",
             "AXRadioButton", "AXPopUpButton", "AXComboBox", "AXSlider",
-            "AXMenuItem", "AXMenuButton", "AXLink", "AXIncrementor",
+            "AXMenuItem", "AXMenuBarItem", "AXMenuButton", "AXLink", "AXIncrementor",
             "AXColorWell", "AXDisclosureTriangle", "AXTab",
             "AXSegmentedControl", "AXStaticText", "AXImage", "AXCell", "AXRow"
         ]
