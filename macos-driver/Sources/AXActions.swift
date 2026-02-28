@@ -16,15 +16,32 @@ enum AXActions {
             app = AXUIElementCreateApplication(frontApp.processIdentifier)
         }
 
-        var windows: CFTypeRef?
-        AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windows)
-        guard let winArray = windows as? [AXUIElement], let mainWin = winArray.first else { return nil }
-
         // Extract ref number
         guard ref.hasPrefix("@e"), let num = Int(ref.dropFirst(2)) else { return nil }
 
         var counter = 0
-        return findInTree(mainWin, target: num, counter: &counter, depth: 0, maxDepth: 15)
+
+        // Search windows first
+        var windows: CFTypeRef?
+        AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windows)
+        if let winArray = windows as? [AXUIElement], let mainWin = winArray.first {
+            if let found = findInTree(mainWin, target: num, counter: &counter, depth: 0, maxDepth: 15) {
+                return found
+            }
+        }
+
+        // Search menubar + extras menubar
+        for attr in [kAXMenuBarAttribute, kAXExtrasMenuBarAttribute] {
+            var bar: CFTypeRef?
+            AXUIElementCopyAttributeValue(app, attr as CFString, &bar)
+            if let barEl = bar {
+                if let found = findInTree(barEl as! AXUIElement, target: num, counter: &counter, depth: 0, maxDepth: 15) {
+                    return found
+                }
+            }
+        }
+
+        return nil
     }
 
     private static func findInTree(

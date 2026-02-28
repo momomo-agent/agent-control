@@ -35,15 +35,28 @@ enum AXScanner {
             app = AXUIElementCreateApplication(frontApp.processIdentifier)
         }
 
+        var counter = 0
+        var elements: [ACElement] = []
+
+        // Scan windows (normal apps + Electron)
         var windows: CFTypeRef?
         AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windows)
-        guard let winArray = windows as? [AXUIElement], let mainWin = winArray.first else {
-            fputs("error: no windows found\n", stderr)
-            return []
+        if let winArray = windows as? [AXUIElement], let mainWin = winArray.first {
+            elements.append(contentsOf: scanElement(mainWin, depth: 0, maxDepth: 15, counter: &counter))
         }
 
-        var counter = 0
-        let elements = scanElement(mainWin, depth: 0, maxDepth: 15, counter: &counter)
+        // Scan menubar + extras menubar (menubar apps, status items)
+        for attr in [kAXMenuBarAttribute, kAXExtrasMenuBarAttribute] {
+            var bar: CFTypeRef?
+            AXUIElementCopyAttributeValue(app, attr as CFString, &bar)
+            if let barEl = bar {
+                elements.append(contentsOf: scanElement(barEl as! AXUIElement, depth: 0, maxDepth: 15, counter: &counter))
+            }
+        }
+
+        if elements.isEmpty {
+            fputs("error: no windows or menubar found\n", stderr)
+        }
         return elements
     }
 
