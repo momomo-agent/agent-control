@@ -109,8 +109,13 @@ struct AgentControl {
 
         case "screenshot":
             let ref = args.dropFirst().first(where: { $0.hasPrefix("@") })
-            let output = args.dropFirst().first(where: { !$0.hasPrefix("@") && !$0.hasPrefix("--") })
-                ?? "/tmp/agent-control-screenshot.png"
+            // Skip flag values (--pid X, --app X, -i)
+            var skipNext = false
+            let output = args.dropFirst().first(where: { arg in
+                if skipNext { skipNext = false; return false }
+                if arg == "--pid" || arg == "--app" { skipNext = true; return false }
+                return !arg.hasPrefix("@") && !arg.hasPrefix("--") && arg != "-i" && arg != "screenshot"
+            }) ?? "/tmp/agent-control-screenshot.png"
 
             let ok: Bool
             if let ref = ref {
