@@ -33,75 +33,82 @@ agent-control gives them a universal interface to any GUI:
 - **Act** → `click @ref` / `fill @ref "text"` / `press key`
 - **Verify** → `screenshot` captures the result
 
-No Selenium. No Appium. No platform-specific test frameworks.  
-One protocol. Three platforms. Works today.
+No Selenium. No Appium. No platform-specific test frameworks.
+One protocol. Four platforms. Works today.
 
-## Quick Start
+## Install
+
+```bash
+npm install -g agent-control
+```
+
+Or clone and link:
 
 ```bash
 git clone https://github.com/momomo-agent/agent-control
-cd agent-control && npm install
+cd agent-control && npm install && npm link
 ```
 
-### 30 秒体验 (Web)
+### Quick check
 
 ```bash
-node cli.js demo web
+agent-control doctor
 ```
 
-自动完成：环境检查 → 启动 driver → 打开测试页 → 快照 → 截图。零配置。
-
-### 手动使用
+## Usage
 
 ```bash
-# Web — 零依赖，开箱即用
-node cli.js -p web open https://example.com
-node cli.js -p web -e snapshot
-node cli.js -p web click @e3
+# Web — open a page, see it, act on it
+agent-control -p web open https://example.com
+agent-control -p web -e snapshot
+agent-control -p web click @e3
+agent-control -p web fill @e8 "Alice"
 
-# macOS — 需要辅助功能权限
-node cli.js -p macos --pid $(pgrep TextEdit) -e snapshot
-node cli.js -p macos --app Finder snapshot -i
+# macOS — target any app by name or PID
+agent-control -p macos --app Finder -e snapshot
+agent-control -p macos --app TextEdit fill @e1 "hello"
+agent-control -p macos --app "Slack" -e snapshot
 
-# macOS — Electron / Menubar 应用
-node cli.js -p macos --app "Slack" -e snapshot
-node cli.js -p macos screenshot --app com.apple.controlcenter /tmp/menubar.png
+# macOS — menubar / Electron apps
+agent-control -p macos screenshot --app com.apple.controlcenter /tmp/menubar.png
 
-# iOS Simulator — 需要 Xcode + 已启动的模拟器
-node cli.js -p ios -e snapshot
+# iOS Simulator
+agent-control -p ios -e snapshot
+agent-control -p ios click @e5
 
-# Android — 需要 adb + 已连接设备/模拟器
-node cli.js -p android -e snapshot
+# Android (experimental)
+agent-control -p android -e snapshot
 ```
 
-### 环境检查
+### Demo (30 seconds)
 
 ```bash
-node cli.js doctor          # 检查所有平台
-node cli.js doctor -p web   # 只检查 Web
+agent-control demo web
 ```
+
+Auto: environment check → start driver → open test page → snapshot → screenshot. Zero config.
 
 ## Commands
 
 | Command | What it does |
 |---------|-------------|
 | `snapshot [-e]` | See UI elements. `-e` = enhanced (filtered + summary) |
-| `snapshot --app <name>` | Target specific app by name or bundleId (macOS) |
 | `click @ref` | Click / tap |
+| `dblclick @ref` | Double click |
 | `fill @ref "text"` | Clear + type |
 | `select @ref "val"` | Select dropdown (web) |
 | `press <key>` | Keyboard key |
 | `screenshot [path]` | Save PNG |
-| `open <url>` | Navigate (web) |
+| `scroll <up\|down>` | Scroll view |
 | `drag @from @to` | Drag between elements |
-| `wait --idle` | Wait for network idle |
-| `wait @ref` | Wait for element visible |
-| `wait --url <pattern>` | Wait for URL change |
-| `eval <js>` | Execute JS in page (web) |
-| `url` | Get current page URL (web) |
-| `back` / `forward` | Browser navigation (web) |
-| `reload` | Reload page (web) |
+| `open <url>` | Navigate (web) |
 | `swipe <dir>` | Swipe (iOS/Android) |
+| `find <text>` | Search for element by text |
+| `wait --idle` | Wait for network idle (web) |
+| `wait @ref` | Wait for element visible (web) |
+| `eval <js>` | Execute JS in page (web) |
+| `back` / `forward` | Browser navigation (web) |
+| `close` | Close browser (web) |
 
 ## How It Works
 
@@ -122,7 +129,7 @@ Your Agent (brain)          agent-control (eyes + hands)
      │←─────────────────────────────│
 ```
 
-agent-control is **not** an agent. It's the hands and eyes that any agent can use.  
+agent-control is **not** an agent. It's the hands and eyes that any agent can use.
 You bring the brain (Claude, GPT, Gemini, local LLM — whatever). We handle the GUI.
 
 ## Platforms
@@ -130,13 +137,13 @@ You bring the brain (Claude, GPT, Gemini, local LLM — whatever). We handle the
 | Platform | Driver | Notes |
 |----------|--------|-------|
 | **Web** | Playwright | Auto-starts daemon on port 3901. Headless Chromium. |
-| **macOS** | Swift + Accessibility API | Use `--pid` or `--app` to target any app. Supports menubar apps and Electron. Needs Accessibility permission. |
-| **iOS** | idb | Auto-detects booted sim. Uses idb describe-all + tap. |
-| **Android** | adb + uiautomator | Experimental. Requires running emulator or device via `adb`. |
+| **macOS** | Swift + Accessibility API | `--app` or `--pid` to target any app. Supports menubar + Electron. |
+| **iOS** | Simulator AX | Auto-detects booted sim. |
+| **Android** | adb + uiautomator | Experimental. Requires emulator or device via adb. |
 
 ## Enhanced Snapshot (`-e`)
 
-Raw snapshot returns every element. Enhanced (`-e`) filters to interactive elements and adds a semantic summary — designed for LLM consumption:
+Raw snapshot returns every element. Enhanced (`-e`) filters to interactive elements and adds a semantic summary:
 
 ```json
 {
@@ -148,40 +155,28 @@ Raw snapshot returns every element. Enhanced (`-e`) filters to interactive eleme
 }
 ```
 
-## Environment Check
-
-```bash
-agent-control doctor            # check all platforms
-agent-control doctor -p web     # check web only
-```
-
-Checks Node version, Playwright, Accessibility permission, Simulator status, etc. Tells you exactly what to fix.
-
 ## Auto Mode (LLM-Driven)
 
 Let an LLM autonomously operate the UI toward a goal:
 
 ```bash
-export AC_API_KEY=sk-...        # OpenAI or compatible
-export AC_MODEL=gpt-4o-mini     # optional, default gpt-4o-mini
-
+export AC_API_KEY=sk-...
 agent-control auto -p web --goal "Sign up with name Alice" --url https://example.com/signup
 ```
 
-The agent loops: snapshot → LLM decides next action → execute → repeat until done or stuck. Works with any OpenAI-compatible API (`AC_API_URL`).
+Loops: snapshot → LLM decides → execute → repeat until done. Works with any OpenAI-compatible API.
 
 ## Golden Flows (Regression Testing)
 
 JSON-defined flows to keep drivers honest:
 
 ```bash
-node run-all.js    # Runs all 4 platforms
+agent-control run-all    # Runs all platforms
 
 # Web: 18-step form signup (5s)
 # macOS: 11-step TextEdit CRUD (9s)
 # iOS: 12-step Settings navigation (31s)
-# Android: 6-step Settings About (23s) [Experimental]
-# Stability: 3/3 consecutive runs, zero flakes (all platforms)
+# Android: 6-step Settings About (23s)
 ```
 
 ## Limitations
@@ -189,8 +184,7 @@ node run-all.js    # Runs all 4 platforms
 - iOS: Simulator only (no real device)
 - Web: No CAPTCHA/anti-bot bypass
 - macOS: Requires Accessibility permission in System Settings
-- Android: Experimental — `uiautomator dump` can be slow (~4s) on emulators; occasional empty dumps
-- Platforms run serially (focus is exclusive)
+- Android: Experimental — uiautomator dump can be slow (~4s)
 
 ## License
 

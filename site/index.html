@@ -411,7 +411,7 @@ footer .right a:hover { color: var(--accent); }
         <span class="terminal-title">agent-control — observe → act → observe</span>
       </div>
       <div class="terminal-body">
-        <div class="typing-line"><span class="comment"># Quick start</span></div>
+        <div class="typing-line"><span class="comment"># Install</span></div>
         <div class="typing-line"><span class="prompt">$ </span><span class="cmd">npm install -g agent-control</span></div>
         <div class="typing-line"><span class="prompt">$ </span><span class="cmd">agent-control doctor</span></div>
         <div class="typing-line"><span class="output">  <span class="ok">✅</span> Node.js >= 18 &nbsp; <span class="ok">✅</span> Playwright &nbsp; <span class="ok">✅</span> Chromium &nbsp; All checks passed.</span></div>
@@ -469,7 +469,8 @@ footer .right a:hover { color: var(--accent); }
         <h3>Give a goal, AI decides how</h3>
         <p>Natural language objective → LLM loops snapshot→think→act until done. Best for exploratory tasks, testing new apps, one-off automation.</p>
         <pre><span class="prompt">$ </span>agent-control <span class="flag">auto</span> <span class="flag">-p</span> web \
-  <span class="str">"Sign up with name Alice and email alice@test.com"</span>
+  <span class="flag">--goal</span> <span class="str">"Sign up with name Alice and email alice@test.com"</span> \
+  <span class="flag">--url</span> <span class="str">https://example.com/signup</span>
 
 <span class="cm"># AI observes the form, fills fields, clicks submit</span>
 <span class="cm"># No scripting needed</span></pre>
