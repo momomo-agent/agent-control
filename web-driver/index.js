@@ -56,10 +56,18 @@ function isDaemonRunning() {
 // ══════════════════════════════════════════
 // DAEMON — persistent browser + HTTP server
 // ══════════════════════════════════════════
-async function startDaemon() {
-  const browser = await chromium.launch({ headless: true });
-  let context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  let page = await context.newPage();
+async function startDaemon(opts = {}) {
+  let browser, context, page;
+  if (opts.cdp) {
+    // Connect to existing browser/Electron via CDP
+    browser = await chromium.connectOverCDP(opts.cdp);
+    context = browser.contexts()[0] || await browser.newContext();
+    page = context.pages()[0] || await context.newPage();
+  } else {
+    browser = await chromium.launch({ headless: true });
+    context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    page = await context.newPage();
+  }
 
   const server = http.createServer(async (req, res) => {
     if (req.method !== 'POST' || req.url !== '/cmd') {
@@ -404,8 +412,16 @@ async function main() {
   }
 
   // Special: --daemon-mode — run as background daemon (don't exit)
+  // Extract --cdp flag
+  let cdpEndpoint = null;
+  const cdpIdx = rawArgs.indexOf('--cdp');
+  if (cdpIdx !== -1) {
+    cdpEndpoint = rawArgs[cdpIdx + 1];
+    rawArgs.splice(cdpIdx, 2);
+  }
+
   if (rawArgs[0] === '--daemon-mode') {
-    await startDaemon();
+    await startDaemon(cdpEndpoint ? { cdp: cdpEndpoint } : {});
     // Keep alive — HTTP server prevents exit
     return;
   }
@@ -427,7 +443,7 @@ async function main() {
   }
 
   // No daemon — start one, execute first batch, keep alive
-  const { browser, page, context, server } = await startDaemon();
+  const { browser, page, context, server } = await startDaemon(cdpEndpoint ? { cdp: cdpEndpoint } : {});
 
   for (const args of commands) {
     const result = await executeCommand(args, page, browser, context);

@@ -136,14 +136,29 @@ const drivers = {
   web: () => {
     const fs = require('fs');
     const STATE = '/tmp/agent-control-web.json';
+    // Extract --cdp from driverArgs
+    let cdpUrl = null;
+    const cdpIdx = driverArgs.indexOf('--cdp');
+    if (cdpIdx !== -1) {
+      cdpUrl = driverArgs[cdpIdx + 1];
+      driverArgs.splice(cdpIdx, 2);
+    }
     function daemonAlive() {
       try { const s = JSON.parse(fs.readFileSync(STATE, 'utf8')); process.kill(s.pid, 0); return true; } catch { return false; }
+    }
+    // If --cdp, kill existing daemon (it's connected to a different target)
+    if (cdpUrl && daemonAlive()) {
+      try { const s = JSON.parse(fs.readFileSync(STATE, 'utf8')); process.kill(s.pid); } catch {}
+      spawnSync('sleep', ['0.5']);
     }
     if (!daemonAlive()) {
       // Start daemon in background
       const { spawn } = require('child_process');
       const script = path.join(ROOT, 'web-driver', 'index.js');
-      const child = spawn('node', [script, 'open', 'about:blank'], {
+      const startArgs = cdpUrl
+        ? ['--cdp', cdpUrl, 'open', 'about:blank']
+        : ['open', 'about:blank'];
+      const child = spawn('node', [script, ...startArgs], {
         detached: true, stdio: 'ignore',
       });
       child.unref();
