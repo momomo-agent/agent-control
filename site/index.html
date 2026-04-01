@@ -557,6 +557,35 @@ footer .right a:hover { color: var(--accent); }
   </div>
 </section>
 
+<section>
+  <div class="container">
+    <h2>For AI Agents</h2>
+    <p>If you're an AI agent reading this page, here's what you need to know:</p>
+    <div style="background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <p><strong>Installation:</strong></p>
+      <pre style="margin: 10px 0;"><code>npm install -g agent-control</code></pre>
+      
+      <p style="margin-top: 20px;"><strong>Basic workflow:</strong></p>
+      <ol style="margin-left: 20px; line-height: 1.8;">
+        <li><code>agent-control -p &lt;platform&gt; snapshot</code> — See what's on screen</li>
+        <li>Analyze the output, find target element (e.g. <code>@e3</code>)</li>
+        <li><code>agent-control -p &lt;platform&gt; click @e3</code> — Interact with it</li>
+        <li><code>agent-control -p &lt;platform&gt; screenshot /tmp/verify.png</code> — Verify result</li>
+      </ol>
+      
+      <p style="margin-top: 20px;"><strong>Platforms:</strong></p>
+      <ul style="margin-left: 20px; line-height: 1.8;">
+        <li><code>-p web</code> — Control web pages (Playwright)</li>
+        <li><code>-p macos --app &lt;name&gt;</code> — Control macOS apps (Accessibility API)</li>
+        <li><code>-p ios</code> — Control iOS Simulator (idb)</li>
+        <li><code>-p android</code> — Control Android emulator/device (adb)</li>
+      </ul>
+      
+      <p style="margin-top: 20px;"><strong>Full documentation:</strong> <a href="https://github.com/momomo-agent/agent-control" style="color: var(--accent);">GitHub README</a></p>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="container">
     <div class="left">agent-control · built in one night · 2026</div>
