@@ -65,7 +65,7 @@ async function startDaemon(opts = {}) {
     page = context.pages()[0] || await context.newPage();
   } else {
     browser = await chromium.launch({ headless: true });
-    context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    context = await browser.newContext({ viewport: { width: 1280, height: 800 }, ignoreHTTPSErrors: true });
     page = await context.newPage();
   }
 
@@ -252,6 +252,25 @@ async function executeCommand(args, page, browser, context) {
         if (!key) { result = { ok: false, error: 'no key' }; break; }
         await page.keyboard.press(key);
         result = { ok: true, action: 'press', key };
+        break;
+      }
+      case 'longpress': {
+        const ref = args.find(a => a.startsWith('@'));
+        const nums = args.filter(a => /^\d+$/.test(a));
+        const duration = parseInt(args.find(a => a.startsWith('--duration='))?.split('=')[1]) || 1000;
+        let x, y;
+        if (ref) {
+          const resolved = await resolveRef(page, ref);
+          if (!resolved) { result = { ok: false, error: 'not found' }; break; }
+          x = resolved.x; y = resolved.y;
+        } else if (nums.length >= 2) {
+          x = parseInt(nums[0]); y = parseInt(nums[1]);
+        } else { result = { ok: false, error: 'usage: longpress @ref | longpress x y [--duration=ms]' }; break; }
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        await page.waitForTimeout(duration);
+        await page.mouse.up();
+        result = { ok: true, action: 'longpress', x, y, duration };
         break;
       }
       case 'select': {

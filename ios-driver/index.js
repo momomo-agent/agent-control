@@ -129,6 +129,23 @@ try {
       result = ok ? { ok: true, path: p } : { ok: false, error: 'screenshot failed' };
       break;
     }
+    case 'longpress': {
+      const ref = args.find(a => a && a.startsWith('@'));
+      const nums = args.slice(1).filter(a => /^\d+$/.test(a));
+      const duration = parseFloat(args.find(a => a.startsWith('--duration='))?.split('=')[1]) || 1.0;
+      let x, y;
+      if (ref) {
+        const el = findEl(ref);
+        if (!el) { result = { ok: false, error: `${ref} not found` }; break; }
+        const p = center(el);
+        x = p.x; y = p.y;
+      } else if (nums.length >= 2) {
+        x = parseInt(nums[0]); y = parseInt(nums[1]);
+      } else { result = { ok: false, error: 'usage: longpress @ref | longpress x y [--duration=1.0]' }; break; }
+      const ok = idb('ui', 'tap', String(Math.round(x)), String(Math.round(y)), '--duration', String(duration)).status === 0;
+      result = ok ? { ok: true, action: 'longpress', x, y, duration } : { ok: false, error: 'longpress failed' };
+      break;
+    }
     case 'press': {
       const map = { home: 'HOME', lock: 'LOCK', siri: 'SIRI' };
       const btn = map[(args[1] || '').toLowerCase()];

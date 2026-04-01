@@ -325,4 +325,23 @@ enum AXActions {
         guard result == .success, let s = value as? String else { return nil }
         return s
     }
+
+    static func longpress(ref: String, duration: Double = 1.0, appPID: pid_t? = nil) -> Bool {
+        guard let el = findElement(ref: ref, appPID: appPID) else {
+            fputs("error: element \(ref) not found\n", stderr)
+            return false
+        }
+        guard let point = centerOf(el) else { return false }
+        return longpressAt(x: point.x, y: point.y, duration: duration)
+    }
+
+    static func longpressAt(x: CGFloat, y: CGFloat, duration: Double = 1.0) -> Bool {
+        let point = CGPoint(x: x, y: y)
+        let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left)
+        down?.post(tap: .cghidEventTap)
+        usleep(UInt32(duration * 1_000_000))
+        let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left)
+        up?.post(tap: .cghidEventTap)
+        return true
+    }
 }

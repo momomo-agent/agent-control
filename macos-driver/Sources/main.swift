@@ -87,6 +87,22 @@ struct AgentControl {
             let ok = AXActions.press(key: key)
             printResult(ok, action: "press", ref: key)
 
+        case "longpress":
+            let ref = args.dropFirst().first(where: { $0.hasPrefix("@") })
+            let nums = args.dropFirst().compactMap { Double($0) }
+            let durationArg = args.first(where: { $0.hasPrefix("--duration=") })
+            let duration = durationArg.flatMap { Double($0.dropFirst("--duration=".count)) } ?? 1.0
+            if let ref = ref {
+                let ok = AXActions.longpress(ref: ref, duration: duration, appPID: pid)
+                printResult(ok, action: "longpress", ref: ref)
+            } else if nums.count >= 2 {
+                let ok = AXActions.longpressAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), duration: duration)
+                printResult(ok, action: "longpress", ref: "\(Int(nums[0])),\(Int(nums[1]))")
+            } else {
+                fputs("error: usage: longpress @ref | longpress x y [--duration=1.0]\n", stderr)
+                exit(1)
+            }
+
         case "drag":
             let refs = args.dropFirst().filter { $0.hasPrefix("@") }
             let nums = args.dropFirst().compactMap { Double($0) }

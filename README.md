@@ -94,6 +94,7 @@ Auto: environment check → start driver → open test page → snapshot → scr
 |---------|-------------|
 | `snapshot [-e]` | See UI elements. `-e` = enhanced (filtered + summary) |
 | `click @ref` | Click / tap |
+| `longpress @ref [--duration=ms]` | Long press (default 1s) |
 | `dblclick @ref` | Double click |
 | `fill @ref "text"` | Clear + type |
 | `select @ref "val"` | Select dropdown (web) |
