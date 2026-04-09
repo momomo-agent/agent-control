@@ -135,7 +135,31 @@ async function snapshot(page, interactiveOnly) {
       const label = el.getAttribute('aria-label') || el.textContent?.trim().slice(0, 80) || '';
       const value = el.value || '';
       const name = el.getAttribute('name') || '';
-      results.push({ ref, role, tag, label, value, name, x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) });
+      // Extra attributes useful for agent decision-making
+      const placeholder = el.placeholder || '';
+      const href = el.href || '';
+      const type = el.type || '';
+      const accept = el.accept || '';
+      const disabled = el.disabled || false;
+      const checked = el.checked ?? null;
+      const selected = el.selected ?? null;
+      const required = el.required || false;
+      const readOnly = el.readOnly || false;
+      const title = el.title || '';
+
+      const entry = { ref, role, tag, label, value, name, x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) };
+      // Only include non-empty extras to keep output compact
+      if (placeholder) entry.placeholder = placeholder;
+      if (href) entry.href = href;
+      if (type && type !== tag) entry.type = type;
+      if (accept) entry.accept = accept;
+      if (disabled) entry.disabled = true;
+      if (checked === true) entry.checked = true;
+      if (selected === true) entry.selected = true;
+      if (required) entry.required = true;
+      if (readOnly) entry.readOnly = true;
+      if (title && title !== label) entry.title = title;
+      results.push(entry);
     }
     return results;
   }, interactiveOnly);

@@ -47,16 +47,27 @@ function enhance(elements, opts = {}) {
   filtered = filtered.filter(e => e.label || e.value || e.tag || e.text);
 
   const interactive = filtered;
-  // Compact text format: one line per element
+  
+  // agent-browser style: hierarchical with [ref=e1]
   const lines = interactive.map(el => {
-    const parts = [el.ref];
-    // Prefer semantic role name
     const role = (el.tag === 'button' || el.tag === 'input') ? (el.tag + (el.role && el.role !== el.tag ? `[${el.role}]` : '')) : (el.role || el.tag || '?');
-    parts.push(role);
     const lbl = el.label || el.text || '';
-    if (lbl) parts.push(`"${lbl.replace(/\n/g, ' ').slice(0, 60)}"`);
-    if (el.value && el.value !== lbl) parts.push(`val="${el.value.slice(0, 40)}"`);
-    return parts.join(' ');
+    const labelPart = lbl ? ` "${lbl.replace(/\n/g, ' ').slice(0, 60)}"` : '';
+    const valPart = el.value && el.value !== lbl ? ` val="${el.value.slice(0, 40)}"` : '';
+    // Extra attributes — compact inline hints
+    const extras = [];
+    if (el.placeholder) extras.push(`placeholder="${el.placeholder.slice(0, 40)}"`);
+    if (el.type) extras.push(`type=${el.type}`);
+    if (el.accept) extras.push(`accept="${el.accept}"`);
+    if (el.href) extras.push(`href="${el.href.slice(0, 60)}"`);
+    if (el.disabled) extras.push('disabled');
+    if (el.checked) extras.push('checked');
+    if (el.selected) extras.push('selected');
+    if (el.required) extras.push('required');
+    if (el.readOnly) extras.push('readonly');
+    if (el.title) extras.push(`title="${el.title.slice(0, 40)}"`);
+    const extraPart = extras.length ? ' ' + extras.join(' ') : '';
+    return `- ${role}${labelPart}${valPart}${extraPart} [ref=${el.ref}]`;
   });
 
   // Semantic summary
