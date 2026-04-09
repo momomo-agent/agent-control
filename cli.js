@@ -20,6 +20,7 @@ const args = process.argv.slice(2);
 let platform = null;
 let enhanced = false;
 let compact = false;
+let jsonMode = false;
 let pidArg = null;
 let driverArgs = [];
 
@@ -30,6 +31,8 @@ for (let i = 0; i < args.length; i++) {
     enhanced = true;
   } else if (args[i] === '--compact' || args[i] === '-c') {
     compact = true; enhanced = true;
+  } else if (args[i] === '--json') {
+    jsonMode = true; enhanced = true;
   } else if (args[i] === '--pid') {
     pidArg = args[i + 1]; i++;
   } else if (args[i] === '--app') {
@@ -117,10 +120,13 @@ function maybeEnhance(r) {
     } else if (compact) {
       console.log(result.summary);
       console.log(result.text);
-    } else {
+    } else if (jsonMode) {
       console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(result.summary);
+      console.log(result.text);
     }
-  } catch { process.stdout.write(out + '\n'); }
+  } catch(e) { console.error('enhance error:', e.message); process.stdout.write(out + '\n'); }
   process.exit(r.status || 0);
 }
 
@@ -188,8 +194,11 @@ const drivers = {
             if (compact) {
               console.log(r.summary);
               console.log(r.text);
-            } else {
+            } else if (jsonMode) {
               console.log(JSON.stringify(r, null, 2));
+            } else {
+              console.log(r.summary);
+              console.log(r.text);
             }
           } catch { process.stdout.write(body); }
         } else {
@@ -210,10 +219,17 @@ const drivers = {
     const script = path.join(ROOT, 'android-driver', 'index.js');
     maybeEnhance(runDriver('node', [script, ...driverArgs], 60000));
   },
+  electron: () => {
+    const script = path.join(ROOT, 'electron-driver', 'index.js');
+    const r = runDriver('node', [script, ...driverArgs], 30000);
+    if (r.stdout) process.stdout.write(r.stdout);
+    if (r.stderr) process.stderr.write(r.stderr);
+    process.exit(r.status || 0);
+  },
 };
 
 if (!drivers[platform]) {
-  console.error(JSON.stringify({ ok: false, error: `unknown platform '${platform}'. Use: macos, web, ios, android` }));
+  console.error(JSON.stringify({ ok: false, error: `unknown platform '${platform}'. Use: macos, web, ios, android, electron` }));
   process.exit(1);
 }
 
