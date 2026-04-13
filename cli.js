@@ -21,6 +21,7 @@ let platform = null;
 let enhanced = false;
 let compact = false;
 let jsonMode = false;
+let allMode = false;
 let pidArg = null;
 let driverArgs = [];
 
@@ -33,6 +34,8 @@ for (let i = 0; i < args.length; i++) {
     compact = true; enhanced = true;
   } else if (args[i] === '--json') {
     jsonMode = true; enhanced = true;
+  } else if (args[i] === '--all') {
+    allMode = true; enhanced = true;
   } else if (args[i] === '--pid') {
     pidArg = args[i + 1]; i++;
   } else if (args[i] === '--app') {
@@ -113,7 +116,7 @@ function maybeEnhance(r) {
       console.log(JSON.stringify({ ok: false, error: 'no elements found', hint: platform === 'macos' ? 'Is --pid correct? Is the app in foreground?' : platform === 'ios' ? 'Is Simulator running? Try: open -a Simulator' : 'Did you open a URL first?' }, null, 2));
       process.exit(1);
     }
-    const result = enhance(arr, { platform });
+    const result = enhance(arr, { platform, all: allMode });
     if (global.__findQuery) {
       const q = global.__findQuery;
       const matches = result.elements.filter(el => {
@@ -194,7 +197,7 @@ const drivers = {
           try {
             const els = JSON.parse(body);
             const arr = Array.isArray(els) ? els : Object.values(els);
-            const r = enhance(arr, { platform });
+            const r = enhance(arr, { platform, all: allMode });
             if (compact) {
               console.log(r.summary);
               console.log(r.text);

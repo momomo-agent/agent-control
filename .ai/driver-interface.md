@@ -45,7 +45,7 @@ interface Element {
 
 | 问题 | 现状 | 对齐 |
 |------|------|------|
-| ref 格式 | web/electron 返回 `e1`，macOS/iOS/android 返回 `@e1` | 统一返回 `e1`，@ 只在 CLI 输入时使用 |
+| ref 格式 | 各平台不一致 | 统一返回 `@e1`（对齐 agent-browser 约定），findElement 兼容接受 `@e3` 和 `e3` |
 | role 前缀 | macOS 返回去掉 AX 的 role，iOS 保留 AX 前缀 | 统一去掉 AX 前缀 |
 | 文本字段 | web 用 label，android 用 text，iOS 用 AXLabel | 统一用 label 字段 |
 | 交互标记 | android 用 clickable，其他用 interactive | 统一用 interactive |

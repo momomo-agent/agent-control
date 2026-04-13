@@ -149,7 +149,7 @@ enum AXScanner {
             childElements.append(contentsOf: scanElement(child, depth: depth + 1, maxDepth: maxDepth, counter: &counter, seenAppDepth: seenAppDepth))
         }
 
-        // Only include interactive elements or groups with interactive children
+        // Include interactive elements
         if isInteractive {
             counter += 1
             let ref = "@e\(counter)"
@@ -160,6 +160,24 @@ enum AXScanner {
                 value: value,
                 frame: frame,
                 interactive: true,
+                children: childElements.isEmpty ? nil : childElements
+            )
+            return [element]
+        }
+
+        // Also include visible content elements (StaticText, Image) for verification/inspection
+        // They get refs but are marked interactive: false
+        let contentRoles: Set<String> = ["AXStaticText", "AXImage", "AXHeading", "AXGroup"]
+        if contentRoles.contains(role) && !(label.isEmpty && (value ?? "").isEmpty) {
+            counter += 1
+            let ref = "@e\(counter)"
+            let element = ACElement(
+                ref: ref,
+                role: cleanRole(role),
+                label: label,
+                value: value,
+                frame: frame,
+                interactive: false,
                 children: childElements.isEmpty ? nil : childElements
             )
             return [element]

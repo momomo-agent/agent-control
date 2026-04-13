@@ -41,7 +41,13 @@ const SIM_CHROME = new Set([
 
 function enhance(elements, opts = {}) {
   const all = Array.isArray(elements) ? elements : Object.values(elements);
-  let filtered = all.filter(el => isInteractive(el, opts));
+  let filtered;
+  if (opts.all) {
+    // --all mode: include non-interactive elements (StaticText, Image, etc.) for verification
+    filtered = all.filter(e => e.label || e.value || e.tag || e.text);
+  } else {
+    filtered = all.filter(el => isInteractive(el, opts));
+  }
   // Strip Simulator chrome for iOS
   if (opts.platform === 'ios') {
     filtered = filtered.filter(e => !SIM_CHROME.has(e.label));
