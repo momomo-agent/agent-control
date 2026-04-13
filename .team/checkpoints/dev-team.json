@@ -1,0 +1,17 @@
+{
+  "workflowId": "dev-team",
+  "nodeId": "monitor",
+  "stepIndex": 0,
+  "visitedNodes": [
+    "startup",
+    "monitor"
+  ],
+  "loopIterations": {},
+  "transitionDepth": 2,
+  "nodeVisitCounts": {
+    "startup": 1,
+    "monitor": 1
+  },
+  "contextOverrides": {},
+  "timestamp": "2026-04-08T09:02:24.013Z"
+}

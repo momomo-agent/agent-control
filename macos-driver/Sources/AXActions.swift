@@ -16,8 +16,9 @@ enum AXActions {
             app = AXUIElementCreateApplication(frontApp.processIdentifier)
         }
 
-        // Extract ref number
-        guard ref.hasPrefix("@e"), let num = Int(ref.dropFirst(2)) else { return nil }
+        // Extract ref number — accept both "@e3" and "e3"
+        let stripped = ref.hasPrefix("@") ? String(ref.dropFirst()) : ref
+        guard stripped.hasPrefix("e"), let num = Int(stripped.dropFirst()) else { return nil }
 
         var counter = 0
 
@@ -57,7 +58,7 @@ enum AXActions {
             "AXRadioButton", "AXPopUpButton", "AXComboBox", "AXSlider",
             "AXMenuItem", "AXMenuBarItem", "AXMenuButton", "AXLink", "AXIncrementor",
             "AXColorWell", "AXDisclosureTriangle", "AXTab",
-            "AXSegmentedControl", "AXStaticText", "AXImage", "AXCell", "AXRow"
+            "AXSegmentedControl", "AXCell", "AXRow", "AXSwitch", "AXStepper"
         ]
 
         if interactiveRoles.contains(role) {
@@ -291,15 +292,18 @@ enum AXActions {
     // MARK: - Scroll
 
     static func scroll(direction: String, amount: Int32) -> Bool {
+        let dx: Int32
         let dy: Int32
         switch direction.lowercased() {
-        case "up": dy = amount
-        case "down": dy = -amount
+        case "up": dy = amount; dx = 0
+        case "down": dy = -amount; dx = 0
+        case "left": dx = amount; dy = 0
+        case "right": dx = -amount; dy = 0
         default:
-            fputs("error: scroll direction must be up/down\n", stderr)
+            fputs("error: scroll direction must be up/down/left/right\n", stderr)
             return false
         }
-        let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: dy, wheel2: 0, wheel3: 0)
+        let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: dy, wheel2: dx, wheel3: 0)
         event?.post(tap: .cghidEventTap)
         return true
     }

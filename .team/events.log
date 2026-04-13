@@ -1,0 +1,16 @@
+{"ts":"2026-04-08T09:02:23.991Z","type":"workflow","agent":"validator","data":{"details":"[WARNING] config.dashboard: no dashboard configuration — run \"team web\" will show empty UI"}}
+{"ts":"2026-04-08T09:02:24.011Z","type":"agent_start","agent":"daemon","data":{"details":"Team daemon started (safety=600s, timeout=3900s)","performance":{"memoryMB":5,"memoryTotalMB":8,"cpuUser":0.024167,"cpuSystem":0.006109}}}
+{"ts":"2026-04-08T09:02:24.011Z","type":"workflow","agent":"monitor","data":{"details":"[HEALTH] Monitor started"}}
+{"ts":"2026-04-08T09:02:24.012Z","type":"agent_start","agent":"startup","data":{"details":"[NODE] startup - 项目启动","performance":{"memoryMB":5,"memoryTotalMB":8,"cpuUser":0.024711,"cpuSystem":0.006526}}}
+{"ts":"2026-04-08T09:02:24.013Z","type":"workflow","agent":"startup","data":{"details":"[SKIP] init-architecture: !hasArchitecture"}}
+{"ts":"2026-04-08T09:02:24.013Z","type":"agent_start","agent":"monitor","data":{"details":"[NODE] monitor - 全局 Monitor 四维检查","performance":{"memoryMB":5,"memoryTotalMB":8,"cpuUser":0.025838,"cpuSystem":0.007041}}}
+{"ts":"2026-04-08T09:02:24.014Z","type":"workflow","agent":"monitor","data":{"details":"[PARALLEL] vision_monitor, prd_monitor, dbb_monitor, arch_monitor"}}
+{"ts":"2026-04-08T09:02:24.014Z","type":"agent_start","agent":"vision_monitor","data":{"details":"评估愿景匹配度","performance":{"memoryMB":6,"memoryTotalMB":8,"cpuUser":0.026418,"cpuSystem":0.007393}}}
+{"ts":"2026-04-08T09:02:24.014Z","type":"agent_start","agent":"prd_monitor","data":{"details":"评估PRD匹配度","performance":{"memoryMB":6,"memoryTotalMB":8,"cpuUser":0.026818,"cpuSystem":0.007723}}}
+{"ts":"2026-04-08T09:02:24.015Z","type":"agent_start","agent":"dbb_monitor","data":{"details":"评估DBB匹配度","performance":{"memoryMB":6,"memoryTotalMB":8,"cpuUser":0.027298,"cpuSystem":0.008}}}
+{"ts":"2026-04-08T09:02:24.015Z","type":"agent_start","agent":"arch_monitor","data":{"details":"评估架构匹配度","performance":{"memoryMB":6,"memoryTotalMB":8,"cpuUser":0.027463,"cpuSystem":0.008243}}}
+{"ts":"2026-04-08T09:02:47.586Z","type":"workflow","agent":"daemon","data":{"details":"Reset stuck agent: vision_monitor"}}
+{"ts":"2026-04-08T09:02:47.586Z","type":"workflow","agent":"daemon","data":{"details":"Reset stuck agent: prd_monitor"}}
+{"ts":"2026-04-08T09:02:47.587Z","type":"workflow","agent":"daemon","data":{"details":"Reset stuck agent: dbb_monitor"}}
+{"ts":"2026-04-08T09:02:47.587Z","type":"workflow","agent":"daemon","data":{"details":"Reset stuck agent: arch_monitor"}}
+{"ts":"2026-04-08T09:02:47.587Z","type":"agent_complete","agent":"daemon","data":{"details":"Team daemon stopped","performance":{"memoryMB":6,"memoryTotalMB":9,"cpuUser":0.029478,"cpuSystem":0.009604}}}

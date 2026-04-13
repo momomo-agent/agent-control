@@ -1,0 +1,26 @@
+{
+  "vision_monitor": {
+    "status": "idle",
+    "lastRun": "2026-04-08T09:02:24.014Z",
+    "currentTask": null,
+    "retryCount": 0
+  },
+  "prd_monitor": {
+    "status": "idle",
+    "lastRun": "2026-04-08T09:02:24.015Z",
+    "currentTask": null,
+    "retryCount": 0
+  },
+  "dbb_monitor": {
+    "status": "idle",
+    "lastRun": "2026-04-08T09:02:24.015Z",
+    "currentTask": null,
+    "retryCount": 0
+  },
+  "arch_monitor": {
+    "status": "idle",
+    "lastRun": "2026-04-08T09:02:24.015Z",
+    "currentTask": null,
+    "retryCount": 0
+  }
+}

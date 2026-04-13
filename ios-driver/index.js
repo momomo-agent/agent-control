@@ -47,7 +47,7 @@ function snapshot(interactiveOnly) {
     if ((f.width || 0) < 3 && (f.height || 0) < 3) continue;
     c++;
     els.push({
-      ref: `@e${c}`, role: (item.type || role).replace(/^AX/, ''),
+      ref: `e${c}`, role: (item.type || role).replace(/^AX/, ''),
       label: item.AXLabel || '', value: item.AXValue || null,
       frame: { x: Math.round(f.x || 0), y: Math.round(f.y || 0), w: Math.round(f.width || 0), h: Math.round(f.height || 0) },
       interactive: isInteractive,
@@ -58,11 +58,13 @@ function snapshot(interactiveOnly) {
 }
 
 function findEl(ref) {
+  // Normalize: accept both "@e3" and "e3"
+  const normalized = ref.startsWith('@') ? ref.slice(1) : ref;
   const cached = loadCache();
-  const el = (cached || []).find(e => e.ref === ref);
+  const el = (cached || []).find(e => e.ref === normalized);
   if (el) return el;
   const fresh = snapshot(false);
-  return fresh.find(e => e.ref === ref) || null;
+  return fresh.find(e => e.ref === normalized) || null;
 }
 
 function center(el) { return { x: el.frame.x + el.frame.w / 2, y: el.frame.y + el.frame.h / 2 }; }
@@ -79,6 +81,9 @@ function tapRef(ref) {
 const args = process.argv.slice(2);
 const cmd = args[0];
 
+// Helper: detect ref arg (both "@e3" and "e3")
+function isRefArg(a) { return a && (/^@e\d+$/.test(a) || /^e\d+$/.test(a)); }
+
 if (!cmd || cmd === 'help' || cmd === '--help') {
   console.log(`agent-control-ios — idb driver\nDevice: ${device.name} (${UDID})`);
   process.exit(0);
@@ -89,7 +94,7 @@ try {
   switch (cmd) {
     case 'snapshot': result = snapshot(args.includes('-i')); break;
     case 'tap': case 'click': {
-      const ref = args.find(a => a && a.startsWith('@'));
+      const ref = args.find(isRefArg);
       const nums = args.slice(1).filter(a => /^\d+$/.test(a));
       if (ref) { result = tapRef(ref); }
       else if (nums.length >= 2) {
@@ -116,11 +121,12 @@ try {
     case 'type': { idb('ui', 'text', args.slice(1).join(' ')); result = { ok: true, action: 'type' }; break; }
     case 'swipe': case 'scroll': {
       const dir = args[1] || 'down';
-      const cx = 220, cy = 478, d = 300;
+      const amount = parseInt(args.find(a => a.startsWith('--amount='))?.split('=')[1]) || parseInt(args[2]) || 300;
+      const cx = 220, cy = 478, d = amount;
       const map = { up: [cx, cy+d/2, cx, cy-d/2], down: [cx, cy-d/2, cx, cy+d/2], left: [cx+d/2, cy, cx-d/2, cy], right: [cx-d/2, cy, cx+d/2, cy] };
       const [sx, sy, ex, ey] = map[dir] || map.down;
       idb('ui', 'swipe', String(sx), String(sy), String(ex), String(ey), '--duration', '0.5');
-      result = { ok: true, action: 'swipe', direction: dir };
+      result = { ok: true, action: 'swipe', direction: dir, amount };
       break;
     }
     case 'screenshot': {
@@ -130,9 +136,10 @@ try {
       break;
     }
     case 'longpress': {
-      const ref = args.find(a => a && a.startsWith('@'));
+      const ref = args.find(isRefArg);
       const nums = args.slice(1).filter(a => /^\d+$/.test(a));
-      const duration = parseFloat(args.find(a => a.startsWith('--duration='))?.split('=')[1]) || 1.0;
+      const durationMs = parseFloat(args.find(a => a.startsWith('--duration='))?.split('=')[1]) || 1000;
+      const duration = durationMs / 1000;
       let x, y;
       if (ref) {
         const el = findEl(ref);
@@ -141,7 +148,7 @@ try {
         x = p.x; y = p.y;
       } else if (nums.length >= 2) {
         x = parseInt(nums[0]); y = parseInt(nums[1]);
-      } else { result = { ok: false, error: 'usage: longpress @ref | longpress x y [--duration=1.0]' }; break; }
+      } else { result = { ok: false, error: 'usage: longpress @ref | longpress x y [--duration=1000]' }; break; }
       const ok = idb('ui', 'tap', String(Math.round(x)), String(Math.round(y)), '--duration', String(duration)).status === 0;
       result = ok ? { ok: true, action: 'longpress', x, y, duration } : { ok: false, error: 'longpress failed' };
       break;

@@ -1,6 +1,15 @@
 import Foundation
 import AppKit
 
+// MARK: - Helpers
+
+/// Check if a string is a ref (either "@e3" or "e3")
+func isRef(_ s: String) -> Bool {
+    if s.hasPrefix("@e") { return Int(s.dropFirst(2)) != nil }
+    if s.hasPrefix("e") { return Int(s.dropFirst(1)) != nil }
+    return false
+}
+
 // MARK: - CLI Entry Point
 
 @main
@@ -23,7 +32,7 @@ struct AgentControl {
             printJSON(output)
 
         case "click":
-            let ref = args.dropFirst().first(where: { $0.hasPrefix("@") })
+            let ref = args.dropFirst().first(where: { isRef($0) })
             let nums = args.dropFirst().compactMap { Double($0) }
             let btn = args.contains("--right") ? "right" : "left"
             if let ref = ref {
@@ -40,24 +49,24 @@ struct AgentControl {
             }
 
         case "dblclick":
-            guard let ref = args.dropFirst().first(where: { $0.hasPrefix("@") }) else {
-                fputs("error: missing @ref\n", stderr)
+            guard let ref = args.dropFirst().first(where: { isRef($0) }) else {
+                fputs("error: missing ref\n", stderr)
                 exit(1)
             }
             let ok = AXActions.dblclick(ref: ref, appPID: pid)
             printResult(ok, action: "dblclick", ref: ref)
 
         case "rightclick":
-            guard let ref = args.dropFirst().first(where: { $0.hasPrefix("@") }) else {
-                fputs("error: missing @ref\n", stderr)
+            guard let ref = args.dropFirst().first(where: { isRef($0) }) else {
+                fputs("error: missing ref\n", stderr)
                 exit(1)
             }
             let ok = AXActions.rightclick(ref: ref, appPID: pid)
             printResult(ok, action: "rightclick", ref: ref)
 
         case "fill":
-            guard let ref = args.dropFirst().first(where: { $0.hasPrefix("@") }) else {
-                fputs("error: missing @ref\n", stderr)
+            guard let ref = args.dropFirst().first(where: { isRef($0) }) else {
+                fputs("error: missing ref\n", stderr)
                 exit(1)
             }
             let textIdx = args.firstIndex(of: ref)! + 1
@@ -88,10 +97,11 @@ struct AgentControl {
             printResult(ok, action: "press", ref: key)
 
         case "longpress":
-            let ref = args.dropFirst().first(where: { $0.hasPrefix("@") })
+            let ref = args.dropFirst().first(where: { isRef($0) })
             let nums = args.dropFirst().compactMap { Double($0) }
             let durationArg = args.first(where: { $0.hasPrefix("--duration=") })
-            let duration = durationArg.flatMap { Double($0.dropFirst("--duration=".count)) } ?? 1.0
+            let durationMs = durationArg.flatMap { Double($0.dropFirst("--duration=".count)) } ?? 1000.0
+            let duration = durationMs / 1000.0
             if let ref = ref {
                 let ok = AXActions.longpress(ref: ref, duration: duration, appPID: pid)
                 printResult(ok, action: "longpress", ref: ref)
@@ -99,12 +109,12 @@ struct AgentControl {
                 let ok = AXActions.longpressAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), duration: duration)
                 printResult(ok, action: "longpress", ref: "\(Int(nums[0])),\(Int(nums[1]))")
             } else {
-                fputs("error: usage: longpress @ref | longpress x y [--duration=1.0]\n", stderr)
+                fputs("error: usage: longpress @ref | longpress x y [--duration=1000]\n", stderr)
                 exit(1)
             }
 
         case "drag":
-            let refs = args.dropFirst().filter { $0.hasPrefix("@") }
+            let refs = args.dropFirst().filter { isRef($0) }
             let nums = args.dropFirst().compactMap { Double($0) }
             if refs.count == 2 {
                 let ok = AXActions.drag(fromRef: refs[0], toRef: refs[1], appPID: pid)
@@ -124,13 +134,13 @@ struct AgentControl {
             printResult(ok, action: "scroll", ref: "\(dir) \(amount)")
 
         case "screenshot":
-            let ref = args.dropFirst().first(where: { $0.hasPrefix("@") })
+            let ref = args.dropFirst().first(where: { isRef($0) })
             // Skip flag values (--pid X, --app X, -i)
             var skipNext = false
             let output = args.dropFirst().first(where: { arg in
                 if skipNext { skipNext = false; return false }
                 if arg == "--pid" || arg == "--app" { skipNext = true; return false }
-                return !arg.hasPrefix("@") && !arg.hasPrefix("--") && arg != "-i" && arg != "screenshot"
+                return !isRef(arg) && !arg.hasPrefix("--") && arg != "-i" && arg != "screenshot"
             }) ?? "/tmp/agent-control-screenshot.png"
 
             let ok: Bool
@@ -187,7 +197,10 @@ struct AgentControl {
     }
 
     static func printResult(_ ok: Bool, action: String, ref: String) {
-        let result: [String: Any] = ["ok": ok, "action": action, "ref": ref]
+        var result: [String: Any] = ["ok": ok, "action": action, "ref": ref]
+        if !ok {
+            result["error"] = "action '\(action)' failed for \(ref)"
+        }
         if let data = try? JSONSerialization.data(withJSONObject: result),
            let str = String(data: data, encoding: .utf8) {
             print(str)
@@ -206,7 +219,7 @@ struct AgentControl {
           agent-control fill @ref "text"         输入文字
           agent-control press <key>              按键
           agent-control drag @ref1 @ref2         拖拽
-          agent-control scroll <up|down> [amount] 滚动
+          agent-control scroll <up|down|left|right> [amount] 滚动
           agent-control screenshot [path]        全屏截图
           agent-control screenshot @ref [path]   元素截图
 

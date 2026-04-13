@@ -1,0 +1,7 @@
+{
+  "agent": "prd_monitor",
+  "timestamp": "2026-04-08T09:05:32.080Z",
+  "exitCode": 1,
+  "status": "failed",
+  "summary": "API Error: 429 {\"error\":{\"code\":\"429\",\"message\":\"monthly quota exhausted\",\"type\":\"limitation\"}}"
+}

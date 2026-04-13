@@ -1,0 +1,24 @@
+[2026-04-08 09:02:23] [workflow] validator [WARNING] config.dashboard: no dashboard configuration — run "team web" will show empty UI
+[2026-04-08 09:02:24] [agent_start] daemon Team daemon started (safety=600s, timeout=3900s)
+[2026-04-08 09:02:24] [workflow] monitor [HEALTH] Monitor started
+[2026-04-08 09:02:24] [agent_start] startup [NODE] startup - 项目启动
+[2026-04-08 09:02:24] [workflow] startup [SKIP] init-architecture: !hasArchitecture
+[2026-04-08 09:02:24] [agent_start] monitor [NODE] monitor - 全局 Monitor 四维检查
+[2026-04-08 09:02:24] [workflow] monitor [PARALLEL] vision_monitor, prd_monitor, dbb_monitor, arch_monitor
+[2026-04-08 09:02:24] [agent_start] vision_monitor 评估愿景匹配度
+[2026-04-08 09:02:24] [agent_start] prd_monitor 评估PRD匹配度
+[2026-04-08 09:02:24] [agent_start] dbb_monitor 评估DBB匹配度
+[2026-04-08 09:02:24] [agent_start] arch_monitor 评估架构匹配度
+[2026-04-08T09:02:24.050Z] Running prd_monitor agent...
+[2026-04-08T09:02:24.050Z] Running vision_monitor agent...
+[2026-04-08T09:02:24.050Z] Running dbb_monitor agent...
+[2026-04-08T09:02:24.051Z] Running arch_monitor agent...
+[2026-04-08 09:02:47] [workflow] daemon Reset stuck agent: vision_monitor
+[2026-04-08 09:02:47] [workflow] daemon Reset stuck agent: prd_monitor
+[2026-04-08 09:02:47] [workflow] daemon Reset stuck agent: dbb_monitor
+[2026-04-08 09:02:47] [workflow] daemon Reset stuck agent: arch_monitor
+[2026-04-08 09:02:47] [agent_complete] daemon Team daemon stopped
+[2026-04-08T09:05:22.897Z] dbb_monitor agent failed: Command failed: claude --print --dangerously-skip-permissions < "/Users/kenefe/LOCAL/momo-agent/tools/agent-control/.team/.prompt-dbb_monitor-1775638944051.md"
+[2026-04-08T09:05:26.276Z] vision_monitor agent failed: Command failed: claude --print --dangerously-skip-permissions < "/Users/kenefe/LOCAL/momo-agent/tools/agent-control/.team/.prompt-vision_monitor-1775638944051.md"
+[2026-04-08T09:05:27.849Z] arch_monitor agent failed: Command failed: claude --print --dangerously-skip-permissions < "/Users/kenefe/LOCAL/momo-agent/tools/agent-control/.team/.prompt-arch_monitor-1775638944052.md"
+[2026-04-08T09:05:32.081Z] prd_monitor agent failed: Command failed: claude --print --dangerously-skip-permissions < "/Users/kenefe/LOCAL/momo-agent/tools/agent-control/.team/.prompt-prd_monitor-1775638944051.md"

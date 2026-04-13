@@ -64,8 +64,18 @@ async function startDaemon(opts = {}) {
     context = browser.contexts()[0] || await browser.newContext();
     page = context.pages()[0] || await context.newPage();
   } else {
-    browser = await chromium.launch({ headless: true });
-    context = await browser.newContext({ viewport: { width: 1280, height: 800 }, ignoreHTTPSErrors: true });
+    browser = await chromium.launch({
+      headless: !opts.headed,
+      args: [
+        '--use-fake-device-for-media-stream',
+        '--use-fake-ui-for-media-stream',
+      ],
+    });
+    context = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
+      ignoreHTTPSErrors: true,
+      permissions: ['camera', 'microphone'],
+    });
     page = await context.newPage();
   }
 
@@ -112,6 +122,9 @@ async function startDaemon(opts = {}) {
 // ══════════════════════════════════════════
 async function snapshot(page, interactiveOnly) {
   return page.evaluate((interactiveOnly) => {
+    // Clear old refs first
+    document.querySelectorAll('[data-ac-ref]').forEach(el => el.removeAttribute('data-ac-ref'));
+
     const interactiveSelectors = [
       'button', 'input', 'select', 'textarea', 'a[href]',
       '[role="button"]', '[role="link"]', '[role="checkbox"]',
@@ -129,7 +142,9 @@ async function snapshot(page, interactiveOnly) {
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) continue;
       counter++;
-      const ref = `@e${counter}`;
+      const ref = `e${counter}`;
+      // Stamp ref onto DOM element for stable lookup
+      el.setAttribute('data-ac-ref', ref);
       const tag = el.tagName.toLowerCase();
       const role = el.getAttribute('role') || el.type || tag;
       const label = el.getAttribute('aria-label') || el.textContent?.trim().slice(0, 80) || '';
@@ -166,17 +181,36 @@ async function snapshot(page, interactiveOnly) {
 }
 
 async function resolveRef(page, ref) {
+  // Primary: find by data-ac-ref attribute (stable, survives DOM changes)
+  const found = await page.evaluate((ref) => {
+    const el = document.querySelector(`[data-ac-ref="${ref}"]`);
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return null;
+    return {
+      tag: el.tagName.toLowerCase(),
+      role: el.getAttribute('role') || el.type || el.tagName.toLowerCase(),
+      name: el.getAttribute('name') || '',
+      x: Math.round(rect.x), y: Math.round(rect.y),
+      w: Math.round(rect.width), h: Math.round(rect.height),
+    };
+  }, ref);
+
+  if (found) {
+    return {
+      selector: `[data-ac-ref="${ref}"]`,
+      x: found.x + found.w / 2,
+      y: found.y + found.h / 2,
+      el: found,
+    };
+  }
+
+  // Fallback: re-snapshot and find by index (for cases where DOM was rebuilt)
   const idx = parseInt(ref.replace('@e', '')) - 1;
   const els = await snapshot(page, true);
   if (idx < 0 || idx >= els.length) return null;
   const el = els[idx];
-  const selectors = [
-    el.name ? `[name="${el.name}"]` : null,
-    el.tag === 'input' && el.role ? `input[type="${el.role}"]` : null,
-    `${el.tag}`,
-  ].filter(Boolean);
-  // Use coordinates for precise targeting
-  return { selector: selectors[0], x: el.x + el.w / 2, y: el.y + el.h / 2, el };
+  return { selector: `[data-ac-ref="${el.ref}"]`, x: el.x + el.w / 2, y: el.y + el.h / 2, el };
 }
 
 // ══════════════════════════════════════════
@@ -265,9 +299,17 @@ async function executeCommand(args, page, browser, context) {
         if (!ref || !text) { result = { ok: false, error: 'usage: fill @ref text' }; break; }
         const resolved = await resolveRef(page, ref);
         if (!resolved) { result = { ok: false, error: 'not found' }; break; }
-        await page.mouse.click(resolved.x, resolved.y);
-        await page.keyboard.selectAll?.() || await page.keyboard.press('Meta+a');
-        await page.keyboard.type(text);
+        // Use Playwright's fill() for framework-compatible value setting
+        // It handles React/Vue/Angular synthetic events automatically
+        try {
+          const locator = page.locator(resolved.selector);
+          await locator.fill(text);
+        } catch {
+          // Fallback: click + clear + type for non-standard inputs
+          await page.mouse.click(resolved.x, resolved.y);
+          await page.keyboard.press('Meta+a');
+          await page.keyboard.type(text);
+        }
         result = { ok: true, action: 'fill', ref, value: text };
         break;
       }
@@ -366,10 +408,28 @@ async function executeCommand(args, page, browser, context) {
         // wait @ref [timeout_ms]  — 等元素可见
         // wait --url <pattern> [timeout_ms]  — 等 URL 变化
         // wait --idle [timeout_ms]  — 等网络空闲
+        // wait --text "some text" [timeout_ms]  — 等文本出现在页面
+        // wait --gone "some text" [timeout_ms]  — 等文本从页面消失
         const wArgs = args.slice(1);
         const wTimeoutIdx = wArgs.findIndex(a => /^\d+$/.test(a));
         const wTimeout = wTimeoutIdx >= 0 ? parseInt(wArgs[wTimeoutIdx]) : 5000;
-        if (wArgs[0] === '--url') {
+        if (wArgs[0] === '--text') {
+          const text = wArgs.slice(1).filter(a => !/^\d+$/.test(a)).join(' ');
+          if (!text) { result = { ok: false, error: 'usage: wait --text "some text" [timeout_ms]' }; break; }
+          await page.waitForFunction(
+            (t) => document.body.innerText.includes(t),
+            text, { timeout: wTimeout }
+          );
+          result = { ok: true, action: 'wait-text', text };
+        } else if (wArgs[0] === '--gone') {
+          const text = wArgs.slice(1).filter(a => !/^\d+$/.test(a)).join(' ');
+          if (!text) { result = { ok: false, error: 'usage: wait --gone "some text" [timeout_ms]' }; break; }
+          await page.waitForFunction(
+            (t) => !document.body.innerText.includes(t),
+            text, { timeout: wTimeout }
+          );
+          result = { ok: true, action: 'wait-gone', text };
+        } else if (wArgs[0] === '--url') {
           const pattern = wArgs[1] || '**';
           await page.waitForURL(pattern, { timeout: wTimeout });
           result = { ok: true, action: 'wait-url', url: page.url() };
@@ -463,8 +523,16 @@ async function main() {
     rawArgs.splice(cdpIdx, 2);
   }
 
+  // Extract --headed flag
+  let headed = false;
+  const headedIdx = rawArgs.indexOf('--headed');
+  if (headedIdx !== -1) {
+    headed = true;
+    rawArgs.splice(headedIdx, 1);
+  }
+
   if (rawArgs[0] === '--daemon-mode') {
-    await startDaemon(cdpEndpoint ? { cdp: cdpEndpoint } : {});
+    await startDaemon(cdpEndpoint ? { cdp: cdpEndpoint, headed } : { headed });
     // Keep alive — HTTP server prevents exit
     return;
   }
@@ -486,7 +554,7 @@ async function main() {
   }
 
   // No daemon — start one, execute first batch, keep alive
-  const { browser, page, context, server } = await startDaemon(cdpEndpoint ? { cdp: cdpEndpoint } : {});
+  const { browser, page, context, server } = await startDaemon(cdpEndpoint ? { cdp: cdpEndpoint, headed } : { headed });
 
   for (const args of commands) {
     const result = await executeCommand(args, page, browser, context);

@@ -4,11 +4,14 @@ const http = require('http');
 
 // ── Ref Resolution ───────────────────────────────────────────────────────────
 
-// Convert @eN ref to a JS expression that finds the Nth interactive element
+// Convert @eN or eN ref to a JS expression that finds the Nth interactive element
 function resolveRefExpr(ref) {
-  if (ref && ref.startsWith('@e')) {
-    const n = parseInt(ref.slice(2));
-    return `(() => {
+  // Normalize: strip @ prefix if present
+  const normalized = ref && ref.startsWith('@') ? ref.slice(1) : ref;
+  if (normalized && normalized.startsWith('e')) {
+    const n = parseInt(normalized.slice(1));
+    if (!isNaN(n)) {
+      return `(() => {
       const sel = ['button','input','select','textarea','a[href]',
         '[role="button"],[role="link"],[role="checkbox"],[role="radio"]',
         '[role="tab"],[role="menuitem"],[role="combobox"],[role="switch"]',
@@ -24,8 +27,9 @@ function resolveRefExpr(ref) {
         i++;
         if (i === ${n}) return el;
       }
-      throw new Error('ref @e${n} not found');
+      throw new Error('ref e${n} not found');
     })()`;
+    }
   }
   // CSS selector fallback
   return `document.querySelector(${JSON.stringify(ref)})`;
@@ -56,22 +60,28 @@ async function main() {
   try {
     const wsUrl = await getCDPEndpoint();
     const cdp = await cdpConnect(wsUrl);
-    
+    let output;
+
     switch (action) {
-      case 'snapshot':
+      case 'snapshot': {
         const js = ui ? UI_SNAPSHOT_JS : SNAPSHOT_JS;
         const result = await cdp.evaluate(js);
+        // snapshot returns raw array (not wrapped in Result)
         console.log(JSON.stringify(result.result.value, null, 2));
-        break;
-      case 'screenshot':
-        const path = otherArgs[0] || '/tmp/screenshot.png';
+        cdp.close();
+        process.exit(0);
+        return;
+      }
+      case 'screenshot': {
+        const spath = otherArgs[0] || '/tmp/screenshot.png';
         const { data } = await cdp.send('Page.captureScreenshot');
-        require('fs').writeFileSync(path, Buffer.from(data, 'base64'));
-        console.log(path);
+        require('fs').writeFileSync(spath, Buffer.from(data, 'base64'));
+        output = { ok: true, action: 'screenshot', path: spath };
         break;
+      }
       case 'click':
       case 'dblclick':
-      case 'rightclick':
+      case 'rightclick': {
         const clickTarget = otherArgs[0];
         const clickJs = resolveRef(clickTarget) + (action === 'dblclick'
           ? `.dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`
@@ -79,9 +89,11 @@ async function main() {
           ? `.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true}))`
           : `.click()`);
         await cdp.evaluate(clickJs);
+        output = { ok: true, action, ref: clickTarget };
         break;
+      }
       case 'fill':
-      case 'type':
+      case 'type': {
         const fillTarget = otherArgs[0];
         const fillText = otherArgs.slice(1).join(' ');
         const fillJs = `(() => {
@@ -93,37 +105,89 @@ async function main() {
           el.dispatchEvent(new Event('change', {bubbles:true}));
         })()`;
         await cdp.evaluate(fillJs);
+        output = { ok: true, action: 'fill', ref: fillTarget, value: fillText };
         break;
-      case 'press':
+      }
+      case 'press': {
         const key = otherArgs[0] || 'Enter';
         await cdp.send('Input.dispatchKeyEvent', {
           type: 'keyDown', key, code: 'Key' + key.charAt(0).toUpperCase() + key.slice(1),
           windowsVirtualKeyCode: key === 'Enter' ? 13 : key === 'Escape' ? 27 : key === 'Tab' ? 9 : 0,
         });
         await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key });
+        output = { ok: true, action: 'press', key };
         break;
-      case 'scroll':
+      }
+      case 'scroll': {
         const dir = otherArgs[0] || 'down';
         const amt = parseInt(otherArgs[1]) || 300;
-        const dy = dir === 'up' ? -amt : amt;
-        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 400, y: 400, deltaX: 0, deltaY: dy });
+        const dx = dir === 'left' ? -amt : dir === 'right' ? amt : 0;
+        const dy = dir === 'up' ? -amt : dir === 'down' ? amt : 0;
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 400, y: 400, deltaX: dx, deltaY: dy });
+        output = { ok: true, action: 'scroll', direction: dir, amount: amt };
         break;
-      case 'eval':
+      }
+      case 'longpress': {
+        const lpTarget = otherArgs[0];
+        const durationMs = parseInt(otherArgs.find(a => a.startsWith('--duration='))?.split('=')[1]) || 1000;
+        const lpCoord = await cdp.evaluate(`(() => {
+          const el = ${resolveRefExpr(lpTarget)};
+          const r = el.getBoundingClientRect();
+          return { x: r.x + r.width/2, y: r.y + r.height/2 };
+        })()`);
+        const { x: lpX, y: lpY } = lpCoord.result.value;
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: lpX, y: lpY, button: 'left', clickCount: 1 });
+        await new Promise(r => setTimeout(r, durationMs));
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: lpX, y: lpY, button: 'left', clickCount: 1 });
+        output = { ok: true, action: 'longpress', ref: lpTarget, duration: durationMs };
+        break;
+      }
+      case 'drag': {
+        const dragFrom = otherArgs[0];
+        const dragTo = otherArgs[1];
+        const dragCoords = await cdp.evaluate(`(() => {
+          const from = ${resolveRefExpr(dragFrom)};
+          const to = ${resolveRefExpr(dragTo)};
+          const fr = from.getBoundingClientRect();
+          const tr = to.getBoundingClientRect();
+          return {
+            x1: fr.x + fr.width/2, y1: fr.y + fr.height/2,
+            x2: tr.x + tr.width/2, y2: tr.y + tr.height/2
+          };
+        })()`);
+        const { x1, y1, x2, y2 } = dragCoords.result.value;
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x1, y: y1 });
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x1, y: y1, button: 'left', clickCount: 1 });
+        const steps = 10;
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          await cdp.send('Input.dispatchMouseEvent', {
+            type: 'mouseMoved', x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t, button: 'left'
+          });
+        }
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x2, y: y2, button: 'left', clickCount: 1 });
+        output = { ok: true, action: 'drag', from: dragFrom, to: dragTo };
+        break;
+      }
+      case 'eval': {
         const res = await cdp.evaluate(otherArgs.join(' '));
-        console.log(res.result.value);
+        output = { ok: true, action: 'eval', value: res.result.value };
         break;
-      case 'windows':
+      }
+      case 'windows': {
         const targets = await getTargets();
-        targets.forEach((t, i) => console.log(`[${i}] ${t.title} (${t.type}) ${t.url}`));
+        output = { ok: true, action: 'windows', targets: targets.map((t, i) => ({ index: i, title: t.title, type: t.type, url: t.url })) };
         break;
+      }
       default:
-        throw new Error('Unknown action: ' + action);
+        output = { ok: false, error: `unknown action '${action}'` };
     }
-    
+
+    console.log(JSON.stringify(output, null, 2));
     cdp.close();
     process.exit(0);
   } catch (err) {
-    console.error(err.message);
+    console.log(JSON.stringify({ ok: false, error: err.message }));
     process.exit(1);
   }
 }
@@ -214,7 +278,7 @@ const SNAPSHOT_JS = `(() => {
     const tag = el.tagName.toLowerCase();
     const role = el.getAttribute('role') || el.type || tag;
     const label = el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.textContent?.trim().slice(0,80) || '';
-    results.push({ ref: 'e'+n, role, tag, label, value: el.value||'' });
+    results.push({ ref: 'e'+n, role, tag, label, value: el.value||'', frame: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) }, interactive: true });
   }
   return results;
 })()`;

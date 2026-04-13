@@ -96,16 +96,21 @@ function snapshot(interactiveOnly) {
 
     counter++;
     const role = cls.split('.').pop() || cls;
+    const x = x1, y = y1;
+    const cx = Math.round(x1 + w / 2);
+    const cy = Math.round(y1 + h / 2);
     elements.push({
-      ref: `@e${counter}`,
+      ref: `e${counter}`,
       role,
       class: cls,
-      text: text || desc || '',
+      label: text || desc || '',
+      text: text || desc || '',  // alias for backward compat
       resourceId: resId,
+      interactive: isInteractive,
       clickable, focusable, enabled,
-      x: x1, y: y1, w, h,
-      cx: Math.round(x1 + w / 2),
-      cy: Math.round(y1 + h / 2),
+      frame: { x, y, w, h },
+      // Keep flat coords for internal tap use
+      cx, cy,
     });
   }
 
@@ -115,14 +120,19 @@ function snapshot(interactiveOnly) {
 }
 
 function findElement(ref, elements) {
+  // Normalize: accept both "@e3" and "e3"
+  const normalized = ref.startsWith('@') ? ref.slice(1) : ref;
   if (!elements) elements = _cachedElements || loadSnapCache() || snapshot(false);
   if (Array.isArray(elements)) {
-    return elements.find(e => e.ref === ref) || null;
+    return elements.find(e => e.ref === normalized) || null;
   }
   return null;
 }
 
 // ── Commands ──
+// Helper: detect ref arg (both "@e3" and "e3")
+function isRefArg(a) { return a && (/^@e\d+$/.test(a) || /^e\d+$/.test(a)); }
+
 function run(args) {
   const cmd = args[0];
   if (!cmd) return { ok: false, error: 'no command' };
@@ -137,7 +147,7 @@ function run(args) {
     }
 
     case 'tap': case 'click': {
-      const ref = args.find(a => a.startsWith('@'));
+      const ref = args.find(isRefArg);
       if (ref) {
         const el = findElement(ref);
         if (!el) return { ok: false, error: `element ${ref} not found` };
@@ -151,7 +161,7 @@ function run(args) {
     }
 
     case 'longtap': case 'longpress': {
-      const ref = args.find(a => a.startsWith('@'));
+      const ref = args.find(isRefArg);
       if (ref) {
         const el = findElement(ref);
         if (!el) return { ok: false, error: `element ${ref} not found` };
@@ -162,7 +172,7 @@ function run(args) {
     }
 
     case 'fill': case 'type': {
-      const ref = args.find(a => a.startsWith('@'));
+      const ref = args.find(isRefArg);
       const text = args.slice(args.indexOf(ref) + 1).join(' ');
       if (!ref || !text) return { ok: false, error: 'usage: fill @ref text' };
       const el = findElement(ref);

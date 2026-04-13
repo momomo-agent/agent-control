@@ -7,13 +7,16 @@
  * - Compact text format for LLM consumption
  */
 
-// Interactive roles/tags
+// Interactive roles/tags — unified across all platforms (see driver-interface.md §3)
 const INTERACTIVE_ROLES = new Set([
   'Button', 'TextField', 'TextArea', 'CheckBox', 'RadioButton', 'ComboBox',
-  'PopUpButton', 'Slider', 'Link', 'Tab', 'MenuItem', 'Switch', 'Stepper',
-  'DisclosureTriangle', 'IncrementArrow', 'DecrementArrow',
-  // Web
-  'button', 'input', 'select', 'textarea', 'a', 'option',
+  'PopUpButton', 'Slider', 'Link', 'Tab', 'MenuItem', 'MenuBarItem', 'MenuButton',
+  'Switch', 'Stepper', 'Incrementor', 'IncrementArrow', 'DecrementArrow',
+  'DisclosureTriangle', 'ColorWell', 'SegmentedControl',
+  'Cell', 'Row',
+  // Web HTML tags
+  'button', 'input', 'select', 'textarea', 'a', 'option', 'label',
+  // Web ARIA roles
   'textbox', 'checkbox', 'radio', 'combobox', 'listbox', 'link', 'menuitem',
 ]);
 
@@ -27,8 +30,8 @@ function isInteractive(el, opts) {
   if (INTERACTIVE_ROLES.has(el.role)) return true;
   if (INTERACTIVE_TAGS.has(el.tag)) return true;
   if (el.tag && (el.role === 'button' || el.role === 'link')) return true;
-  // Android: text-bearing elements are useful even if not clickable
-  if (opts?.platform === 'android' && el.text) return true;
+  // Android: text/label-bearing elements are useful even if not interactive
+  if (opts?.platform === 'android' && (el.text || el.label)) return true;
   return false;
 }
 

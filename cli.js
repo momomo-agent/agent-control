@@ -44,6 +44,10 @@ for (let i = 0; i < args.length; i++) {
 // Append --pid after command for drivers that expect it
 if (pidArg) driverArgs.push('--pid', pidArg);
 
+// ── Normalize refs: strip @ prefix ──
+// Users type @e3, drivers expect e3
+driverArgs = driverArgs.map(a => /^@e\d+$/.test(a) ? a.slice(1) : a);
+
 // ── Subcommand shortcuts ──
 if (driverArgs[0] === 'doctor') {
   const r = spawnSync(process.execPath, [path.join(ROOT, 'doctor.js'), ...driverArgs.slice(1)], { stdio: 'inherit' });
