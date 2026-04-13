@@ -142,7 +142,7 @@ async function snapshot(page, interactiveOnly) {
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) continue;
       counter++;
-      const ref = `e${counter}`;
+      const ref = `@e${counter}`;
       // Stamp ref onto DOM element for stable lookup
       el.setAttribute('data-ac-ref', ref);
       const tag = el.tagName.toLowerCase();

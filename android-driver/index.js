@@ -100,7 +100,7 @@ function snapshot(interactiveOnly) {
     const cx = Math.round(x1 + w / 2);
     const cy = Math.round(y1 + h / 2);
     elements.push({
-      ref: `e${counter}`,
+      ref: `@e${counter}`,
       role,
       class: cls,
       label: text || desc || '',

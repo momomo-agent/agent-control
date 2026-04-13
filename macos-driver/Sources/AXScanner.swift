@@ -152,7 +152,7 @@ enum AXScanner {
         // Only include interactive elements or groups with interactive children
         if isInteractive {
             counter += 1
-            let ref = "e\(counter)"
+            let ref = "@e\(counter)"
             let element = ACElement(
                 ref: ref,
                 role: cleanRole(role),

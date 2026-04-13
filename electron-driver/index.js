@@ -278,7 +278,7 @@ const SNAPSHOT_JS = `(() => {
     const tag = el.tagName.toLowerCase();
     const role = el.getAttribute('role') || el.type || tag;
     const label = el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.textContent?.trim().slice(0,80) || '';
-    results.push({ ref: 'e'+n, role, tag, label, value: el.value||'', frame: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) }, interactive: true });
+    results.push({ ref: '@e'+n, role, tag, label, value: el.value||'', frame: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) }, interactive: true });
   }
   return results;
 })()`;
@@ -329,7 +329,7 @@ const UI_SNAPSHOT_JS = `(() => {
     
     n++;
     results.push({
-      ref: 'e'+n,
+      ref: '@e'+n,
       tag,
       role: el.getAttribute('role') || el.type || tag,
       text: el.textContent?.trim().slice(0,60) || '',

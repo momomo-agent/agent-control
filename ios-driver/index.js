@@ -47,7 +47,7 @@ function snapshot(interactiveOnly) {
     if ((f.width || 0) < 3 && (f.height || 0) < 3) continue;
     c++;
     els.push({
-      ref: `e${c}`, role: (item.type || role).replace(/^AX/, ''),
+      ref: `@e${c}`, role: (item.type || role).replace(/^AX/, ''),
       label: item.AXLabel || '', value: item.AXValue || null,
       frame: { x: Math.round(f.x || 0), y: Math.round(f.y || 0), w: Math.round(f.width || 0), h: Math.round(f.height || 0) },
       interactive: isInteractive,
