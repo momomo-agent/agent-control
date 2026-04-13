@@ -242,7 +242,7 @@ StaticText 和 Image 从 interactive 列表移除（macOS 当前包含但不应�
 | duration | 毫秒 (ms) | macOS/iOS 内部转换为秒 |
 | amount (scroll) | 像素 | macOS 内部转换为行数 |
 | timeout | 毫秒 (ms) | |
-| ref | `e1` 格式 | CLI 层处理 @ 前缀 |
+| ref | `@e1` 格式（对齐 agent-browser） | CLI 层补 @ 前缀，driver 内部兼容 @e3 和 e3 |
 | screenshot 默认路径 | `/tmp/agent-control-<platform>.png` | |
 | open 参数 | URL（web/iOS）或 package（android） | 语义不同，保留差异 |
 
