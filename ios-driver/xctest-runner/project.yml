@@ -1,0 +1,29 @@
+name: SimDriver
+options:
+  bundleIdPrefix: com.agentcontrol
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  SimDriver:
+    type: application
+    platform: iOS
+    sources:
+      - path: SimDriver
+        excludes:
+          - "**/*UITests*"
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.agentcontrol.simdriver
+      INFOPLIST_GENERATION: true
+      GENERATE_INFOPLIST_FILE: YES
+  SimDriverUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: SimDriver/SimDriverUITests
+    dependencies:
+      - target: SimDriver
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.agentcontrol.simdriver.uitests
+      INFOPLIST_GENERATION: true
+      GENERATE_INFOPLIST_FILE: YES
+      TEST_TARGET_NAME: SimDriver
