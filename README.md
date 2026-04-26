@@ -36,6 +36,23 @@ agent-control gives them a universal interface to any GUI:
 No Selenium. No Appium. No platform-specific test frameworks.
 One protocol. Four platforms. Works today.
 
+## Design Principles
+
+**Background-first.** Agents shouldn't steal focus. `click`/`fill`/`press` go through the Accessibility API (AXPress / AXSetValue) — the target app doesn't need to be frontmost, and your cursor doesn't jump. You can keep working while the agent works.
+
+**App-scoped screenshots.** Prefer `--app <name>` over full-screen captures. On macOS, `screenshot --app Finder` uses `screencapture -l <windowID>` — it captures only that app's window, even if it's behind others. Less noise for the model, better privacy, no need to raise windows.
+
+**One tool for all GUI work.** If you'd reach for AppleScript, `osascript`, `cliclick`, `adb shell input`, or browser-specific scripts — use agent-control instead. Same refs, same verbs, across web / macOS / iOS / Android.
+
+```bash
+# ❌ old way: multi-tool, app must be frontmost
+osascript -e 'tell app "Finder" to activate' && cliclick c:500,300
+
+# ✅ agent-control: one tool, background, any app
+agent-control -p macos --app Finder -e snapshot
+agent-control -p macos --app Finder click @e3
+```
+
 ## Install
 
 ```bash
@@ -99,7 +116,8 @@ Auto: environment check → start driver → open test page → snapshot → scr
 | `fill @ref "text"` | Clear + type |
 | `select @ref "val"` | Select dropdown (web) |
 | `press <key>` | Keyboard key |
-| `screenshot [path]` | Save PNG |
+| `screenshot --app <name> [path]` | Save PNG (app-scoped, background-friendly) |
+| `screenshot --full [path]` | Save PNG (full-screen, explicit opt-in) |
 | `scroll <up\|down>` | Scroll view |
 | `drag @from @to` | Drag between elements |
 | `open <url>` | Navigate (web) |

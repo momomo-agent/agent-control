@@ -14,5 +14,10 @@
   {"id":"F013","category":"goal","description":"goal-runner observe/act/act-observe + HTML report","passes":true},
   {"id":"F014","category":"goal","description":"goal-runner LLM 集成：agent 看 snapshot 自主决策下一步","passes":true},
   {"id":"F015","category":"quality","description":"工程清理：.gitignore / runs 归档 / 冗余文件删除","passes":true},
-  {"id":"F016","category":"quality","description":"npm publish 可用：bin 入口 + 依赖声明完整","passes":true}
+  {"id":"F016","category":"quality","description":"npm publish 可用：bin 入口 + 依赖声明完整","passes":true},
+  {"id":"F017","category":"core","description":"macOS 窗口管理（CGS/SLS）：windows/focus/move-to-space/pin/unpin/alpha/blur/minimize/close-window","passes":true},
+  {"id":"F018","category":"core","description":"macOS 空间管理：spaces/switch-space","passes":true},
+  {"id":"F019","category":"core","description":"macOS 进程感知：processes/process <pid|name>","passes":true},
+  {"id":"F020","category":"core","description":"macOS TCC 权限诊断：doctor 显示 Accessibility/ScreenCapture/FullDisk/InputMonitoring/PostEvent 状态","passes":true},
+  {"id":"F021","category":"core","description":"macOS AX fallback：snapshot 空时自动用 CGWindowList 返回窗口级信息","passes":true}
 ]
