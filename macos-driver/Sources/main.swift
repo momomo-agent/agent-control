@@ -122,9 +122,30 @@ struct AgentControl {
             printResult(ok, action: "fill", ref: ref)
 
         case "press":
-            guard let key = cmdArgs.first else {
+            // Accept two forms:
+            //   press cmd+shift+a               (preferred, modern)
+            //   press a --modifiers cmd,shift   (legacy, test-compat)
+            // Find the first non-flag arg — that's the key.
+            var keyArg: String? = nil
+            var i = 0
+            while i < cmdArgs.count {
+                let a = cmdArgs[i]
+                if a == "--modifiers" || a == "--mod" { i += 2; continue }
+                if a.hasPrefix("--") { i += 1; continue }
+                keyArg = a
+                break
+            }
+            guard var key = keyArg else {
                 fputs("error: missing key\n", stderr)
                 exit(1)
+            }
+            // Fold --modifiers cmd,shift into cmd+shift+<key>
+            if let mi = cmdArgs.firstIndex(where: { $0 == "--modifiers" || $0 == "--mod" }),
+               mi + 1 < cmdArgs.count {
+                let mods = cmdArgs[mi + 1].split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+                if !mods.isEmpty && !key.contains("+") {
+                    key = mods.joined(separator: "+") + "+" + key
+                }
             }
             let ok = AXActions.press(key: key)
             printResult(ok, action: "press", ref: key)
