@@ -8,7 +8,10 @@ let package = Package(
         .executableTarget(
             name: "agent-control",
             path: "Sources",
-            swiftSettings: [.unsafeFlags(["-parse-as-library"])]
+            swiftSettings: [.unsafeFlags(["-parse-as-library"])],
+            linkerSettings: [
+                .unsafeFlags(["-F", "/System/Library/PrivateFrameworks", "-framework", "SkyLight"])
+            ]
         )
     ]
 )
