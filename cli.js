@@ -196,7 +196,7 @@ const drivers = {
       const script = path.join(ROOT, 'web-driver', 'index.js');
       const startArgs = cdpUrl
         ? ['--cdp', cdpUrl, 'open', 'about:blank']
-        : ['open', 'about:blank'];
+        : ['--headed', 'open', 'about:blank'];
       const child = spawn('node', [script, ...startArgs], {
         detached: true, stdio: 'ignore',
       });
