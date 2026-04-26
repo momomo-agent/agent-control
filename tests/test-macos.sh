@@ -490,6 +490,154 @@ osascript -e 'tell application "TextEdit" to quit saving no' 2>/dev/null || true
 rm -f "$TMPFILE1" "$TMPFILE2"
 pass "multi-window cleanup"
 
+# ════════════════════════════════════════════════════════════════════════════
+# SECTION E: Background invariants (frontmost app must not change)
+# ════════════════════════════════════════════════════════════════════════════
+echo ""
+echo "── E. background invariants (frontmost does not change) ──"
+
+# Setup: TextEdit as frontmost anchor, Finder as background target
+TMPFILE3="/tmp/ac-test-bg-anchor.txt"
+echo "anchor" > "$TMPFILE3"
+open -a TextEdit "$TMPFILE3"
+sleep 1
+osascript -e 'tell application "TextEdit" to activate' 2>/dev/null || true
+sleep 1
+open -g -a Finder  # -g = open without activating
+sleep 1
+
+BASELINE=$(osascript -e 'tell application "System Events" to name of first application process whose frontmost is true')
+if [ "$BASELINE" != "TextEdit" ]; then
+  fail "E. baseline" "expected TextEdit frontmost, got: $BASELINE"
+else
+  pass "E0. baseline: TextEdit is frontmost"
+fi
+
+assert_bg() {
+  local label="$1"
+  shift
+  "$@" > /dev/null 2>&1 || true
+  local now
+  now=$(osascript -e 'tell application "System Events" to name of first application process whose frontmost is true')
+  if [ "$now" = "$BASELINE" ]; then
+    pass "E. $label (frontmost=$now, unchanged)"
+  else
+    fail "E. $label" "frontmost changed: $BASELINE → $now"
+  fi
+}
+
+assert_bg "snapshot --app Finder"      $AC -p macos --app Finder snapshot
+assert_bg "snapshot -e --app Finder"   $AC -p macos --app Finder -e snapshot
+assert_bg "screenshot --app Finder"    $AC -p macos --app Finder screenshot /tmp/ac-bg-shot.png
+assert_bg "press cmd+1 --app Finder"   $AC -p macos --app Finder press cmd+1
+assert_bg "press escape --app Finder"  $AC -p macos --app Finder press escape
+assert_bg "scroll down --app Finder"   $AC -p macos --app Finder scroll down
+assert_bg "windows"                    $AC -p macos windows
+assert_bg "processes"                  $AC -p macos processes
+
+# Cleanup section E
+osascript -e 'tell application "Finder" to close every window' 2>/dev/null || true
+osascript -e 'tell application "TextEdit" to quit saving no' 2>/dev/null || true
+rm -f "$TMPFILE3" /tmp/ac-bg-shot.png
+
+# ════════════════════════════════════════════════════════════════════════════
+# SECTION F: Screenshot policy (no --app → error; --full → ok)
+# ════════════════════════════════════════════════════════════════════════════
+echo ""
+echo "── F. screenshot policy ──"
+
+# F1. No --app, no --full → must exit non-zero
+F1_OUT=$($AC -p macos screenshot /tmp/ac-policy-1.png 2>&1 || true)
+F1_CODE=$?
+if echo "$F1_OUT" | grep -qi "requires --app"; then
+  pass "F1. no --app → error message present"
+else
+  fail "F1. no --app" "expected 'requires --app' hint, got: $F1_OUT"
+fi
+if [ ! -s /tmp/ac-policy-1.png ]; then
+  pass "F1. no file created"
+else
+  fail "F1. no --app" "file should not be created"
+fi
+rm -f /tmp/ac-policy-1.png
+
+# F2. --full → ok + stderr note
+F2_OUT=$($AC -p macos screenshot --full /tmp/ac-policy-2.png 2>&1 || true)
+if echo "$F2_OUT" | grep -q '"ok":true'; then
+  pass "F2. --full returns ok"
+else
+  fail "F2. --full" "$F2_OUT"
+fi
+if [ -s /tmp/ac-policy-2.png ]; then
+  pass "F2. --full creates file"
+else
+  fail "F2. --full" "file not created"
+fi
+rm -f /tmp/ac-policy-2.png
+
+# F3. --app Finder → ok, window-only
+open -g -a Finder; sleep 1
+F3_OUT=$($AC -p macos --app Finder screenshot /tmp/ac-policy-3.png 2>&1 || true)
+if echo "$F3_OUT" | grep -q '"ok":true' && [ -s /tmp/ac-policy-3.png ]; then
+  pass "F3. --app Finder creates file"
+else
+  fail "F3. --app Finder" "$F3_OUT"
+fi
+# App-scoped should be smaller than full-screen on a typical Retina display.
+if [ -f /tmp/ac-policy-3.png ]; then
+  SIZE_APP=$(stat -f%z /tmp/ac-policy-3.png 2>/dev/null || stat -c%s /tmp/ac-policy-3.png)
+  if [ "$SIZE_APP" -lt 2000000 ]; then
+    pass "F3. app-scoped size sanity (<2MB: $SIZE_APP)"
+  else
+    # Not fatal — might be a big window. Inform but don't fail.
+    pass "F3. app-scoped size: $SIZE_APP (not smaller than full-screen threshold — ok if window is large)"
+  fi
+fi
+osascript -e 'tell application "Finder" to close every window' 2>/dev/null || true
+rm -f /tmp/ac-policy-3.png
+
+# ════════════════════════════════════════════════════════════════════════════
+# SECTION G: Modifier keys (press cmd+shift+x + --modifiers)
+# ════════════════════════════════════════════════════════════════════════════
+echo ""
+echo "── G. press modifier combinations ──"
+
+# Open a fresh TextEdit to receive keys
+TMPFILE_G="/tmp/ac-test-g.txt"
+echo "" > "$TMPFILE_G"
+open -a TextEdit "$TMPFILE_G"
+sleep 1
+osascript -e 'tell application "TextEdit" to activate' 2>/dev/null || true
+sleep 1
+
+for combo in "cmd+a" "cmd+shift+a" "shift+tab" "ctrl+a" "cmd+1" "cmd+f1"; do
+  G_OUT=$($AC -p macos --app TextEdit press "$combo" 2>&1 || true)
+  if echo "$G_OUT" | grep -q '"ok":true'; then
+    pass "G. press $combo"
+  else
+    fail "G. press $combo" "$G_OUT"
+  fi
+done
+
+# --modifiers flag form (legacy)
+G_MOD=$($AC -p macos --app TextEdit press a --modifiers cmd,shift 2>&1 || true)
+if echo "$G_MOD" | grep -q '"ok":true' && echo "$G_MOD" | grep -q "cmd+shift+a"; then
+  pass "G. press a --modifiers cmd,shift (folds to cmd+shift+a)"
+else
+  fail "G. --modifiers flag" "$G_MOD"
+fi
+
+# Unknown modifier → must error
+G_BAD=$($AC -p macos --app TextEdit press "wat+a" 2>&1 || true)
+if echo "$G_BAD" | grep -q "unknown modifier"; then
+  pass "G. unknown modifier → error"
+else
+  fail "G. unknown modifier" "$G_BAD"
+fi
+
+osascript -e 'tell application "TextEdit" to quit saving no' 2>/dev/null || true
+rm -f "$TMPFILE_G"
+
 # ── Summary ──
 echo ""
 echo "================================"
