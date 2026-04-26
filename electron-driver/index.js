@@ -2,6 +2,8 @@
 const WebSocket = require('ws');
 const http = require('http');
 
+const CDP_PORT = process.env.ELECTRON_DEBUG_PORT || 9229;
+
 // ── Ref Resolution ───────────────────────────────────────────────────────────
 
 // Convert @eN or eN ref to a JS expression that finds the Nth interactive element
@@ -41,7 +43,7 @@ function resolveRef(ref) {
 
 function getTargets() {
   return new Promise((resolve, reject) => {
-    http.get('http://localhost:9229/json', res => {
+    http.get(`http://localhost:${CDP_PORT}/json`, res => {
       let data = '';
       res.on('data', d => data += d);
       res.on('end', () => resolve(JSON.parse(data)));
@@ -54,11 +56,13 @@ function getTargets() {
 async function main() {
   const args = process.argv.slice(2);
   const ui = args.includes('--ui');
-  const action = args.find(a => !a.startsWith('--'));
-  const otherArgs = args.filter(a => a !== action && a !== '--ui');
+  const targetIdx = args.findIndex(a => a === '--target');
+  const targetIndex = targetIdx !== -1 ? parseInt(args[targetIdx + 1], 10) || 0 : 0;
+  const action = args.find(a => !a.startsWith('--') && (targetIdx === -1 || args.indexOf(a) !== targetIdx + 1));
+  const otherArgs = args.filter(a => a !== action && a !== '--ui' && a !== '--target' && (targetIdx === -1 || args.indexOf(a) !== targetIdx + 1));
   
   try {
-    const wsUrl = await getCDPEndpoint();
+    const wsUrl = await getCDPEndpoint(targetIndex);
     const cdp = await cdpConnect(wsUrl);
     let output;
 
@@ -83,18 +87,34 @@ async function main() {
       case 'dblclick':
       case 'rightclick': {
         const clickTarget = otherArgs[0];
+        if (!clickTarget) {
+          output = { ok: false, error: `usage: ${action} @ref | ${action} x y` };
+          break;
+        }
         const clickJs = resolveRef(clickTarget) + (action === 'dblclick'
           ? `.dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`
           : action === 'rightclick'
           ? `.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true}))`
           : `.click()`);
-        await cdp.evaluate(clickJs);
-        output = { ok: true, action, ref: clickTarget };
+        try {
+          const clickResult = await cdp.evaluate(clickJs);
+          if (clickResult.exceptionDetails) {
+            output = { ok: false, error: clickResult.exceptionDetails.text || 'element not found' };
+          } else {
+            output = { ok: true, action, ref: clickTarget };
+          }
+        } catch (e) {
+          output = { ok: false, error: e.message };
+        }
         break;
       }
       case 'fill':
       case 'type': {
         const fillTarget = otherArgs[0];
+        if (!fillTarget) {
+          output = { ok: false, error: 'usage: fill @ref text' };
+          break;
+        }
         const fillText = otherArgs.slice(1).join(' ');
         const fillJs = `(() => {
           const el = ${resolveRefExpr(fillTarget)};
@@ -109,7 +129,11 @@ async function main() {
         break;
       }
       case 'press': {
-        const key = otherArgs[0] || 'Enter';
+        const key = otherArgs[0];
+        if (!key) {
+          output = { ok: false, error: 'usage: press <key>' };
+          break;
+        }
         await cdp.send('Input.dispatchKeyEvent', {
           type: 'keyDown', key, code: 'Key' + key.charAt(0).toUpperCase() + key.slice(1),
           windowsVirtualKeyCode: key === 'Enter' ? 13 : key === 'Escape' ? 27 : key === 'Tab' ? 9 : 0,
@@ -179,6 +203,56 @@ async function main() {
         output = { ok: true, action: 'windows', targets: targets.map((t, i) => ({ index: i, title: t.title, type: t.type, url: t.url })) };
         break;
       }
+      case 'console':
+      case 'logs': {
+        // Enable Runtime events and collect console messages for ~2 seconds
+        const consoleEntries = [];
+        const levelFilter = otherArgs.find(a => ['log','warn','error','warning','info','debug'].includes(a));
+        const countArg = otherArgs.find(a => /^\d+$/.test(a));
+        const limit = countArg ? parseInt(countArg) : 50;
+        const doClear = otherArgs.includes('--clear');
+
+        // Subscribe to console events
+        const ws2 = cdp._ws || null;
+        const origHandler = cdp._onEvent;
+        cdp._onEvent = (method, params) => {
+          if (method === 'Runtime.consoleAPICalled') {
+            const text = (params.args || []).map(a => a.value !== undefined ? String(a.value) : a.description || '').join(' ');
+            consoleEntries.push({ type: params.type, text, ts: Date.now() });
+          }
+        };
+
+        await cdp.send('Runtime.enable');
+        // Also inject a console capture hook and read existing buffer
+        const captureJs = `(() => {
+          if (!window.__agentConsoleLog) {
+            window.__agentConsoleLog = [];
+            const orig = {};
+            ['log','warn','error','info','debug'].forEach(t => {
+              orig[t] = console[t];
+              console[t] = function(...args) {
+                window.__agentConsoleLog.push({type:t,text:args.map(String).join(' '),ts:Date.now()});
+                orig[t].apply(console, args);
+              };
+            });
+          }
+          const entries = window.__agentConsoleLog.slice();
+          ${doClear ? 'window.__agentConsoleLog.length = 0;' : ''}
+          return entries;
+        })()`;
+        const bufResult = await cdp.evaluate(captureJs);
+        let entries = bufResult.result?.value || [];
+
+        // Filter
+        if (levelFilter) {
+          const normalized = levelFilter === 'warning' ? 'warn' : levelFilter;
+          entries = entries.filter(e => e.type === normalized);
+        }
+        entries = entries.slice(-limit);
+        output = { ok: true, action: 'console', count: entries.length, total: (bufResult.result?.value || []).length, entries };
+        cdp._onEvent = origHandler;
+        break;
+      }
       default:
         output = { ok: false, error: `unknown action '${action}'` };
     }
@@ -194,15 +268,17 @@ async function main() {
 
 // ── CDP ──────────────────────────────────────────────────────────────────────
 
-function getCDPEndpoint() {
+function getCDPEndpoint(targetIndex = 0) {
   return new Promise((resolve, reject) => {
-    http.get('http://localhost:9229/json', res => {
+    http.get(`http://localhost:${CDP_PORT}/json`, res => {
       let data = '';
       res.on('data', d => data += d);
       res.on('end', () => {
-        const pages = JSON.parse(data);
+        const all = JSON.parse(data);
+        const pages = all.filter(t => t.type === 'page');
         if (!pages.length) return reject(new Error('No pages found'));
-        resolve(pages[0].webSocketDebuggerUrl);
+        if (targetIndex >= pages.length) return reject(new Error(`target index ${targetIndex} out of range (${pages.length} pages)`));
+        resolve(pages[targetIndex].webSocketDebuggerUrl);
       });
     }).on('error', reject);
   });

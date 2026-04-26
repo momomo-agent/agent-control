@@ -120,8 +120,8 @@ function snapshot(interactiveOnly) {
 }
 
 function findElement(ref, elements) {
-  // Normalize: accept both "@e3" and "e3"
-  const normalized = ref.startsWith('@') ? ref.slice(1) : ref;
+  // Normalize: ensure @eN format to match stored refs
+  const normalized = ref.startsWith('@') ? ref : '@' + ref;
   if (!elements) elements = _cachedElements || loadSnapCache() || snapshot(false);
   if (Array.isArray(elements)) {
     return elements.find(e => e.ref === normalized) || null;
@@ -252,6 +252,135 @@ function run(args) {
     case 'devices': {
       const out = adb('devices');
       return { ok: true, output: out };
+    }
+
+    case 'activities': {
+      // List running activities via dumpsys
+      const out = adb('shell dumpsys activity activities');
+      const activities = [];
+      const lines = out.split('\n');
+      for (const line of lines) {
+        // Match "* TaskRecord{...}" and "Activities=[...]" patterns
+        const actMatch = line.match(/\*\s+Hist\s+#\d+:\s+ActivityRecord\{[^}]+\s+(\S+\/\S+)\s/);
+        if (actMatch) {
+          const [pkg, activity] = actMatch[1].split('/');
+          activities.push({ package: pkg, activity: activity.startsWith('.') ? pkg + activity : activity, raw: actMatch[1] });
+        }
+        // Also match "realActivity=com.example/.MainActivity"
+        const realMatch = line.match(/realActivity=(\S+)/);
+        if (realMatch && !activities.find(a => a.raw === realMatch[1])) {
+          const [pkg, act] = realMatch[1].split('/');
+          activities.push({ package: pkg, activity: act?.startsWith('.') ? pkg + act : (act || pkg), raw: realMatch[1] });
+        }
+      }
+      // Get focused activity
+      const focusOut = adb('shell dumpsys activity activities | grep mResumedActivity');
+      let focused = null;
+      const focusMatch = focusOut.match(/(\S+\/\S+)\s/);
+      if (focusMatch) focused = focusMatch[1];
+      return { ok: true, action: 'activities', focused, count: activities.length, activities };
+    }
+
+    case 'surfaces': {
+      // List surfaces via dumpsys SurfaceFlinger
+      const out = adb('shell dumpsys SurfaceFlinger --list');
+      const surfaces = (out || '').split('\n').filter(l => l.trim()).map(l => l.trim());
+      return { ok: true, action: 'surfaces', count: surfaces.length, surfaces };
+    }
+
+    case 'windows': {
+      // List all visible windows (multi-window/split-screen/PiP/overlay)
+      const out = adb('shell dumpsys window windows');
+      const windows = [];
+      const winRegex = /Window #(\d+) Window\{([0-9a-f]+) ([^\}]+)\}/g;
+      let wm;
+      while ((wm = winRegex.exec(out)) !== null) {
+        const [, idx, hash, desc] = wm;
+        // Extract package/activity from desc
+        const parts = desc.trim().split(/\s+/);
+        const name = parts[parts.length - 1] || desc;
+        // Check visibility — look for mShownFrame or isVisible
+        // Limit to current window block (up to next Window #)
+        const nextWin = out.indexOf('Window #', wm.index + 10);
+        const afterWin = out.slice(wm.index, nextWin > 0 ? nextWin : wm.index + 5000);
+        // Android <15: mShownFrame=[x,y][w,h]  Android 15+: Frames: ... frame=[x,y][w,h]
+        const shown = /mShownFrame=\[(\d+,\d+)\]\[(\d+,\d+)\]/.exec(afterWin)
+          || /Frames:.*?frame=\[(\d+,\d+)\]\[(\d+,\d+)\]/.exec(afterWin);
+        const visible = !afterWin.includes('isOnScreen=false');
+        const frame = shown ? `[${shown[1]}][${shown[2]}]` : null;
+        windows.push({ index: parseInt(idx), hash, name, frame, visible });
+      }
+      // Get focused window — mCurrentFocus is in `dumpsys window` (not `dumpsys window windows`)
+      const focusOut = adb('shell dumpsys window | grep mCurrentFocus');
+      const focusMatch = focusOut.match(/mCurrentFocus=Window\{([0-9a-f]+) ([^\}]+)\}/);
+      const focused = focusMatch ? focusMatch[2].trim() : null;
+      return { ok: true, action: 'windows', count: windows.length, focused, windows };
+    }
+
+    case 'tasks': {
+      // List recent tasks/activity stacks
+      const out = adb('shell dumpsys activity recents');
+      const tasks = [];
+      const taskRegex = /Task\{([0-9a-f]+) #(\d+).*?A=([^\s\}]+)/g;
+      let tm;
+      while ((tm = taskRegex.exec(out)) !== null) {
+        tasks.push({ id: parseInt(tm[2]), affinity: tm[3], hash: tm[1] });
+      }
+      return { ok: true, action: 'tasks', count: tasks.length, tasks };
+    }
+
+    case 'start': {
+      // Start specific activity: start com.example/.MainActivity
+      const component = args[1];
+      if (!component) return { ok: false, error: 'usage: start <package/activity>' };
+      const out = adb(`shell am start -n ${component}`);
+      const ok = !out.includes('Error');
+      return ok ? { ok: true, action: 'start', component } : { ok: false, error: out };
+    }
+
+    case 'stop': case 'force-stop': {
+      const pkg = args[1];
+      if (!pkg) return { ok: false, error: 'usage: stop <package>' };
+      adb(`shell am force-stop ${pkg}`);
+      return { ok: true, action: 'stop', package: pkg };
+    }
+
+    case 'console': case 'logs': case 'logcat': {
+      // adb logcat -d dumps buffered logs then exits
+      const level = args.find(a => ['V','D','I','W','E','F','S','verbose','debug','info','warn','error','fatal','silent'].includes(a));
+      const countArg = args.find(a => /^\d+$/.test(a));
+      const limit = countArg ? parseInt(countArg) : 50;
+      const doClear = args.includes('--clear') || args.includes('-c');
+      const tag = args.find(a => a.startsWith('--tag='))?.slice(6);
+      const pkg = args.find(a => a.startsWith('--package='))?.slice(10) || args.find(a => a.startsWith('--app='))?.slice(6);
+      let logArgs = 'shell logcat -d -v time';
+      if (tag) logArgs += ` -s ${tag}`;
+      const raw = adb(logArgs, { timeout: 10000 });
+      let lines = raw.split('\n').filter(l => l.trim());
+      // Filter by level
+      if (level) {
+        const lvl = level[0].toUpperCase();
+        lines = lines.filter(l => {
+          const m = l.match(/^\d{2}-\d{2}\s+\S+\s+([VDIWEFS])\//);
+          return m && m[1] === lvl;
+        });
+      }
+      // Filter by package
+      if (pkg) {
+        lines = lines.filter(l => l.includes(pkg));
+      }
+      lines = lines.slice(-limit);
+      if (doClear) adb('logcat -c');
+      return { ok: true, action: 'console', count: lines.length, entries: lines };
+    }
+
+    case 'current': {
+      // Get current foreground activity
+      const out = adb('shell dumpsys activity activities | grep mResumedActivity');
+      const match = out.match(/(\S+\/\S+)\s/);
+      return match
+        ? { ok: true, action: 'current', activity: match[1] }
+        : { ok: false, error: 'no resumed activity found' };
     }
 
     default:

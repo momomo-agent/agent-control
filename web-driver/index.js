@@ -20,6 +20,25 @@ const path = require('path');
 
 const STATE_FILE = '/tmp/agent-control-web.json';
 const DAEMON_PORT = 3901;
+const MAX_CONSOLE_ENTRIES = 500;
+const consoleLogs = [];
+
+function attachConsoleListener(pg) {
+  pg.on('console', msg => {
+    consoleLogs.push({
+      type: msg.type(),
+      text: msg.text(),
+      url: msg.location()?.url || '',
+      line: msg.location()?.lineNumber ?? 0,
+      ts: Date.now(),
+    });
+    if (consoleLogs.length > MAX_CONSOLE_ENTRIES) consoleLogs.splice(0, consoleLogs.length - MAX_CONSOLE_ENTRIES);
+  });
+  pg.on('pageerror', err => {
+    consoleLogs.push({ type: 'error', text: err.message, url: '', line: 0, ts: Date.now() });
+    if (consoleLogs.length > MAX_CONSOLE_ENTRIES) consoleLogs.splice(0, consoleLogs.length - MAX_CONSOLE_ENTRIES);
+  });
+}
 
 // ══════════════════════════════════════════
 // CLIENT — send command to daemon via HTTP
@@ -63,6 +82,7 @@ async function startDaemon(opts = {}) {
     browser = await chromium.connectOverCDP(opts.cdp);
     context = browser.contexts()[0] || await browser.newContext();
     page = context.pages()[0] || await context.newPage();
+    attachConsoleListener(page);
   } else {
     browser = await chromium.launch({
       headless: !opts.headed,
@@ -78,6 +98,7 @@ async function startDaemon(opts = {}) {
     });
     page = await context.newPage();
   }
+  attachConsoleListener(page);
 
   const server = http.createServer(async (req, res) => {
     if (req.method !== 'POST' || req.url !== '/cmd') {
@@ -90,7 +111,7 @@ async function startDaemon(opts = {}) {
         const { args } = JSON.parse(body);
         const result = await executeCommand(args, page, browser, context);
         // page might have changed (e.g. open creates new page)
-        if (result._newPage) { page = result._newPage; delete result._newPage; }
+        if (result._newPage) { page = result._newPage; delete result._newPage; attachConsoleListener(page); consoleLogs.length = 0; }
         if (result._newContext) { context = result._newContext; delete result._newContext; }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
@@ -450,9 +471,31 @@ async function executeCommand(args, page, browser, context) {
         }
         break;
       }
+      case 'console': case 'logs': {
+        const level = args.find(a => ['error','warn','warning','info','log','debug'].includes(a));
+        const countArg = args.find(a => /^\d+$/.test(a));
+        const limit = countArg ? parseInt(countArg) : 50;
+        const doClear = args.includes('--clear') || args.includes('-c');
+        let entries = [...consoleLogs];
+        if (level) {
+          const match = level === 'warning' ? 'warn' : level;
+          entries = entries.filter(e => e.type === match);
+        }
+        entries = entries.slice(-limit);
+        if (doClear) consoleLogs.length = 0;
+        result = { ok: true, action: 'console', count: entries.length, total: consoleLogs.length, entries };
+        break;
+      }
       case 'eval': {
-        const expr = args.slice(1).join(' ');
-        if (!expr) { result = { ok: false, error: 'no expression' }; break; }
+        let expr = args.slice(1).join(' ');
+        // Support reading expression from file: eval --file /path/to/script.js
+        const fileIdx = args.indexOf('--file');
+        if (fileIdx !== -1 && args[fileIdx + 1]) {
+          try { expr = fs.readFileSync(args[fileIdx + 1], 'utf-8'); } catch (e) {
+            result = { ok: false, error: `cannot read file: ${e.message}` }; break;
+          }
+        }
+        if (!expr) { result = { ok: false, error: 'no expression. usage: eval <js> | eval --file <path>' }; break; }
         const val = await page.evaluate(expr);
         result = { ok: true, action: 'eval', value: val };
         break;
