@@ -16,6 +16,17 @@ const path = require('path');
 const ROOT = __dirname;
 const args = process.argv.slice(2);
 
+// Ensure stdout is fully flushed before exit (pipe mode truncation fix)
+const _origExit = process.exit.bind(process);
+function flushAndExit(code = 0) {
+  if (process.stdout.writableFinished || process.stdout.writableEnded) {
+    _origExit(code);
+    return;
+  }
+  process.stdout.write('', () => _origExit(code));
+  setTimeout(() => _origExit(code), 500).unref();
+}
+
 // ── Parse --platform and --enhanced ──
 let platform = null;
 let enhanced = false;
@@ -51,16 +62,29 @@ if (pidArg) driverArgs.push('--pid', pidArg);
 // Drivers expect @e3 format (aligned with agent-browser convention)
 driverArgs = driverArgs.map(a => /^e\d+$/.test(a) ? '@' + a : a);
 
+// ── Extract actual command from driverArgs (skip flags like --app, --pid) ──
+const flagsWithVal = new Set(['--app', '--pid']);
+const flagsNoVal = new Set(['-i']);
+function getCommand() {
+  for (let i = 0; i < driverArgs.length; i++) {
+    if (flagsWithVal.has(driverArgs[i])) { i++; continue; }
+    if (flagsNoVal.has(driverArgs[i])) continue;
+    return driverArgs[i];
+  }
+  return null;
+}
+
 // ── Subcommand shortcuts ──
-if (driverArgs[0] === 'doctor') {
+const cmd0 = getCommand();
+if (cmd0 === 'doctor') {
   const r = spawnSync(process.execPath, [path.join(ROOT, 'doctor.js'), ...driverArgs.slice(1)], { stdio: 'inherit' });
   process.exit(r.status || 0);
 }
-if (driverArgs[0] === 'demo') {
+if (cmd0 === 'demo') {
   const r = spawnSync(process.execPath, [path.join(ROOT, 'demo.js'), ...driverArgs.slice(1)], { stdio: 'inherit' });
   process.exit(r.status || 0);
 }
-if (driverArgs[0] === 'find' && platform !== 'web') {
+if (cmd0 === 'find' && platform !== 'web') {
   // CLI-level find: snapshot + filter for non-web platforms
   const query = driverArgs.slice(1).join(' ').toLowerCase();
   if (!query) { console.error('usage: agent-control -p <platform> find <text>'); process.exit(1); }
@@ -73,8 +97,7 @@ if (driverArgs[0] === 'find' && platform !== 'web') {
 
 // ── Auto-detect platform ──
 if (!platform) {
-  const cmd = driverArgs[0];
-  if (cmd === 'open' || cmd === 'navigate' || cmd === 'goto') {
+  if (cmd0 === 'open' || cmd0 === 'navigate' || cmd0 === 'goto') {
     platform = 'web';
   } else {
     platform = 'macos'; // default
@@ -85,7 +108,7 @@ if (!platform) {
 const { enhance } = require('./snapshot-enhance');
 
 function runDriver(cmd, args, timeout = 15000) {
-  const r = spawnSync(cmd, args, { encoding: 'utf8', timeout, stdio: ['pipe', 'pipe', 'pipe'] });
+  const r = spawnSync(cmd, args, { encoding: 'utf8', timeout, maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] });
   return r;
 }
 
@@ -101,20 +124,22 @@ function maybeEnhance(r) {
       web: 'Check: is the URL correct? Run: agent-control -p web open <url> first.',
     };
     console.error(JSON.stringify({ ok: false, error: err || 'command failed', hint: hints[platform] || '' }, null, 2));
-    process.exit(1);
+    flushAndExit(1);
+    return;
   }
 
-  if (!enhanced || driverArgs[0] !== 'snapshot') {
+  if (!enhanced || !driverArgs.includes('snapshot')) {
     if (out) process.stdout.write(out + '\n');
     if (err) process.stderr.write(err + '\n');
-    process.exit(r.status || 0);
+    flushAndExit(r.status || 0);
+    return;
   }
   try {
     const els = JSON.parse(out);
     const arr = Array.isArray(els) ? els : Object.values(els);
     if (arr.length === 0) {
       console.log(JSON.stringify({ ok: false, error: 'no elements found', hint: platform === 'macos' ? 'Is --pid correct? Is the app in foreground?' : platform === 'ios' ? 'Is Simulator running? Try: open -a Simulator' : 'Did you open a URL first?' }, null, 2));
-      process.exit(1);
+      flushAndExit(1);
     }
     const result = enhance(arr, { platform, all: allMode });
     if (global.__findQuery) {
@@ -134,7 +159,7 @@ function maybeEnhance(r) {
       console.log(result.text);
     }
   } catch(e) { console.error('enhance error:', e.message); process.stdout.write(out + '\n'); }
-  process.exit(r.status || 0);
+  flushAndExit(r.status || 0);
 }
 
 const drivers = {
@@ -144,7 +169,8 @@ const drivers = {
       console.error('macOS driver not built. Run: cd macos-driver && swift build');
       process.exit(1);
     }
-    maybeEnhance(runDriver(bin, driverArgs));
+    const timeout = (driverArgs[0] === 'console' || driverArgs[0] === 'logs') ? 30000 : 15000;
+    maybeEnhance(runDriver(bin, driverArgs, timeout));
   },
   web: () => {
     const fs = require('fs');
@@ -193,7 +219,7 @@ const drivers = {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => {
-        if (enhanced && driverArgs[0] === 'snapshot') {
+        if (enhanced && driverArgs.includes('snapshot')) {
           try {
             const els = JSON.parse(body);
             const arr = Array.isArray(els) ? els : Object.values(els);
@@ -228,10 +254,11 @@ const drivers = {
   },
   electron: () => {
     const script = path.join(ROOT, 'electron-driver', 'index.js');
-    const r = runDriver('node', [script, ...driverArgs], 30000);
-    if (r.stdout) process.stdout.write(r.stdout);
-    if (r.stderr) process.stderr.write(r.stderr);
-    process.exit(r.status || 0);
+    maybeEnhance(runDriver('node', [script, ...driverArgs], 30000));
+  },
+  flutter: () => {
+    const script = path.join(ROOT, 'flutter-driver', 'index.js');
+    maybeEnhance(runDriver('node', [script, ...driverArgs], 30000));
   },
 };
 
@@ -248,13 +275,13 @@ const subcommands = {
   goal: 'goal-runner.js',
   viewer: 'viewer.js',
 };
-if (subcommands[driverArgs[0]]) {
+if (cmd0 && subcommands[cmd0]) {
   const { spawnSync: ss } = require('child_process');
-  const r = ss('node', [path.join(ROOT, subcommands[driverArgs[0]]), ...args.slice(args.indexOf(driverArgs[0]) + 1)], { stdio: 'inherit', encoding: 'utf8' });
+  const r = ss('node', [path.join(ROOT, subcommands[cmd0]), ...args.slice(args.indexOf(cmd0) + 1)], { stdio: 'inherit', encoding: 'utf8' });
   process.exit(r.status || 0);
 }
 
-if (driverArgs.length === 0 || driverArgs[0] === 'help' || driverArgs[0] === '--help') {
+if (driverArgs.length === 0 || cmd0 === 'help' || cmd0 === '--help') {
   console.log(`agent-control — Give AI hands.
 
 Usage:
@@ -264,8 +291,10 @@ Usage:
 Platforms:
   web       Playwright (auto-starts daemon)
   macos     Accessibility API (--pid to target app)
-  ios       Simulator via idb
+  ios       Simulator (idb) + Real Device (pymobiledevice3)
   android   Emulator via uiautomator (experimental)
+  electron  Electron via CDP
+  flutter   Flutter via Dart VM Service Protocol
 
 Driver commands:
   snapshot [-i] [-e]        See UI elements
@@ -274,10 +303,11 @@ Driver commands:
   fill @ref "text"          Clear + type
   select @ref "value"       Select dropdown (web)
   press <key>               Keyboard key
-  screenshot [path]         Save PNG
+  screenshot [path]         Save PNG (macOS: requires --app, or --full for full-screen)
   open <url>                Navigate (web)
   swipe <dir>               Swipe (iOS/Android)
   close                     Close browser (web)
+  console [level] [N]       Show console/system logs
 
 Subcommands:
   auto    -p <plat> --goal "..." [--url <url>]   LLM-driven goal loop
@@ -290,6 +320,8 @@ Options:
   -e, --enhanced    Filter interactive elements + semantic summary
   --pid <pid>       Target specific app by PID (macOS)
   --app <name>      Target app by name or bundleId (macOS)
+  --real            Force real device backend (iOS)
+  --sim             Force simulator backend (iOS)
 
 Examples:
   agent-control doctor
@@ -298,6 +330,9 @@ Examples:
   agent-control -p web click @e3
   agent-control -p macos --app Finder snapshot -i
   agent-control -p macos screenshot --app com.apple.controlcenter /tmp/menubar.png
+  agent-control -p ios snapshot -i
+  agent-control -p ios --real screenshot /tmp/real.png
+  agent-control -p ios --real list-apps
   agent-control auto -p web --goal "Sign up" --url https://example.com`);
   process.exit(0);
 }

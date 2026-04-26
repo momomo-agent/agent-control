@@ -130,7 +130,7 @@ async function execStep(step, ctx) {
         await sleep(1000);
         return { ok: true };
       }
-      const url = (step.url || '').replace('$FLOWLAB', FLOWLAB);
+      const url = (step.url || '').replace('{FLOWLAB}', FLOWLAB);
       const r = await ac(P, 'open', url);
       if (!r.ok) return { ok: false, tag: 'DRIVER_ERROR', msg: r.error || 'open failed' };
       await sleep(1000);
