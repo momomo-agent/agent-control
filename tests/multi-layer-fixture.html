@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html><head><title>Multi-Layer Test</title></head>
+<body>
+  <h1>Main Page</h1>
+  <button id="main-btn">Main Button</button>
+  <iframe id="frame1" srcdoc='
+    <html><body>
+      <h2>Inside iFrame</h2>
+      <button id="iframe-btn">iFrame Button</button>
+      <input id="iframe-input" type="text" placeholder="Type in iframe">
+    </body></html>
+  ' width="400" height="200" style="border:1px solid #ccc"></iframe>
+  <div id="shadow-host"></div>
+  <script>
+    const host = document.getElementById('shadow-host');
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<button id="shadow-btn">Shadow Button</button><input id="shadow-input" type="text" placeholder="Type in shadow">';
+  </script>
+</body></html>

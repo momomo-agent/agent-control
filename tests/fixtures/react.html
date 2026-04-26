@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>React Test</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  body { font-family: system-ui; padding: 20px; }
+  .counter { font-size: 24px; margin: 10px 0; }
+  .result { margin-top: 10px; padding: 10px; background: #f0f0f0; min-height: 20px; }
+  input, select, textarea { margin: 5px 0; display: block; padding: 8px; width: 300px; }
+  button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+  .tab { display: inline-block; padding: 8px 16px; cursor: pointer; border: 1px solid #ccc; }
+  .tab.active { background: #007bff; color: white; }
+  .tab-content { padding: 10px; border: 1px solid #ccc; }
+  .todo-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .todo-item.done span { text-decoration: line-through; color: #999; }
+  dialog { padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect, useMemo } = React;
+
+function App() {
+  // Counter
+  const [count, setCount] = useState(0);
+
+  // Form
+  const [form, setForm] = useState({ name: '', email: '', role: '', bio: '', agree: false });
+  const [submitted, setSubmitted] = useState(false);
+  const updateForm = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState(0);
+  const tabs = [
+    { title: 'Tab 1', content: 'React Tab 1 content' },
+    { title: 'Tab 2', content: 'React Tab 2 content' },
+    { title: 'Tab 3', content: 'React Tab 3 content' },
+  ];
+
+  // Todo
+  const [todos, setTodos] = useState([
+    { text: 'Learn React', done: false },
+    { text: 'Build app', done: false },
+  ]);
+  const [newTodo, setNewTodo] = useState('');
+  const addTodo = () => {
+    if (newTodo.trim()) {
+      setTodos([...todos, { text: newTodo.trim(), done: false }]);
+      setNewTodo('');
+    }
+  };
+  const toggleTodo = (i) => setTodos(todos.map((t, j) => j === i ? { ...t, done: !t.done } : t));
+  const deleteTodo = (i) => setTodos(todos.filter((_, j) => j !== i));
+  const doneTodos = useMemo(() => todos.filter(t => t.done).length, [todos]);
+
+  // Dialog
+  const [showDialog, setShowDialog] = useState(false);
+  const [dialogInput, setDialogInput] = useState('');
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    if (showDialog && dialogRef.current) dialogRef.current.showModal();
+    if (!showDialog && dialogRef.current) dialogRef.current.close();
+  }, [showDialog]);
+
+  return (
+    <div>
+      <h1>React Test Page</h1>
+
+      {/* Counter */}
+      <div className="counter">Count: {count}</div>
+      <button onClick={() => setCount(c => c + 1)} aria-label="Increment">Increment</button>
+      <button onClick={() => setCount(c => c - 1)} aria-label="Decrement">Decrement</button>
+      <button onClick={() => setCount(0)} aria-label="Reset">Reset</button>
+
+      {/* Form */}
+      <h2>Form</h2>
+      <input type="text" value={form.name} onChange={e => updateForm('name', e.target.value)} placeholder="Enter your name" aria-label="Name" />
+      <input type="email" value={form.email} onChange={e => updateForm('email', e.target.value)} placeholder="Email address" aria-label="Email" />
+      <select value={form.role} onChange={e => updateForm('role', e.target.value)} aria-label="Role">
+        <option value="">Select role</option>
+        <option value="dev">Developer</option>
+        <option value="design">Designer</option>
+        <option value="pm">Product Manager</option>
+      </select>
+      <textarea value={form.bio} onChange={e => updateForm('bio', e.target.value)} placeholder="Tell us about yourself" aria-label="Bio" />
+      <label>
+        <input type="checkbox" checked={form.agree} onChange={e => updateForm('agree', e.target.checked)} aria-label="Agree to terms" />
+        I agree to the terms
+      </label>
+      <button onClick={() => setSubmitted(true)} aria-label="Submit">Submit</button>
+      {submitted && <div className="result">Submitted: {form.name} ({form.role})</div>}
+
+      {/* Tabs */}
+      <h2>Tabs</h2>
+      <div>
+        {tabs.map((tab, i) => (
+          <span key={i} className={`tab ${activeTab === i ? 'active' : ''}`} role="tab" onClick={() => setActiveTab(i)}>{tab.title}</span>
+        ))}
+      </div>
+      <div className="tab-content">{tabs[activeTab].content}</div>
+
+      {/* Todo */}
+      <h2>Todo List</h2>
+      <input type="text" value={newTodo} onChange={e => setNewTodo(e.target.value)} placeholder="Add todo" aria-label="New todo"
+        onKeyUp={e => e.key === 'Enter' && addTodo()} />
+      <button onClick={addTodo} aria-label="Add todo">Add</button>
+      {todos.map((todo, i) => (
+        <div key={i} className={`todo-item ${todo.done ? 'done' : ''}`}>
+          <input type="checkbox" checked={todo.done} onChange={() => toggleTodo(i)} aria-label={`Toggle ${todo.text}`} />
+          <span>{todo.text}</span>
+          <button onClick={() => deleteTodo(i)} aria-label={`Delete ${todo.text}`}>Delete</button>
+        </div>
+      ))}
+
+      {/* Computed */}
+      <h2>Computed</h2>
+      <div>Total todos: {todos.length}, Done: {doneTodos}, Pending: {todos.length - doneTodos}</div>
+
+      {/* Dialog */}
+      <button onClick={() => setShowDialog(true)} aria-label="Open Dialog">Open Dialog</button>
+      <dialog ref={dialogRef}>
+        <h3>React Dialog</h3>
+        <input type="text" value={dialogInput} onChange={e => setDialogInput(e.target.value)} placeholder="Dialog input" aria-label="Dialog input" />
+        <button onClick={() => setShowDialog(false)} aria-label="Close dialog">Close</button>
+      </dialog>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Vanilla HTML Test</title>
+<style>
+  body { font-family: system-ui; padding: 20px; }
+  .counter { font-size: 24px; margin: 10px 0; }
+  .result { margin-top: 10px; padding: 10px; background: #f0f0f0; min-height: 20px; }
+  input, select, textarea { margin: 5px 0; display: block; padding: 8px; width: 300px; }
+  button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+  .tab { display: inline-block; padding: 8px 16px; cursor: pointer; border: 1px solid #ccc; }
+  .tab.active { background: #007bff; color: white; }
+  .tab-content { display: none; padding: 10px; border: 1px solid #ccc; }
+  .tab-content.active { display: block; }
+  dialog { padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+</style>
+</head>
+<body>
+  <h1>Vanilla HTML Test Page</h1>
+
+  <!-- Counter -->
+  <div class="counter" id="counter">Count: 0</div>
+  <button id="increment" onclick="count++; document.getElementById('counter').textContent='Count: '+count">Increment</button>
+  <button id="decrement" onclick="count--; document.getElementById('counter').textContent='Count: '+count">Decrement</button>
+  <button id="reset" onclick="count=0; document.getElementById('counter').textContent='Count: 0'">Reset</button>
+
+  <!-- Form -->
+  <h2>Form</h2>
+  <input type="text" id="name-input" placeholder="Enter your name" aria-label="Name">
+  <input type="email" id="email-input" placeholder="Email address" aria-label="Email">
+  <select id="role-select" aria-label="Role">
+    <option value="">Select role</option>
+    <option value="dev">Developer</option>
+    <option value="design">Designer</option>
+    <option value="pm">Product Manager</option>
+  </select>
+  <textarea id="bio" placeholder="Tell us about yourself" aria-label="Bio"></textarea>
+  <input type="checkbox" id="agree-checkbox" aria-label="Agree to terms">
+  <label for="agree-checkbox">I agree to the terms</label>
+  <button id="submit-btn" onclick="document.getElementById('form-result').textContent='Submitted: '+document.getElementById('name-input').value">Submit</button>
+  <div class="result" id="form-result"></div>
+
+  <!-- Tabs -->
+  <h2>Tabs</h2>
+  <div>
+    <span class="tab active" role="tab" onclick="switchTab(0)">Tab 1</span>
+    <span class="tab" role="tab" onclick="switchTab(1)">Tab 2</span>
+    <span class="tab" role="tab" onclick="switchTab(2)">Tab 3</span>
+  </div>
+  <div class="tab-content active" id="tab-0">Content of Tab 1</div>
+  <div class="tab-content" id="tab-1">Content of Tab 2</div>
+  <div class="tab-content" id="tab-2">Content of Tab 3</div>
+
+  <!-- Dialog -->
+  <button id="open-dialog" onclick="document.getElementById('my-dialog').showModal()">Open Dialog</button>
+  <dialog id="my-dialog">
+    <h3>Dialog Title</h3>
+    <p>This is a modal dialog.</p>
+    <input type="text" id="dialog-input" placeholder="Dialog input" aria-label="Dialog input">
+    <button onclick="document.getElementById('my-dialog').close()">Close</button>
+  </dialog>
+
+  <!-- Dynamic list -->
+  <h2>Dynamic List</h2>
+  <input type="text" id="list-input" placeholder="Add item" aria-label="List item">
+  <button id="add-item" onclick="addItem()">Add</button>
+  <ul id="item-list"></ul>
+
+  <script>
+    let count = 0;
+    function switchTab(i) {
+      document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('active', j===i));
+      document.querySelectorAll('.tab-content').forEach((c,j) => c.classList.toggle('active', j===i));
+    }
+    function addItem() {
+      const input = document.getElementById('list-input');
+      if (!input.value) return;
+      const li = document.createElement('li');
+      li.textContent = input.value;
+      const del = document.createElement('button');
+      del.textContent = 'Delete';
+      del.onclick = () => li.remove();
+      li.appendChild(del);
+      document.getElementById('item-list').appendChild(li);
+      input.value = '';
+    }
+  </script>
+</body>
+</html>

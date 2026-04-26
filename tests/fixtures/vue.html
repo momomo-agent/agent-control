@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Vue 3 Test</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+  body { font-family: system-ui; padding: 20px; }
+  .counter { font-size: 24px; margin: 10px 0; }
+  .result { margin-top: 10px; padding: 10px; background: #f0f0f0; min-height: 20px; }
+  input, select, textarea { margin: 5px 0; display: block; padding: 8px; width: 300px; }
+  button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+  .tab { display: inline-block; padding: 8px 16px; cursor: pointer; border: 1px solid #ccc; }
+  .tab.active { background: #007bff; color: white; }
+  .tab-content { padding: 10px; border: 1px solid #ccc; }
+  .todo-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .todo-item.done span { text-decoration: line-through; color: #999; }
+  dialog { padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Vue 3 Test Page</h1>
+
+  <!-- Counter with v-model -->
+  <div class="counter">Count: {{ count }}</div>
+  <button @click="count++" aria-label="Increment">Increment</button>
+  <button @click="count--" aria-label="Decrement">Decrement</button>
+  <button @click="count=0" aria-label="Reset">Reset</button>
+
+  <!-- Form with v-model -->
+  <h2>Form</h2>
+  <input type="text" v-model="form.name" placeholder="Enter your name" aria-label="Name">
+  <input type="email" v-model="form.email" placeholder="Email address" aria-label="Email">
+  <select v-model="form.role" aria-label="Role">
+    <option value="">Select role</option>
+    <option value="dev">Developer</option>
+    <option value="design">Designer</option>
+    <option value="pm">Product Manager</option>
+  </select>
+  <textarea v-model="form.bio" placeholder="Tell us about yourself" aria-label="Bio"></textarea>
+  <label><input type="checkbox" v-model="form.agree" aria-label="Agree to terms"> I agree to the terms</label>
+  <button @click="submitted=true" aria-label="Submit">Submit</button>
+  <div class="result" v-if="submitted">Submitted: {{ form.name }} ({{ form.role }})</div>
+
+  <!-- Tabs with v-if -->
+  <h2>Tabs</h2>
+  <div>
+    <span v-for="(tab, i) in tabs" :key="i" class="tab" :class="{active: activeTab===i}" role="tab" @click="activeTab=i">{{ tab.title }}</span>
+  </div>
+  <div class="tab-content">{{ tabs[activeTab].content }}</div>
+
+  <!-- Todo list with v-for -->
+  <h2>Todo List</h2>
+  <input type="text" v-model="newTodo" placeholder="Add todo" aria-label="New todo" @keyup.enter="addTodo">
+  <button @click="addTodo" aria-label="Add todo">Add</button>
+  <div v-for="(todo, i) in todos" :key="i" class="todo-item" :class="{done: todo.done}">
+    <input type="checkbox" :checked="todo.done" @change="todo.done=!todo.done" :aria-label="'Toggle '+todo.text">
+    <span>{{ todo.text }}</span>
+    <button @click="todos.splice(i,1)" :aria-label="'Delete '+todo.text">Delete</button>
+  </div>
+
+  <!-- Computed / watch -->
+  <h2>Computed</h2>
+  <div>Total todos: {{ todos.length }}, Done: {{ doneTodos }}, Pending: {{ todos.length - doneTodos }}</div>
+
+  <!-- Dialog -->
+  <button @click="showDialog=true" aria-label="Open Dialog">Open Dialog</button>
+  <dialog ref="dialog" :open="showDialog">
+    <h3>Vue Dialog</h3>
+    <input type="text" v-model="dialogInput" placeholder="Dialog input" aria-label="Dialog input">
+    <button @click="showDialog=false" aria-label="Close dialog">Close</button>
+  </dialog>
+</div>
+
+<script>
+const { createApp, ref, computed, watch, nextTick } = Vue;
+createApp({
+  setup() {
+    const count = ref(0);
+    const form = ref({ name: '', email: '', role: '', bio: '', agree: false });
+    const submitted = ref(false);
+    const activeTab = ref(0);
+    const tabs = ref([
+      { title: 'Tab 1', content: 'Vue Tab 1 content' },
+      { title: 'Tab 2', content: 'Vue Tab 2 content' },
+      { title: 'Tab 3', content: 'Vue Tab 3 content' },
+    ]);
+    const newTodo = ref('');
+    const todos = ref([
+      { text: 'Learn Vue', done: false },
+      { text: 'Build app', done: false },
+    ]);
+    const addTodo = () => { if (newTodo.value.trim()) { todos.value.push({ text: newTodo.value.trim(), done: false }); newTodo.value = ''; } };
+    const doneTodos = computed(() => todos.value.filter(t => t.done).length);
+    const showDialog = ref(false);
+    const dialogInput = ref('');
+    return { count, form, submitted, activeTab, tabs, newTodo, todos, addTodo, doneTodos, showDialog, dialogInput };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
