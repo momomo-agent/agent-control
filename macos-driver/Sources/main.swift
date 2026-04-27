@@ -84,7 +84,7 @@ struct AgentControl {
             let ref = cmdArgs.first(where: { isRef($0) })
             let nums = cmdArgs.compactMap { Double($0) }
             let btn = cmdArgs.contains("--right") ? "right" : "left"
-            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background")
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
             if let ref = ref {
                 let ok: Bool
                 if bg {
@@ -99,7 +99,7 @@ struct AgentControl {
                 printResult(ok, action: "click", ref: ref)
             } else if nums.count >= 2 {
                 if bg {
-                    fputs("error: --bg requires AX ref, coordinate mode not supported\n", stderr)
+                    fputs("error: --bg / --focus-guard requires AX ref, coordinate mode not supported\n", stderr)
                     exit(1)
                 }
                 let ok = AXActions.clickAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn)
@@ -114,7 +114,7 @@ struct AgentControl {
                 fputs("error: missing ref\n", stderr)
                 exit(1)
             }
-            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background")
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
             let ok = bg
                 ? AXActions.dblclickBackground(ref: ref, appPID: pid)
                 : AXActions.dblclick(ref: ref, appPID: pid)
@@ -125,7 +125,7 @@ struct AgentControl {
                 fputs("error: missing ref\n", stderr)
                 exit(1)
             }
-            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background")
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
             let ok = bg
                 ? AXActions.rightclickBackground(ref: ref, appPID: pid)
                 : AXActions.rightclick(ref: ref, appPID: pid)
@@ -144,7 +144,7 @@ struct AgentControl {
                 fputs("error: missing text argument\n", stderr)
                 exit(1)
             }
-            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background")
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
             let ok = bg
                 ? AXActions.fillBackground(ref: ref, text: text, appPID: pid)
                 : AXActions.fill(ref: ref, text: text, appPID: pid)
@@ -766,6 +766,17 @@ struct AgentControl {
           bg-press <key>                         后台按键 (如 cmd+t)
           bg-act <click|type|press> ...          bg-focus + 动作 + bg-defocus
           stealth-act <snapshot|click|...>       最小化窗口静默操作
+
+        FocusGuard (AX 模拟焦点 — 推荐, macOS 26 可用):
+          click @ref --focus-guard               三层 focus 栈包裹 (Chromium AX enable + AXFocused swap + activation reverter)
+          fill @ref "text" --focus-guard         同上 (app 不抢前台, 不抢真 focus)
+          dblclick/rightclick @ref --focus-guard
+          note: --focus-guard == --bg, 别名
+
+        Virtual Cursor (lavender 箭头, 不动真光标):
+          cursor start                           启动 daemon + 显示虚拟光标
+          cursor move X Y [--no-animate] [--duration SEC]  平滑移动
+          cursor hide / stop / status
 
         Window Management:
           windows                                列出所有窗口
