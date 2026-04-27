@@ -15,7 +15,15 @@ func isRef(_ s: String) -> Bool {
 @main
 struct AgentControl {
     static func main() async {
-        let args = Array(CommandLine.arguments.dropFirst())
+        let rawArgs = Array(CommandLine.arguments.dropFirst())
+
+        // Special：daemon 内部入口（由 spawnDaemon() 自己调自己）。
+        // 不能正常走 command 分发 —— 需要运行 NSApp。
+        if rawArgs.first == "cursor-daemon-run" {
+            CursorDaemon.runServer()  // never returns
+        }
+
+        let args = rawArgs
 
         // Extract command: skip flags (--pid X, --app X, -i)
         let flagsWithValue: Set<String> = ["--pid", "--app"]
@@ -76,16 +84,28 @@ struct AgentControl {
             let ref = cmdArgs.first(where: { isRef($0) })
             let nums = cmdArgs.compactMap { Double($0) }
             let btn = cmdArgs.contains("--right") ? "right" : "left"
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background")
             if let ref = ref {
-                let ok = btn == "right"
-                    ? AXActions.rightclick(ref: ref, appPID: pid)
-                    : AXActions.click(ref: ref, appPID: pid)
+                let ok: Bool
+                if bg {
+                    ok = btn == "right"
+                        ? AXActions.rightclickBackground(ref: ref, appPID: pid)
+                        : AXActions.clickBackground(ref: ref, appPID: pid)
+                } else {
+                    ok = btn == "right"
+                        ? AXActions.rightclick(ref: ref, appPID: pid)
+                        : AXActions.click(ref: ref, appPID: pid)
+                }
                 printResult(ok, action: "click", ref: ref)
             } else if nums.count >= 2 {
+                if bg {
+                    fputs("error: --bg requires AX ref, coordinate mode not supported\n", stderr)
+                    exit(1)
+                }
                 let ok = AXActions.clickAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn)
                 printResult(ok, action: "click", ref: "\(Int(nums[0])),\(Int(nums[1]))")
             } else {
-                fputs("error: usage: click @ref | click x y\n", stderr)
+                fputs("error: usage: click @ref [--bg] [--right] | click x y\n", stderr)
                 exit(1)
             }
 
@@ -94,7 +114,10 @@ struct AgentControl {
                 fputs("error: missing ref\n", stderr)
                 exit(1)
             }
-            let ok = AXActions.dblclick(ref: ref, appPID: pid)
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background")
+            let ok = bg
+                ? AXActions.dblclickBackground(ref: ref, appPID: pid)
+                : AXActions.dblclick(ref: ref, appPID: pid)
             printResult(ok, action: "dblclick", ref: ref)
 
         case "rightclick":
@@ -102,7 +125,10 @@ struct AgentControl {
                 fputs("error: missing ref\n", stderr)
                 exit(1)
             }
-            let ok = AXActions.rightclick(ref: ref, appPID: pid)
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background")
+            let ok = bg
+                ? AXActions.rightclickBackground(ref: ref, appPID: pid)
+                : AXActions.rightclick(ref: ref, appPID: pid)
             printResult(ok, action: "rightclick", ref: ref)
 
         case "fill":
@@ -118,7 +144,10 @@ struct AgentControl {
                 fputs("error: missing text argument\n", stderr)
                 exit(1)
             }
-            let ok = AXActions.fill(ref: ref, text: text, appPID: pid)
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background")
+            let ok = bg
+                ? AXActions.fillBackground(ref: ref, text: text, appPID: pid)
+                : AXActions.fill(ref: ref, text: text, appPID: pid)
             printResult(ok, action: "fill", ref: ref)
 
         case "press":
@@ -578,6 +607,81 @@ struct AgentControl {
                 fputs("  \(icon) \(p.displayName): \(p.status) \(req)\n", stderr)
             }
             printJSON(perms)
+
+        case "cursor":
+            let sub = cmdArgs.first ?? "status"
+            let selfPath = CommandLine.arguments[0]
+            switch sub {
+            case "start", "show":
+                if !CursorDaemon.isDaemonAlive() {
+                    if !CursorDaemon.spawnDaemon(selfPath: selfPath) {
+                        fputs("error: failed to spawn cursor daemon\n", stderr)
+                        exit(1)
+                    }
+                }
+                if let resp = CursorDaemon.sendCommand(["cmd": "show"]) {
+                    print(resp)
+                } else {
+                    printResult(false, action: "cursor", ref: "show", extra: ["error": "daemon not responding"])
+                    exit(1)
+                }
+
+            case "move":
+                // 语法：cursor move x y [--no-animate] [--duration 0.5]
+                let nums = cmdArgs.dropFirst().compactMap { Double($0) }
+                guard nums.count >= 2 else {
+                    fputs("error: usage: cursor move X Y [--no-animate] [--duration SEC]\n", stderr)
+                    exit(1)
+                }
+                if !CursorDaemon.isDaemonAlive() {
+                    if !CursorDaemon.spawnDaemon(selfPath: selfPath) {
+                        fputs("error: failed to spawn cursor daemon\n", stderr)
+                        exit(1)
+                    }
+                }
+                let animate = !cmdArgs.contains("--no-animate")
+                var duration = 0.35
+                if let di = cmdArgs.firstIndex(of: "--duration"), di + 1 < cmdArgs.count,
+                   let d = Double(cmdArgs[di + 1]) { duration = d }
+                let payload: [String: Any] = [
+                    "cmd": "move",
+                    "x": nums[0],
+                    "y": nums[1],
+                    "animate": animate,
+                    "duration": duration,
+                ]
+                if let resp = CursorDaemon.sendCommand(payload) {
+                    print(resp)
+                } else {
+                    printResult(false, action: "cursor", ref: "move", extra: ["error": "daemon not responding"])
+                    exit(1)
+                }
+
+            case "hide":
+                if !CursorDaemon.isDaemonAlive() {
+                    print(#"{"ok":true,"note":"daemon not running"}"#)
+                    return
+                }
+                print(CursorDaemon.sendCommand(["cmd": "hide"]) ?? #"{"ok":false}"#)
+
+            case "stop":
+                if !CursorDaemon.isDaemonAlive() {
+                    print(#"{"ok":true,"note":"daemon not running"}"#)
+                    return
+                }
+                print(CursorDaemon.sendCommand(["cmd": "stop"]) ?? #"{"ok":false}"#)
+
+            case "status":
+                if !CursorDaemon.isDaemonAlive() {
+                    print(#"{"ok":true,"running":false}"#)
+                    return
+                }
+                print(CursorDaemon.sendCommand(["cmd": "status"]) ?? #"{"ok":false}"#)
+
+            default:
+                fputs("error: unknown cursor subcommand '\(sub)'. Use: start | move | hide | stop | status\n", stderr)
+                exit(1)
+            }
 
         case "help", "--help", "-h":
             printUsage()
