@@ -9,6 +9,7 @@
  *   swipe dir [amount]      Swipe up/down/left/right
  *   press key               Press key (home/back/enter/...)
  *   screenshot [path]       Capture screen
+ *   screenshot @ref [path]  Element-scoped screenshot (crops full capture)
  *   open <package>          Launch app by package name
  *   shell <cmd>             Run adb shell command
  */
@@ -229,11 +230,27 @@ function run(args) {
     }
 
     case 'screenshot': {
-      const outPath = args[1] || '/tmp/agent-control-android.png';
+      const ref = args.find(a => /^@?e\d+$/.test(a));
+      const outPath = args.find(a => a !== cmd && !/^@?e\d+$/.test(a) && !a.startsWith('-')) || '/tmp/agent-control-android.png';
+
+      // Capture full screen into a temp location first
+      const tmpHost = ref ? `/tmp/agent-control-android-full-${process.pid}.png` : outPath;
       adb('shell screencap -p /sdcard/screenshot.png');
-      // adb pull writes to stderr, use spawnSync to capture properly
-      spawnSync('adb', [...(SERIAL ? ['-s', SERIAL] : []), 'pull', '/sdcard/screenshot.png', outPath], { stdio: 'pipe', timeout: 15000 });
-      try { fs.statSync(outPath); return { ok: true, path: outPath }; } catch { return { ok: false, error: 'screenshot failed' }; }
+      spawnSync('adb', [...(SERIAL ? ['-s', SERIAL] : []), 'pull', '/sdcard/screenshot.png', tmpHost], { stdio: 'pipe', timeout: 15000 });
+      try { fs.statSync(tmpHost); } catch { return { ok: false, error: 'screenshot failed' }; }
+
+      if (!ref) return { ok: true, path: tmpHost };
+
+      // Element-scoped: crop the full capture using bounds (already in pixels)
+      const el = findElement(ref, elements);
+      if (!el || !el.frame) { try { fs.unlinkSync(tmpHost); } catch {}; return { ok: false, error: `element ${ref} not found` }; }
+      const { x, y, w, h } = el.frame;
+      if (w < 1 || h < 1) { try { fs.unlinkSync(tmpHost); } catch {}; return { ok: false, error: 'element has zero size' }; }
+      // sips --cropOffset <Y> <X> -c <H> <W>
+      const r = spawnSync('sips', ['--cropOffset', String(y), String(x), '-c', String(h), String(w), tmpHost, '--out', outPath], { stdio: 'pipe', timeout: 10000 });
+      try { fs.unlinkSync(tmpHost); } catch {}
+      if (r.status !== 0) return { ok: false, error: 'sips crop failed: ' + (r.stderr?.toString() || '').trim() };
+      return { ok: true, path: outPath, ref, bbox: { x, y, w, h } };
     }
 
     case 'open': case 'launch': {

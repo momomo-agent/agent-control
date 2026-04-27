@@ -14,6 +14,7 @@
  *   swipe dir [amount]            Swipe up/down/left/right
  *   press key                     Press button (home/lock/siri)
  *   screenshot [path]             Capture screen
+ *   screenshot @ref [path]        Element-scoped screenshot (crops full capture)
  *   longpress @ref | x y          Long press
  *   drag x1 y1 x2 y2             Drag gesture
  *   open <url>                    Open URL in simulator
@@ -556,35 +557,78 @@ try {
       break;
     }
     case 'screenshot': {
+      const ref = args.find(isRefArg);
       const windowId = getFlag('--window') || getFlag('--display');
-      const p = args.find(a => !a.startsWith('-') && a !== cmd && a !== windowId) || '/tmp/agent-control-ios.png';
-      let ok = false;
-      // Try WDA screenshot first (captures the active app, not SpringBoard)
-      if (wda.isWdaRunning()) {
-        const session = wda.ensureSession();
-        if (session) {
-          const r = spawnSync('curl', ['-s', '--max-time', '10',
-            `http://127.0.0.1:${wda.WDA_PORT}/screenshot`],
-            { encoding: 'utf8', timeout: 12000 });
-          if (r.stdout) {
-            try {
-              const data = JSON.parse(r.stdout);
-              if (data.value) {
-                const buf = Buffer.from(data.value, 'base64');
-                fs.writeFileSync(p, buf);
-                ok = true;
-              }
-            } catch {}
+      const p = args.find(a => !a.startsWith('-') && a !== cmd && a !== windowId && !isRefArg(a)) || '/tmp/agent-control-ios.png';
+
+      // Helper: capture full screen into `dest`
+      const captureFull = (dest) => {
+        let ok = false;
+        if (wda.isWdaRunning()) {
+          const session = wda.ensureSession();
+          if (session) {
+            const r = spawnSync('curl', ['-s', '--max-time', '10',
+              `http://127.0.0.1:${wda.WDA_PORT}/screenshot`],
+              { encoding: 'utf8', timeout: 12000 });
+            if (r.stdout) {
+              try {
+                const data = JSON.parse(r.stdout);
+                if (data.value) {
+                  fs.writeFileSync(dest, Buffer.from(data.value, 'base64'));
+                  ok = true;
+                }
+              } catch {}
+            }
           }
         }
+        if (!ok) {
+          const sa = ['io', UDID, 'screenshot'];
+          if (windowId) sa.push('--display', windowId);
+          sa.push(dest);
+          ok = simctl(...sa).status === 0;
+        }
+        return ok;
+      };
+
+      if (ref) {
+        // Element-scoped screenshot: full capture + sips crop by frame
+        const el = findEl(ref);
+        if (!el || !el.frame) { result = { ok: false, error: `element ${ref} not found` }; break; }
+        const tmp = `/tmp/agent-control-ios-full-${process.pid}.png`;
+        if (!captureFull(tmp)) { result = { ok: false, error: 'screenshot failed' }; break; }
+        try {
+          // Get image pixel size to derive point→pixel scale
+          const info = spawnSync('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', tmp], { encoding: 'utf8' }).stdout || '';
+          const pw = parseInt((info.match(/pixelWidth:\s*(\d+)/) || [])[1]) || 0;
+          const ph = parseInt((info.match(/pixelHeight:\s*(\d+)/) || [])[1]) || 0;
+          // Screen points: use the larger between frame extents we've seen and common iOS widths.
+          // WDA/AX returns frames in points. Infer scale from frame+image if we know a reference.
+          // Simpler: assume scale = round(pixelWidth / 430) for portrait, but safer is to probe device.
+          // Use simctl to get device info: `xcrun simctl list devices -j` has nothing useful for scale.
+          // Pragmatic fallback: try scales [3, 2, 1] and pick the one that yields a crop inside bounds.
+          let scale = 3;
+          for (const s of [3, 2, 1]) {
+            const rx = el.frame.x * s, ry = el.frame.y * s, rw = el.frame.w * s, rh = el.frame.h * s;
+            if (rx >= 0 && ry >= 0 && rx + rw <= pw && ry + rh <= ph && rw >= 1 && rh >= 1) { scale = s; break; }
+          }
+          const cx = Math.round(el.frame.x * scale);
+          const cy = Math.round(el.frame.y * scale);
+          const cw = Math.max(1, Math.round(el.frame.w * scale));
+          const ch = Math.max(1, Math.round(el.frame.h * scale));
+          const r = spawnSync('sips', ['--cropOffset', String(cy), String(cx), '-c', String(ch), String(cw), tmp, '--out', p], { encoding: 'utf8' });
+          fs.unlinkSync(tmp);
+          result = r.status === 0
+            ? { ok: true, path: p, ref, bbox: { x: cx, y: cy, w: cw, h: ch }, scale }
+            : { ok: false, error: 'sips crop failed: ' + (r.stderr || '').trim() };
+        } catch (e) {
+          try { fs.unlinkSync(tmp); } catch {}
+          result = { ok: false, error: 'crop failed: ' + e.message };
+        }
+        break;
       }
-      // Fallback to simctl
-      if (!ok) {
-        const screenshotArgs = ['io', UDID, 'screenshot'];
-        if (windowId) screenshotArgs.push('--display', windowId);
-        screenshotArgs.push(p);
-        ok = simctl(...screenshotArgs).status === 0;
-      }
+
+      // Full-screen / window capture (default)
+      const ok = captureFull(p);
       result = ok ? { ok: true, path: p, ...(windowId ? { window: windowId } : {}) } : { ok: false, error: 'screenshot failed' };
       break;
     }

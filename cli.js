@@ -164,9 +164,13 @@ function maybeEnhance(r) {
 
 const drivers = {
   macos: () => {
-    const bin = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
-    if (!require('fs').existsSync(bin)) {
-      console.error('macOS driver not built. Run: cd macos-driver && swift build');
+    const fs_ = require('fs');
+    // Prefer release build when available (optimized), fall back to debug.
+    const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
+    const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
+    const bin = fs_.existsSync(rel) ? rel : dbg;
+    if (!fs_.existsSync(bin)) {
+      console.error('macOS driver not built. Run: cd macos-driver && swift build -c release');
       process.exit(1);
     }
     const timeout = (driverArgs[0] === 'console' || driverArgs[0] === 'logs') ? 30000 : 15000;

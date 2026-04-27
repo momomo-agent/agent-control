@@ -9,7 +9,9 @@
  *   agent-control-web open <url>
  *   agent-control-web snapshot -i
  *   agent-control-web click @e3
- *   agent-control-web screenshot /tmp/out.png
+ *   agent-control-web screenshot /tmp/out.png            # viewport
+ *   agent-control-web screenshot --full /tmp/out.png     # full page
+ *   agent-control-web screenshot @e3 /tmp/el.png         # element-scoped
  *   agent-control-web close
  */
 
@@ -384,16 +386,24 @@ async function executeCommand(args, page, browser, context) {
       case 'screenshot': {
         const ref = args.find(a => a.startsWith('@'));
         const outPath = args.find(a => a !== cmd && !a.startsWith('@')) || '/tmp/agent-control-web.png';
+        const fullPage = args.includes('--full') || args.includes('--full-page');
         if (ref) {
           const resolved = await resolveRef(page, ref);
           if (!resolved) { result = { ok: false, error: 'not found' }; break; }
-          const el = await page.$(`${resolved.el.tag}:nth-of-type(1)`);
-          if (el) await el.screenshot({ path: outPath });
-          else await page.screenshot({ path: outPath });
-        } else {
-          await page.screenshot({ path: outPath, fullPage: true });
+          // Use the resolved selector directly — previously re-selecting by
+          // tag:nth-of-type(1) silently captured the wrong element.
+          const el = await page.$(resolved.selector);
+          if (el) {
+            await el.scrollIntoViewIfNeeded().catch(() => {});
+            await el.screenshot({ path: outPath });
+            result = { ok: true, path: outPath, ref, bbox: { x: resolved.el.x, y: resolved.el.y, w: resolved.el.w, h: resolved.el.h } };
+          } else {
+            result = { ok: false, error: 'element vanished after resolve' };
+          }
+          break;
         }
-        result = { ok: true, path: outPath };
+        await page.screenshot({ path: outPath, fullPage });
+        result = { ok: true, path: outPath, fullPage };
         break;
       }
       case 'close': case 'quit': case 'exit':

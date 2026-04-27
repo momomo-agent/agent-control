@@ -117,6 +117,7 @@ Auto: environment check → start driver → open test page → snapshot → scr
 | `select @ref "val"` | Select dropdown (web) |
 | `press <key>` | Keyboard key |
 | `screenshot --app <name> [path]` | Save PNG (app-scoped, background-friendly) |
+| `screenshot @ref [path]` | Save PNG cropped to a single element |
 | `screenshot --full [path]` | Save PNG (full-screen, explicit opt-in) |
 | `scroll <up\|down>` | Scroll view |
 | `drag @from @to` | Drag between elements |

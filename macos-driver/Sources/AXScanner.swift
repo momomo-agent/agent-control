@@ -240,4 +240,127 @@ enum AXScanner {
     private static func cleanRole(_ role: String) -> String {
         role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
     }
+
+    // MARK: - Ref → AXUIElement lookup
+    //
+    // Find the native AXUIElement behind a `@eN` ref using the SAME traversal
+    // and ref-numbering as `snapshot(...)`. This avoids the drift that happens
+    // when actions re-walk the tree with different predicates (observed: actions
+    // only enumerated `clickableRoles`, while snapshot also numbers `contentRoles`,
+    // so refs >700 never resolved via the old simplified walker).
+    static func findUIElement(ref: String, appPID: pid_t? = nil) -> AXUIElement? {
+        let stripped = ref.hasPrefix("@") ? String(ref.dropFirst()) : ref
+        guard stripped.hasPrefix("e"), let target = Int(stripped.dropFirst()) else { return nil }
+
+        let app: AXUIElement
+        if let pid = appPID {
+            app = AXUIElementCreateApplication(pid)
+        } else {
+            guard let frontApp = NSWorkspace.shared.frontmostApplication else { return nil }
+            app = AXUIElementCreateApplication(frontApp.processIdentifier)
+        }
+
+        var counter = 0
+        var found: AXUIElement? = nil
+
+        // Mirror snapshot() window traversal
+        var windows: CFTypeRef?
+        AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windows)
+        if let winArray = windows as? [AXUIElement] {
+            for win in winArray {
+                if found != nil { break }
+                let winRole = attr(win, kAXRoleAttribute) ?? ""
+                if winRole == "AXWindow" {
+                    scanForRef(win, depth: 0, maxDepth: 15, counter: &counter, seenAppDepth: 0, target: target, found: &found)
+                } else if winRole == "AXApplication" {
+                    scanWindowContentForRef(win, counter: &counter, target: target, found: &found, appDepth: 0)
+                } else {
+                    scanForRef(win, depth: 0, maxDepth: 15, counter: &counter, seenAppDepth: 0, target: target, found: &found)
+                }
+            }
+        }
+
+        if found == nil {
+            for attrKey in [kAXMenuBarAttribute, kAXExtrasMenuBarAttribute] {
+                if found != nil { break }
+                var bar: CFTypeRef?
+                AXUIElementCopyAttributeValue(app, attrKey as CFString, &bar)
+                if let barEl = bar {
+                    scanForRef(barEl as! AXUIElement, depth: 0, maxDepth: 15, counter: &counter, seenAppDepth: 0, target: target, found: &found)
+                }
+            }
+        }
+
+        return found
+    }
+
+    // Mirrors scanWindowContent()
+    private static func scanWindowContentForRef(
+        _ el: AXUIElement, counter: inout Int,
+        target: Int, found: inout AXUIElement?,
+        appDepth: Int
+    ) {
+        if found != nil || appDepth >= 12 { return }
+        var followedApp = false
+        for child in getChildElements(el) {
+            if found != nil { return }
+            let role = attr(child, kAXRoleAttribute) ?? ""
+            if role == "AXApplication" {
+                if !followedApp {
+                    followedApp = true
+                    scanWindowContentForRef(child, counter: &counter, target: target, found: &found, appDepth: appDepth + 1)
+                }
+            } else if role == "AXMenuBar" || role == "AXMenu" {
+                continue
+            } else {
+                scanForRef(child, depth: 0, maxDepth: 12, counter: &counter, seenAppDepth: 99, target: target, found: &found)
+            }
+        }
+    }
+
+    // Mirrors scanElement() ref-numbering exactly
+    private static func scanForRef(
+        _ el: AXUIElement, depth: Int, maxDepth: Int,
+        counter: inout Int, seenAppDepth: Int,
+        target: Int, found: inout AXUIElement?
+    ) {
+        if found != nil || depth >= maxDepth { return }
+        let role = attr(el, kAXRoleAttribute) ?? "unknown"
+
+        if role == "AXApplication" {
+            if seenAppDepth >= 2 { return }
+            for child in getChildElements(el) {
+                if found != nil { return }
+                scanForRef(child, depth: depth + 1, maxDepth: maxDepth, counter: &counter, seenAppDepth: seenAppDepth + 1, target: target, found: &found)
+            }
+            return
+        }
+
+        let label = attr(el, kAXTitleAttribute) ?? attr(el, kAXDescriptionAttribute) ?? attr(el, kAXIdentifierAttribute) ?? ""
+        let value = attr(el, kAXValueAttribute) ?? ""
+        let isInteractive = Self.clickableRoles.contains(role)
+
+        // Recurse children first? In scanElement children are scanned BEFORE numbering self.
+        // Wait: scanElement numbers self AFTER scanning children but the returned order puts self first.
+        // For ref numbering we must mirror the ORDER counter is incremented, which is:
+        //   1) recurse children (they number themselves first)
+        //   2) then parent increments counter.
+        // Do the same here.
+        for child in getChildElements(el) {
+            if found != nil { return }
+            scanForRef(child, depth: depth + 1, maxDepth: maxDepth, counter: &counter, seenAppDepth: seenAppDepth, target: target, found: &found)
+        }
+        if found != nil { return }
+
+        if isInteractive {
+            counter += 1
+            if counter == target { found = el; return }
+        } else {
+            let contentRoles: Set<String> = ["AXStaticText", "AXImage", "AXHeading", "AXGroup"]
+            if contentRoles.contains(role) && !(label.isEmpty && value.isEmpty) {
+                counter += 1
+                if counter == target { found = el; return }
+            }
+        }
+    }
 }
