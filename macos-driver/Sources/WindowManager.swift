@@ -193,14 +193,21 @@ enum WindowManager {
 
     // MARK: - SLS Window Enumeration
 
-    private static func pidForWindow(_ wid: UInt32) -> pid_t {
-        // Use SLPSGetWindowOwner + GetProcessPID (safe path)
-        // SLSGetWindowOwner can SIGBUS on certain windows (e.g. loginwindow)
-        var psn = (UInt32(0), UInt32(0))
-        guard SLPSGetWindowOwner(wid, &psn) == 0 else { return -1 }
-        var pid: pid_t = 0
-        guard GetProcessPID(&psn, &pid) == 0 else { return -1 }
-        return pid
+    static func pidForWindow(_ wid: UInt32) -> pid_t {
+        // Use CGWindowListCopyWindowInfo (public API, stable)
+        // SLPSGetWindowOwner + GetProcessPID are deprecated Carbon APIs
+        guard let windowList = CGWindowListCopyWindowInfo(
+            [.optionIncludingWindow], CGWindowID(wid)
+        ) as? [[String: Any]] else { return -1 }
+        
+        for info in windowList {
+            if let windowID = info[kCGWindowNumber as String] as? UInt32,
+               windowID == wid,
+               let pid = info[kCGWindowOwnerPID as String] as? pid_t {
+                return pid
+            }
+        }
+        return -1
     }
 
     private static func onScreenWindowIDs() -> [UInt32] {
@@ -378,6 +385,19 @@ enum WindowManager {
             AXUIElementPerformAction(axWin, kAXRaiseAction as CFString)
         }
         return true
+    }
+
+    /// 后台 focus：app 变 active 但窗口不 raise、不触发 Space 切换。
+    /// 用 yabai 的 SkyLight SPI 方案（SLPSPostEventRecordTo 248 字节事件）。
+    static func focusWindowBackground(_ wid: UInt32) -> Bool {
+        let pid = pidForWindow(wid)
+        guard pid > 0 else {
+            BackgroundFocus.lastError = "pidForWindow=0 for wid=\(wid)"
+            return false
+        }
+        return BackgroundFocus.activateWithoutRaise(
+            targetPid: pid, targetWid: CGWindowID(wid)
+        )
     }
 
     static func minimizeWindow(_ wid: UInt32) -> Bool {
@@ -586,6 +606,30 @@ enum WindowManager {
                 frame: win.frame, interactive: true, children: nil
             )
         }
+    }
+
+    // MARK: - Window Lookup Helpers
+
+    /// Get the first layer-0 (content) window ID for a given PID.
+    static func firstWindowID(forPID pid: pid_t) -> UInt32? {
+        let wins = listWindows(forPID: pid)
+        return wins.first(where: { $0.layer == 0 })?.windowID
+    }
+
+    /// Check if a window is minimized via AX.
+    static func isMinimized(_ wid: UInt32) -> Bool {
+        let pid = pidForWindow(wid)
+        guard pid > 0, let axWin = axWindowForID(wid, pid: pid) else { return false }
+        var value: CFTypeRef?
+        AXUIElementCopyAttributeValue(axWin, kAXMinimizedAttribute as CFString, &value)
+        return (value as? Bool) == true
+    }
+
+    /// Deminiaturize (un-minimize) a window via AX.
+    static func deminiaturizeWindow(_ wid: UInt32) -> Bool {
+        let pid = pidForWindow(wid)
+        guard pid > 0, let axWin = axWindowForID(wid, pid: pid) else { return false }
+        return AXUIElementSetAttributeValue(axWin, kAXMinimizedAttribute as CFString, false as CFBoolean) == .success
     }
 
     // MARK: - Helpers

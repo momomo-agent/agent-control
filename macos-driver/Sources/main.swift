@@ -281,6 +281,183 @@ struct AgentControl {
             let ok = WindowManager.focusWindow(wid)
             printResult(ok, action: "focus", ref: widStr)
 
+        case "focus-bg":
+            guard let widStr = cmdArgs.first, let wid = UInt32(widStr) else {
+                fputs("error: usage: focus-bg <windowID>\n", stderr)
+                exit(1)
+            }
+            let ok = WindowManager.focusWindowBackground(wid)
+            var meta: [String: Any] = [
+                "spi_available": BackgroundFocus.isFocusWithoutRaiseAvailable,
+                "auth_post_available": BackgroundFocus.isAuthPostAvailable
+            ]
+            if !BackgroundFocus.lastError.isEmpty {
+                meta["last_error"] = BackgroundFocus.lastError
+            }
+            printResult(ok, action: "focus-bg", ref: widStr, extra: meta)
+
+        case "bg-focus":
+            guard let targetPID = pid else {
+                fputs("error: bg-focus requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let wid = cmdArgs.first.flatMap { UInt32($0) }
+                ?? WindowManager.firstWindowID(forPID: targetPID)
+                ?? 0
+            let ok = BackgroundFocus.activateWithoutRaise(
+                targetPid: targetPID, targetWid: CGWindowID(wid)
+            )
+            var meta: [String: Any] = [
+                "spi_available": BackgroundFocus.isFocusWithoutRaiseAvailable,
+                "windowID": wid
+            ]
+            if !BackgroundFocus.lastError.isEmpty {
+                meta["last_error"] = BackgroundFocus.lastError
+            }
+            printResult(ok, action: "bg-focus", ref: "\(targetPID)", extra: meta)
+
+        case "bg-defocus":
+            guard let targetPID = pid else {
+                fputs("error: bg-defocus requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let ok = BackgroundFocus.defocusWithoutRaise(targetPid: targetPID)
+            var meta: [String: Any] = [:]
+            if !BackgroundFocus.lastError.isEmpty {
+                meta["last_error"] = BackgroundFocus.lastError
+            }
+            printResult(ok, action: "bg-defocus", ref: "\(targetPID)", extra: meta)
+
+        case "bg-click":
+            guard let targetPID = pid else {
+                fputs("error: bg-click requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let nums = cmdArgs.compactMap { Double($0) }
+            guard nums.count >= 2 else {
+                fputs("error: usage: bg-click x y [--button left|right]\n", stderr)
+                exit(1)
+            }
+            let btn: CGMouseButton = cmdArgs.contains("--right") ? .right : .left
+            let wid = cmdArgs.first(where: { $0.hasPrefix("--window=") })
+                .flatMap { CGWindowID($0.dropFirst("--window=".count)) }
+            let ok = BackgroundFocus.bgClick(
+                pid: targetPID, windowID: wid,
+                x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn
+            )
+            printResult(ok, action: "bg-click", ref: "\(Int(nums[0])),\(Int(nums[1]))")
+
+        case "bg-type":
+            guard let targetPID = pid else {
+                fputs("error: bg-type requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let text = cmdArgs.joined(separator: " ")
+            guard !text.isEmpty else {
+                fputs("error: usage: bg-type <text>\n", stderr)
+                exit(1)
+            }
+            let ok = BackgroundFocus.bgType(pid: targetPID, text: text)
+            printResult(ok, action: "bg-type", ref: text)
+
+        case "bg-press":
+            guard let targetPID = pid else {
+                fputs("error: bg-press requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            guard let key = cmdArgs.first else {
+                fputs("error: usage: bg-press <key>\n", stderr)
+                exit(1)
+            }
+            let ok = BackgroundFocus.bgPress(pid: targetPID, key: key)
+            printResult(ok, action: "bg-press", ref: key)
+
+        case "bg-act":
+            // Combo: bg-focus + action + bg-defocus
+            guard let targetPID = pid else {
+                fputs("error: bg-act requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            guard let subCmd = cmdArgs.first else {
+                fputs("error: usage: bg-act <click|type|press> ...\n", stderr)
+                exit(1)
+            }
+            let subArgs = Array(cmdArgs.dropFirst())
+            let wid = WindowManager.firstWindowID(forPID: targetPID) ?? 0
+            BackgroundFocus.activateWithoutRaise(targetPid: targetPID, targetWid: CGWindowID(wid))
+            usleep(50_000)
+            var ok = false
+            switch subCmd {
+            case "click":
+                let nums = subArgs.compactMap { Double($0) }
+                if nums.count >= 2 {
+                    let btn: CGMouseButton = subArgs.contains("--right") ? .right : .left
+                    ok = BackgroundFocus.bgClick(pid: targetPID, x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn)
+                } else {
+                    fputs("error: bg-act click x y\n", stderr)
+                    exit(1)
+                }
+            case "type":
+                let text = subArgs.joined(separator: " ")
+                guard !text.isEmpty else { fputs("error: bg-act type <text>\n", stderr); exit(1) }
+                ok = BackgroundFocus.bgType(pid: targetPID, text: text)
+            case "press":
+                guard let key = subArgs.first else { fputs("error: bg-act press <key>\n", stderr); exit(1) }
+                ok = BackgroundFocus.bgPress(pid: targetPID, key: key)
+            default:
+                fputs("error: unknown bg-act sub-command '\(subCmd)'\n", stderr)
+                exit(1)
+            }
+            usleep(50_000)
+            BackgroundFocus.defocusWithoutRaise(targetPid: targetPID)
+            printResult(ok, action: "bg-act", ref: "\(subCmd) \(subArgs.joined(separator: " "))")
+
+        case "stealth-act":
+            guard let targetPID = pid else {
+                fputs("error: stealth-act requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            guard let subCmd = cmdArgs.first else {
+                fputs("error: usage: stealth-act <snapshot|click|type|press> ...\n", stderr)
+                exit(1)
+            }
+            guard let wid = WindowManager.firstWindowID(forPID: targetPID) else {
+                fputs("error: no window found for pid \(targetPID)\n", stderr)
+                exit(1)
+            }
+            let subArgs = Array(cmdArgs.dropFirst())
+            let ok = BackgroundFocus.stealthAct(pid: targetPID, windowID: wid) {
+                switch subCmd {
+                case "snapshot":
+                    let elements = AXScanner.snapshot(appPID: targetPID)
+                    printJSON(elements)
+                    return !elements.isEmpty
+                case "click":
+                    let ref = subArgs.first(where: { isRef($0) })
+                    let nums = subArgs.compactMap { Double($0) }
+                    if let ref = ref {
+                        return AXActions.click(ref: ref, appPID: targetPID)
+                    } else if nums.count >= 2 {
+                        return AXActions.clickAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]))
+                    }
+                    return false
+                case "type":
+                    let text = subArgs.joined(separator: " ")
+                    return BackgroundFocus.bgType(pid: targetPID, text: text)
+                case "press":
+                    if let key = subArgs.first {
+                        return BackgroundFocus.bgPress(pid: targetPID, key: key)
+                    }
+                    return false
+                default:
+                    fputs("error: unknown stealth-act sub-command '\(subCmd)'\n", stderr)
+                    return false
+                }
+            }
+            if subCmd != "snapshot" { // snapshot already printed its own JSON
+                printResult(ok, action: "stealth-act", ref: "\(subCmd)")
+            }
+
         case "move-to-space":
             guard cmdArgs.count >= 2,
                   let wid = UInt32(cmdArgs[0]),
@@ -448,11 +625,12 @@ struct AgentControl {
         }
     }
 
-    static func printResult(_ ok: Bool, action: String, ref: String) {
+    static func printResult(_ ok: Bool, action: String, ref: String, extra: [String: Any] = [:]) {
         var result: [String: Any] = ["ok": ok, "action": action, "ref": ref]
         if !ok {
             result["error"] = "action '\(action)' failed for \(ref)"
         }
+        for (k, v) in extra { result[k] = v }
         if let data = try? JSONSerialization.data(withJSONObject: result),
            let str = String(data: data, encoding: .utf8) {
             print(str)
@@ -476,9 +654,19 @@ struct AgentControl {
           screenshot @ref [path]                 元素截图
           screenshot --full [path]               全屏截图 (显式 opt-in)
 
+        Background Control (SkyLight — 不抢焦点):
+          bg-focus                               后台激活 (需 --pid/--app)
+          bg-defocus                             取消后台激活
+          bg-click x y [--right]                 后台点击
+          bg-type "text"                         后台输入文字
+          bg-press <key>                         后台按键 (如 cmd+t)
+          bg-act <click|type|press> ...          bg-focus + 动作 + bg-defocus
+          stealth-act <snapshot|click|...>       最小化窗口静默操作
+
         Window Management:
           windows                                列出所有窗口
-          focus <windowID>                       激活窗口
+          focus <windowID>                       激活窗口 (会抢前台)
+          focus-bg <windowID>                    后台激活 (按 windowID)
           move-to-space <windowID> <spaceID>     移动窗口到空间
           pin <windowID>                         钉到所有空间
           unpin <windowID>                       取消钉住
@@ -503,6 +691,11 @@ struct AgentControl {
           --app <name>   指定目标应用名称或 bundleId
           -i             snapshot 只返回可交互元素
           --fallback     snapshot 同时返回 CGWindowList fallback
+
+        AX (抢焦点) vs SkyLight (后台) 对比:
+          click/press/fill      — AX API, 需要窗口在前台
+          bg-click/bg-press/bg-type — SkyLight, 不打断用户工作
+          stealth-act           — 对最小化窗口操作, 用户无感知
         """)
     }
 }
