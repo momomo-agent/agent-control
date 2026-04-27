@@ -2,7 +2,8 @@
 const WebSocket = require('ws');
 const http = require('http');
 
-const CDP_PORT = process.env.ELECTRON_DEBUG_PORT || 9229;
+// Port may also be overridden via --port <n>. Parsed in main().
+let CDP_PORT = process.env.ELECTRON_DEBUG_PORT || 9229;
 
 // ── Ref Resolution ───────────────────────────────────────────────────────────
 
@@ -56,13 +57,27 @@ function getTargets() {
 async function main() {
   const args = process.argv.slice(2);
   const ui = args.includes('--ui');
+  // --port <n>
+  const portIdx = args.findIndex(a => a === '--port');
+  if (portIdx !== -1 && args[portIdx + 1]) {
+    const p = parseInt(args[portIdx + 1], 10);
+    if (!Number.isNaN(p) && p > 0) CDP_PORT = p;
+  }
+  // --target <index|substr>
+  //   index: 0-based position in `windows` listing (all target types)
+  //   substr: title or URL substring match; picks first target that contains it
   const targetIdx = args.findIndex(a => a === '--target');
-  const targetIndex = targetIdx !== -1 ? parseInt(args[targetIdx + 1], 10) || 0 : 0;
-  const action = args.find(a => !a.startsWith('--') && (targetIdx === -1 || args.indexOf(a) !== targetIdx + 1));
-  const otherArgs = args.filter(a => a !== action && a !== '--ui' && a !== '--target' && (targetIdx === -1 || args.indexOf(a) !== targetIdx + 1));
-  
+  const rawTarget = targetIdx !== -1 ? args[targetIdx + 1] : '0';
+  // Everything that isn't a flag value or the action itself
+  const consumedIdx = new Set();
+  if (portIdx !== -1) { consumedIdx.add(portIdx); consumedIdx.add(portIdx + 1); }
+  if (targetIdx !== -1) { consumedIdx.add(targetIdx); consumedIdx.add(targetIdx + 1); }
+  const nonFlagArgs = args.filter((a, i) => !consumedIdx.has(i) && a !== '--ui');
+  const action = nonFlagArgs[0];
+  const otherArgs = nonFlagArgs.slice(1);
+
   try {
-    const wsUrl = await getCDPEndpoint(targetIndex);
+    const wsUrl = await getCDPEndpoint(rawTarget);
     const cdp = await cdpConnect(wsUrl);
     let output;
 
@@ -199,8 +214,15 @@ async function main() {
         break;
       }
       case 'windows': {
-        const targets = await getTargets();
-        output = { ok: true, action: 'windows', targets: targets.map((t, i) => ({ index: i, title: t.title, type: t.type, url: t.url })) };
+        const all = await getTargets();
+        // Only list targets we can address via --target index, so the index
+        // shown here matches the index accepted by --target.
+        const usable = all.filter(t => t.type === 'page' || t.type === 'webview' || t.type === 'iframe');
+        output = {
+          ok: true,
+          action: 'windows',
+          targets: usable.map((t, i) => ({ index: i, title: t.title, type: t.type, url: t.url }))
+        };
         break;
       }
       case 'console':
@@ -268,17 +290,32 @@ async function main() {
 
 // ── CDP ──────────────────────────────────────────────────────────────────────
 
-function getCDPEndpoint(targetIndex = 0) {
+function getCDPEndpoint(rawTarget = '0') {
   return new Promise((resolve, reject) => {
     http.get(`http://localhost:${CDP_PORT}/json`, res => {
       let data = '';
       res.on('data', d => data += d);
       res.on('end', () => {
-        const all = JSON.parse(data);
-        const pages = all.filter(t => t.type === 'page');
-        if (!pages.length) return reject(new Error('No pages found'));
-        if (targetIndex >= pages.length) return reject(new Error(`target index ${targetIndex} out of range (${pages.length} pages)`));
-        resolve(pages[targetIndex].webSocketDebuggerUrl);
+        let all;
+        try { all = JSON.parse(data); } catch (e) { return reject(new Error('bad CDP /json response')); }
+        // Keep target types that can be eval'd via Runtime.evaluate.
+        // Includes page AND webview (Electron embeds) — older behaviour
+        // filtered webviews out, which broke anything using <webview>.
+        const usable = all.filter(t => t.type === 'page' || t.type === 'webview' || t.type === 'iframe');
+        if (!usable.length) return reject(new Error('No CDP targets found'));
+        // Numeric index: address targets in the same order `windows` prints.
+        if (/^\d+$/.test(String(rawTarget))) {
+          const idx = parseInt(rawTarget, 10);
+          if (idx >= usable.length) return reject(new Error(`target index ${idx} out of range (${usable.length} targets)`));
+          return resolve(usable[idx].webSocketDebuggerUrl);
+        }
+        // String match: substring match against title or url (case-insensitive).
+        const needle = String(rawTarget).toLowerCase();
+        const hit = usable.find(t =>
+          (t.title || '').toLowerCase().includes(needle) ||
+          (t.url || '').toLowerCase().includes(needle));
+        if (!hit) return reject(new Error(`no target matches '${rawTarget}' (try: windows)`));
+        resolve(hit.webSocketDebuggerUrl);
       });
     }).on('error', reject);
   });
