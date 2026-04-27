@@ -213,6 +213,24 @@ async function main() {
         output = { ok: true, action: 'eval', value: res.result.value };
         break;
       }
+      case 'navigate':
+      case 'goto': {
+        const url = otherArgs[0];
+        if (!url) { output = { ok: false, error: 'usage: navigate <url>' }; break; }
+        // Page.navigate works for both page and webview targets.
+        const navResult = await cdp.send('Page.navigate', { url });
+        if (navResult.errorText) {
+          output = { ok: false, error: navResult.errorText };
+        } else {
+          output = { ok: true, action: 'navigate', url, frameId: navResult.frameId };
+        }
+        break;
+      }
+      case 'reload': {
+        await cdp.send('Page.reload');
+        output = { ok: true, action: 'reload' };
+        break;
+      }
       case 'windows': {
         const all = await getTargets();
         // Only list targets we can address via --target index, so the index
