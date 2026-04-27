@@ -42,6 +42,80 @@ function resolveRef(ref) {
   return `(${resolveRefExpr(ref)})`;
 }
 
+// ── Keyboard combo parsing ────────────────────────────────────────────────
+// Parse strings like 'Enter', 'cmd+shift+p', 'ctrl+alt+t', 'ArrowDown',
+// 'F5', 'a' into CDP Input.dispatchKeyEvent fields. CDP modifier bitmask:
+//   Alt=1, Ctrl=2, Meta/Cmd=4, Shift=8.
+function parseKeyCombo(spec) {
+  if (!spec) return null;
+  const parts = String(spec).split('+').map(s => s.trim()).filter(Boolean);
+  let modifiers = 0;
+  let keyPart = null;
+  const modMap = {
+    cmd: 4, command: 4, meta: 4, win: 4,
+    ctrl: 2, control: 2,
+    alt: 1, option: 1, opt: 1,
+    shift: 8,
+  };
+  for (const p of parts) {
+    const low = p.toLowerCase();
+    if (modMap[low] != null) { modifiers |= modMap[low]; continue; }
+    keyPart = p;
+  }
+  if (!keyPart) return null;
+  const specialKeys = {
+    Enter: { key: 'Enter', code: 'Enter', vk: 13, text: '\r' },
+    Return: { key: 'Enter', code: 'Enter', vk: 13, text: '\r' },
+    Tab: { key: 'Tab', code: 'Tab', vk: 9, text: '\t' },
+    Escape: { key: 'Escape', code: 'Escape', vk: 27 },
+    Esc: { key: 'Escape', code: 'Escape', vk: 27 },
+    Backspace: { key: 'Backspace', code: 'Backspace', vk: 8 },
+    Delete: { key: 'Delete', code: 'Delete', vk: 46 },
+    Space: { key: ' ', code: 'Space', vk: 32, text: ' ' },
+    ArrowUp: { key: 'ArrowUp', code: 'ArrowUp', vk: 38 },
+    ArrowDown: { key: 'ArrowDown', code: 'ArrowDown', vk: 40 },
+    ArrowLeft: { key: 'ArrowLeft', code: 'ArrowLeft', vk: 37 },
+    ArrowRight: { key: 'ArrowRight', code: 'ArrowRight', vk: 39 },
+    Home: { key: 'Home', code: 'Home', vk: 36 },
+    End: { key: 'End', code: 'End', vk: 35 },
+    PageUp: { key: 'PageUp', code: 'PageUp', vk: 33 },
+    PageDown: { key: 'PageDown', code: 'PageDown', vk: 34 },
+  };
+  // Accept canonical case and common lowercase aliases.
+  const canonical = Object.keys(specialKeys).find(k => k.toLowerCase() === keyPart.toLowerCase());
+  if (canonical) {
+    return Object.assign({ modifiers }, specialKeys[canonical]);
+  }
+  // Function keys F1..F24
+  const fMatch = /^[fF](\d{1,2})$/.exec(keyPart);
+  if (fMatch) {
+    const n = parseInt(fMatch[1], 10);
+    return { modifiers, key: 'F' + n, code: 'F' + n, vk: 111 + n };
+  }
+  // Single char — letters/numbers/symbols.
+  if (keyPart.length === 1) {
+    const ch = keyPart;
+    const up = ch.toUpperCase();
+    const isLetter = up >= 'A' && up <= 'Z';
+    const isDigit = ch >= '0' && ch <= '9';
+    // VK codes: letters A-Z = ASCII; digits 0-9 = ASCII.
+    const vk = isLetter ? up.charCodeAt(0) : isDigit ? ch.charCodeAt(0) : ch.charCodeAt(0);
+    // When there's a modifier (cmd/ctrl/meta/alt) we omit `text` so the app
+    // receives this as a shortcut, not as inserted text.
+    const hasShortcutMod = (modifiers & 0b111) !== 0; // cmd/ctrl/alt
+    const entry = {
+      modifiers,
+      key: hasShortcutMod ? ch.toLowerCase() : ch,
+      code: isLetter ? 'Key' + up : isDigit ? 'Digit' + ch : ch,
+      vk,
+    };
+    if (!hasShortcutMod) entry.text = ch;
+    return entry;
+  }
+  // Fallback — pass through as-is.
+  return { modifiers, key: keyPart, code: keyPart, vk: 0 };
+}
+
 function getTargets() {
   return new Promise((resolve, reject) => {
     http.get(`http://localhost:${CDP_PORT}/json`, res => {
@@ -50,6 +124,29 @@ function getTargets() {
       res.on('end', () => resolve(JSON.parse(data)));
     }).on('error', reject);
   });
+}
+
+// Resolve the Electron host app's display name (as known to the AX driver)
+// from the CDP port. lsof → PID → ps → executable name. Returns null on any
+// failure so the caller can fall back or surface a warning.
+function findElectronAppNameFromPort(port) {
+  try {
+    const { execSync } = require('child_process');
+    const lsofOut = execSync(`lsof -nP -iTCP:${port} -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $2; exit}'`, { encoding: 'utf8' }).trim();
+    const pid = parseInt(lsofOut, 10);
+    if (!pid) return null;
+    // ps -o comm= gives the absolute executable path, last path component is
+    // usually something like 'RemoteClaw' or 'Visual Studio Code'.
+    const comm = execSync(`ps -o comm= -p ${pid}`, { encoding: 'utf8' }).trim();
+    if (!comm) return null;
+    // Example: /Applications/RemoteClaw.app/Contents/MacOS/RemoteClaw → RemoteClaw
+    const m = comm.match(/\/([^\/]+)\.app\//);
+    if (m) return m[1];
+    // Fallback: last path segment.
+    return comm.split('/').pop() || null;
+  } catch (_) {
+    return null;
+  }
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -77,8 +174,8 @@ async function main() {
   const otherArgs = nonFlagArgs.slice(1);
 
   try {
-    const wsUrl = await getCDPEndpoint(rawTarget);
-    const cdp = await cdpConnect(wsUrl);
+    const targetInfo = await resolveTarget(rawTarget);
+    const cdp = await cdpConnect(targetInfo.webSocketDebuggerUrl);
     let output;
 
     switch (action) {
@@ -93,9 +190,97 @@ async function main() {
       }
       case 'screenshot': {
         const spath = otherArgs[0] || '/tmp/screenshot.png';
-        const { data } = await cdp.send('Page.captureScreenshot');
+        const warnings = [];
+        // Embedded webviews don't own a top-level window and CDP
+        // captureScreenshot against them routinely returns the host compositor
+        // (observed: Finder). Hand these off to the macOS AX driver, which
+        // can screenshot the Electron host window by PID.
+        if (targetInfo.type === 'webview') {
+          try {
+            const all = await getTargets();
+            const hosts = all.filter(t => t.type === 'page');
+            for (const h of hosts) {
+              if (!h.webSocketDebuggerUrl) continue;
+              try {
+                const hostCdp = await cdpConnect(h.webSocketDebuggerUrl);
+                await hostCdp.send('Page.bringToFront').catch(() => {});
+                hostCdp.close();
+              } catch (_) {}
+            }
+          } catch (_) {}
+          const { spawnSync } = require('child_process');
+          const path = require('path');
+          const agentControlBin = path.resolve(__dirname, '..', 'cli.js');
+          const port = String(CDP_PORT);
+          const appName = findElectronAppNameFromPort(port);
+          if (appName) {
+            try { require('child_process').execSync(`open -a ${JSON.stringify(appName)}`); } catch (_) {}
+            await new Promise(r => setTimeout(r, 200));
+            const res = spawnSync('node', [agentControlBin, '-p', 'macos', '--app', appName, 'screenshot', spath], { encoding: 'utf8' });
+            if (res.status === 0) {
+              output = { ok: true, action: 'screenshot', path: spath, strategy: 'macos-ax', app: appName };
+              break;
+            }
+            warnings.push(`macOS fallback failed for webview screenshot: ${(res.stderr || '').trim().substring(0, 200)}`);
+          } else {
+            warnings.push(`could not resolve Electron host app name for port ${port}; webview capture via CDP may return the frontmost window`);
+          }
+        }
+        // Regular page target: surface the tab then captureScreenshot.
+        const wantForeground = !otherArgs.includes('--background');
+        let brought = false;
+        let hostBrought = false;
+        if (wantForeground) {
+          try { await cdp.send('Page.bringToFront'); brought = true; } catch (_) {}
+          try {
+            const all = await getTargets();
+            const hosts = all.filter(t => t.type === 'page');
+            for (const h of hosts) {
+              if (!h.webSocketDebuggerUrl) continue;
+              try {
+                const hostCdp = await cdpConnect(h.webSocketDebuggerUrl);
+                await hostCdp.send('Page.bringToFront').catch(() => {});
+                hostCdp.close();
+              } catch (_) {}
+            }
+            hostBrought = true;
+          } catch (_) {}
+        }
+        async function grab() {
+          const { data } = await cdp.send('Page.captureScreenshot', {
+            format: 'png',
+            fromSurface: true,
+            captureBeyondViewport: false,
+          });
+          return data;
+        }
+        let data = await grab();
+        if (!data) {
+          await new Promise(r => setTimeout(r, 150));
+          data = await grab();
+        }
+        if (!data) {
+          output = { ok: false, error: 'Page.captureScreenshot returned empty — target may be detached' };
+          if (warnings.length) output.warnings = warnings;
+          break;
+        }
+        try {
+          const vp = await cdp.evaluate('({w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio})');
+          const v = vp.result?.value;
+          const buf = Buffer.from(data, 'base64');
+          if (v && buf.length > 24) {
+            const pngW = buf.readUInt32BE(16);
+            const pngH = buf.readUInt32BE(20);
+            const expW = Math.round(v.w * v.dpr);
+            const expH = Math.round(v.h * v.dpr);
+            if (Math.abs(pngW - expW) > Math.max(32, expW * 0.1) || Math.abs(pngH - expH) > Math.max(32, expH * 0.1)) {
+              warnings.push(`capture ${pngW}x${pngH} does not match viewport ${expW}x${expH} — check that the host Electron window is frontmost`);
+            }
+          }
+        } catch (_) {}
         require('fs').writeFileSync(spath, Buffer.from(data, 'base64'));
-        output = { ok: true, action: 'screenshot', path: spath };
+        output = { ok: true, action: 'screenshot', path: spath, broughtToFront: brought, hostBrought, strategy: 'cdp-captureScreenshot' };
+        if (warnings.length) output.warnings = warnings;
         break;
       }
       case 'click':
@@ -131,30 +316,106 @@ async function main() {
           break;
         }
         const fillText = otherArgs.slice(1).join(' ');
-        const fillJs = `(() => {
+        // Probe the target to pick the right typing strategy. contenteditable
+        // and shadow editors (Monaco/Slate/ProseMirror/VS Code NativeEdit)
+        // ignore `el.value=` — we have to route through CDP Input.insertText
+        // after focusing + optional select-all.
+        const probeJs = `(() => {
           const el = ${resolveRefExpr(fillTarget)};
-          const ns = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set
-            || Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-          ns.call(el, ${JSON.stringify(fillText)});
-          el.dispatchEvent(new Event('input', {bubbles:true}));
-          el.dispatchEvent(new Event('change', {bubbles:true}));
+          if (!el) return { kind: 'missing' };
+          const tag = el.tagName;
+          const editable = el.isContentEditable || el.getAttribute('role') === 'textbox';
+          if (tag === 'INPUT' || tag === 'TEXTAREA') {
+            return { kind: 'value', tag };
+          }
+          if (editable) {
+            const r = el.getBoundingClientRect();
+            el.focus();
+            if (typeof el.scrollIntoView === 'function') el.scrollIntoView({block:'center', inline:'center'});
+            return { kind: 'edit', tag, cx: r.x + r.width/2, cy: r.y + r.height/2 };
+          }
+          return { kind: 'other', tag };
         })()`;
-        await cdp.evaluate(fillJs);
-        output = { ok: true, action: 'fill', ref: fillTarget, value: fillText };
+        const probe = await cdp.evaluate(probeJs);
+        const info = probe.result?.value;
+        if (!info || info.kind === 'missing') {
+          output = { ok: false, error: `element not found for ${fillTarget}` };
+          break;
+        }
+        if (info.kind === 'value') {
+          // The React/Vue workaround: use the native descriptor setter so
+          // framework change-tracking fires. Pick the right prototype per
+          // tag — textarea's setter throws if invoked on an input and v.v.
+          const fillJs = `(() => {
+            const el = ${resolveRefExpr(fillTarget)};
+            el.focus();
+            const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+            const setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+            setter.call(el, ${JSON.stringify(fillText)});
+            el.dispatchEvent(new Event('input', {bubbles:true}));
+            el.dispatchEvent(new Event('change', {bubbles:true}));
+            return el.value;
+          })()`;
+          const res = await cdp.evaluate(fillJs);
+          output = { ok: true, action: 'fill', ref: fillTarget, value: fillText, strategy: 'value-setter', observed: res.result?.value };
+          break;
+        }
+        // contenteditable / role=textbox path: focus → clear via DOM API
+        // (Range + Selection.deleteFromDocument is scoped to the target, so
+        // it won't wipe out whatever had focus before) → Input.insertText.
+        try { await cdp.send('Page.bringToFront'); } catch (_) {}
+        // A real click places the caret, but CDP Input.dispatchMouseEvent on
+        // a webview often hits the host compositor. DOM focus + selection is
+        // more reliable for programmatic fills.
+        const clearJs = `(() => {
+          const el = ${resolveRefExpr(fillTarget)};
+          el.focus();
+          try {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            sel.deleteFromDocument();
+          } catch (_) {}
+        })()`;
+        await cdp.evaluate(clearJs);
+        // Input.insertText is the canonical CDP path for contenteditable and
+        // satisfies VS Code's NativeEditContext / Monaco / Slate / ProseMirror.
+        // el.value = doesn't work here — the framework ignores it.
+        await cdp.send('Input.insertText', { text: fillText });
+        output = { ok: true, action: 'fill', ref: fillTarget, value: fillText, strategy: 'insertText' };
         break;
       }
       case 'press': {
-        const key = otherArgs[0];
-        if (!key) {
-          output = { ok: false, error: 'usage: press <key>' };
+        const spec = otherArgs[0];
+        if (!spec) {
+          output = { ok: false, error: 'usage: press <key> (supports cmd+shift+p style combos)' };
           break;
         }
-        await cdp.send('Input.dispatchKeyEvent', {
-          type: 'keyDown', key, code: 'Key' + key.charAt(0).toUpperCase() + key.slice(1),
-          windowsVirtualKeyCode: key === 'Enter' ? 13 : key === 'Escape' ? 27 : key === 'Tab' ? 9 : 0,
-        });
-        await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key });
-        output = { ok: true, action: 'press', key };
+        const parsed = parseKeyCombo(spec);
+        if (!parsed) {
+          output = { ok: false, error: `press: could not parse key '${spec}'` };
+          break;
+        }
+        // VS Code / Electron apps register keybindings against real key events
+        // — dispatchEvent won't trigger them. Routing through CDP Input.* does.
+        try { await cdp.send('Page.bringToFront'); } catch (_) {}
+        const base = {
+          modifiers: parsed.modifiers,
+          key: parsed.key,
+          code: parsed.code,
+          windowsVirtualKeyCode: parsed.vk,
+          nativeVirtualKeyCode: parsed.vk,
+        };
+        if (parsed.text) base.text = parsed.text;
+        // rawKeyDown doesn't fire a JS 'keydown' event on some Electron
+        // versions, so VS Code / CodeMirror keybindings miss it. Sending
+        // keyDown always is safer; for character-producing keys we also
+        // include text so inserted characters appear.
+        await cdp.send('Input.dispatchKeyEvent', Object.assign({ type: 'keyDown' }, base));
+        await cdp.send('Input.dispatchKeyEvent', Object.assign({ type: 'keyUp' }, base));
+        output = { ok: true, action: 'press', key: spec, resolved: parsed };
         break;
       }
       case 'scroll': {
@@ -308,7 +569,10 @@ async function main() {
 
 // ── CDP ──────────────────────────────────────────────────────────────────────
 
-function getCDPEndpoint(rawTarget = '0') {
+// Resolve a target against the CDP /json listing. Returns both the ws url
+// and the raw target record so callers can inspect type (page vs webview),
+// url and title — needed for picking the right screenshot strategy.
+function resolveTarget(rawTarget = '0') {
   return new Promise((resolve, reject) => {
     http.get(`http://localhost:${CDP_PORT}/json`, res => {
       let data = '';
@@ -321,22 +585,24 @@ function getCDPEndpoint(rawTarget = '0') {
         // filtered webviews out, which broke anything using <webview>.
         const usable = all.filter(t => t.type === 'page' || t.type === 'webview' || t.type === 'iframe');
         if (!usable.length) return reject(new Error('No CDP targets found'));
-        // Numeric index: address targets in the same order `windows` prints.
         if (/^\d+$/.test(String(rawTarget))) {
           const idx = parseInt(rawTarget, 10);
           if (idx >= usable.length) return reject(new Error(`target index ${idx} out of range (${usable.length} targets)`));
-          return resolve(usable[idx].webSocketDebuggerUrl);
+          return resolve(usable[idx]);
         }
-        // String match: substring match against title or url (case-insensitive).
         const needle = String(rawTarget).toLowerCase();
         const hit = usable.find(t =>
           (t.title || '').toLowerCase().includes(needle) ||
           (t.url || '').toLowerCase().includes(needle));
         if (!hit) return reject(new Error(`no target matches '${rawTarget}' (try: windows)`));
-        resolve(hit.webSocketDebuggerUrl);
+        resolve(hit);
       });
     }).on('error', reject);
   });
+}
+
+function getCDPEndpoint(rawTarget = '0') {
+  return resolveTarget(rawTarget).then(t => t.webSocketDebuggerUrl);
 }
 
 function cdpConnect(wsUrl) {
