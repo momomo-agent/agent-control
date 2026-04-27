@@ -320,6 +320,8 @@ Commands:
   terminate <bundleId>           Kill app
   windows                        List windows/scenes
   list-apps                      List installed apps
+  console <bundleId>             Live app console (stdout/stderr, 3rd-party subsystems)
+                                 Options: --duration=N (seconds), --stream (raw passthrough)
 
 Real-device only:
   unlock                         Unlock device
@@ -460,7 +462,37 @@ try {
         break;
       }
       case 'console': case 'logs': {
-        result = { ok: false, error: 'console/logs not yet supported on real device (use pymobiledevice3 syslog directly)' };
+        // Real device console: xcrun devicectl launch --console <bundleId>
+        // Captures stdout/stderr (third-party subsystems visible, unlike idevicesyslog).
+        // JSON mode: run for N seconds, return captured entries.
+        // Stream mode (--stream): passthrough to stdout, exit non-JSON.
+        const bundleId = args[1];
+        if (!bundleId) { result = { ok: false, error: 'usage: console <bundleId> [--duration=N] [--stream]' }; break; }
+        const durArg = args.find(a => a.startsWith('--duration='));
+        const duration = durArg ? parseInt(durArg.slice(11), 10) : 5;
+        const streamMode = args.includes('--stream');
+        // Find CoreDevice identifier (devicectl UDID is different from libimobiledevice UDID).
+        const listRaw = execSync('xcrun devicectl list devices 2>/dev/null', { encoding: 'utf8' });
+        const coreDeviceMatch = listRaw.split('\n').map(l => l.match(/^[\S ]+?\s+([A-F0-9]{8}-[A-F0-9]{16})\s+(connected|available)/i)).find(Boolean);
+        if (!coreDeviceMatch) { result = { ok: false, error: 'no CoreDevice found via devicectl' }; break; }
+        const coreId = coreDeviceMatch[1];
+        const cmdStr = `xcrun devicectl device process launch --console --terminate-existing --device "${coreId}" "${bundleId}"`;
+        if (streamMode) {
+          // Passthrough; exec never returns — JSON protocol broken intentionally.
+          try { execSync(cmdStr, { stdio: 'inherit' }); } catch {}
+          process.exit(0);
+        }
+        // JSON mode — spawn with timeout, collect output.
+        const proc = spawnSync('bash', ['-c', `${cmdStr} 2>&1 & PID=$!; sleep ${duration}; kill $PID 2>/dev/null; wait $PID 2>/dev/null; true`], {
+          encoding: 'utf8', timeout: (duration + 5) * 1000, maxBuffer: 10 * 1024 * 1024,
+        });
+        const raw = proc.stdout || '';
+        const lines = raw.split('\n').filter(l => l.trim()
+          && !l.startsWith('Failed to load provisioning')
+          && !l.includes('devicectl manage create may support')
+          && !l.match(/^\d{2}:\d{2}:\d{2}\s+(Acquired|Enabling|Launched|Waiting)/)
+        );
+        result = { ok: true, action: 'console', bundleId, duration, count: lines.length, entries: lines };
         break;
       }
       default: result = { ok: false, error: `unknown command '${cmd}'` };
