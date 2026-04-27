@@ -683,6 +683,34 @@ struct AgentControl {
                 exit(1)
             }
 
+        case "ax-enable":
+            // 诊断 / 触发工具：对指定 pid 写 AXManualAccessibility + AXEnhancedUserInterface，
+            // 打开 Chromium/Electron app 的 web AX tree。返回 snapshot 前后的 interactive count 对比。
+            guard let p = pid else {
+                fputs("error: ax-enable requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let beforeCount = AXScanner.snapshot(appPID: p).filter { $0.interactive }.count
+            let ok = AXEnablementAssertion.shared.assert(pid: p)
+            // Chromium 实际构建 AX tree 需要几十毫秒
+            usleep(300_000)
+            let afterCount = AXScanner.snapshot(appPID: p).filter { $0.interactive }.count
+            let result: [String: Any] = [
+                "ok": ok,
+                "action": "ax-enable",
+                "pid": Int(p),
+                "before_interactive": beforeCount,
+                "after_interactive": afterCount,
+                "delta": afterCount - beforeCount,
+                "note": ok
+                    ? "AX enablement asserted (AXManualAccessibility or AXEnhancedUserInterface accepted)"
+                    : "both AX enablement attributes unwritable — native Cocoa, or macOS 26+ where these are deprecated (Chrome 147 still builds full AX tree by default)"
+            ]
+            if let data = try? JSONSerialization.data(withJSONObject: result, options: .prettyPrinted),
+               let str = String(data: data, encoding: .utf8) {
+                print(str)
+            }
+
         case "help", "--help", "-h":
             printUsage()
 
@@ -777,6 +805,10 @@ struct AgentControl {
           cursor start                           启动 daemon + 显示虚拟光标
           cursor move X Y [--no-animate] [--duration SEC]  平滑移动
           cursor hide / stop / status
+
+        Diagnostics:
+          ax-enable                              写 AXManualAccessibility/AXEnhancedUserInterface
+                                                 打开 Chromium/Electron web AX tree，返回 before/after interactive count
 
         Window Management:
           windows                                列出所有窗口

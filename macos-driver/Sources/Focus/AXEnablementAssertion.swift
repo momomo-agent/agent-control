@@ -39,6 +39,14 @@ public final class AXEnablementAssertion {
         lock.unlock()
 
         let app = AXUIElementCreateApplication(pid)
+        // AXError 语义（macOS 26 + Chrome 147 实测发现）：
+        //   .success              → 写入成功（旧 Chromium + macOS 15 经典路径）
+        //   .illegalArgument      → 属性存在、拒绝新值（已开启）
+        //   .notImplemented       → macOS 26 下 AXEnhancedUserInterface 对所有 app 返这个
+        //                          （此属性在新 OS 上已事实上失效）
+        //   .attributeUnsupported → 原生 Cocoa / 新版 Chromium 移除了该属性
+        // 结论：macOS 26 + Chrome 147 组合下 Layer 1 实际上是 no-op，
+        // Chrome 自己默认已打开 web AX tree，无需我们 assert。保留逻辑以兼容老版本。
         let manualOk = writeBool(app, "AXManualAccessibility", true)
         let enhancedOk = writeBool(app, "AXEnhancedUserInterface", true)
 
@@ -48,6 +56,9 @@ public final class AXEnablementAssertion {
             assertedPids.insert(pid)
             return true
         } else {
+            // macOS 26 下即使 Chromium 也会落到这里，不是 bug——
+            // 纯粹代表 “两个属性都写不进去”。
+            // 上层 FocusGuard 不会被阻止，Layer 2/3 照跑。
             nonAssertablePids.insert(pid)
             return false
         }
