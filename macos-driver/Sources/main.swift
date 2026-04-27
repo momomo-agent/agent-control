@@ -15,7 +15,15 @@ func isRef(_ s: String) -> Bool {
 @main
 struct AgentControl {
     static func main() async {
-        let args = Array(CommandLine.arguments.dropFirst())
+        let rawArgs = Array(CommandLine.arguments.dropFirst())
+
+        // Special：daemon 内部入口（由 spawnDaemon() 自己调自己）。
+        // 不能正常走 command 分发 —— 需要运行 NSApp。
+        if rawArgs.first == "cursor-daemon-run" {
+            CursorDaemon.runServer()  // never returns
+        }
+
+        let args = rawArgs
 
         // Extract command: skip flags (--pid X, --app X, -i)
         let flagsWithValue: Set<String> = ["--pid", "--app"]
@@ -76,16 +84,28 @@ struct AgentControl {
             let ref = cmdArgs.first(where: { isRef($0) })
             let nums = cmdArgs.compactMap { Double($0) }
             let btn = cmdArgs.contains("--right") ? "right" : "left"
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
             if let ref = ref {
-                let ok = btn == "right"
-                    ? AXActions.rightclick(ref: ref, appPID: pid)
-                    : AXActions.click(ref: ref, appPID: pid)
+                let ok: Bool
+                if bg {
+                    ok = btn == "right"
+                        ? AXActions.rightclickBackground(ref: ref, appPID: pid)
+                        : AXActions.clickBackground(ref: ref, appPID: pid)
+                } else {
+                    ok = btn == "right"
+                        ? AXActions.rightclick(ref: ref, appPID: pid)
+                        : AXActions.click(ref: ref, appPID: pid)
+                }
                 printResult(ok, action: "click", ref: ref)
             } else if nums.count >= 2 {
+                if bg {
+                    fputs("error: --bg / --focus-guard requires AX ref, coordinate mode not supported\n", stderr)
+                    exit(1)
+                }
                 let ok = AXActions.clickAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn)
                 printResult(ok, action: "click", ref: "\(Int(nums[0])),\(Int(nums[1]))")
             } else {
-                fputs("error: usage: click @ref | click x y\n", stderr)
+                fputs("error: usage: click @ref [--bg] [--right] | click x y\n", stderr)
                 exit(1)
             }
 
@@ -94,7 +114,10 @@ struct AgentControl {
                 fputs("error: missing ref\n", stderr)
                 exit(1)
             }
-            let ok = AXActions.dblclick(ref: ref, appPID: pid)
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
+            let ok = bg
+                ? AXActions.dblclickBackground(ref: ref, appPID: pid)
+                : AXActions.dblclick(ref: ref, appPID: pid)
             printResult(ok, action: "dblclick", ref: ref)
 
         case "rightclick":
@@ -102,7 +125,10 @@ struct AgentControl {
                 fputs("error: missing ref\n", stderr)
                 exit(1)
             }
-            let ok = AXActions.rightclick(ref: ref, appPID: pid)
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
+            let ok = bg
+                ? AXActions.rightclickBackground(ref: ref, appPID: pid)
+                : AXActions.rightclick(ref: ref, appPID: pid)
             printResult(ok, action: "rightclick", ref: ref)
 
         case "fill":
@@ -118,7 +144,10 @@ struct AgentControl {
                 fputs("error: missing text argument\n", stderr)
                 exit(1)
             }
-            let ok = AXActions.fill(ref: ref, text: text, appPID: pid)
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
+            let ok = bg
+                ? AXActions.fillBackground(ref: ref, text: text, appPID: pid)
+                : AXActions.fill(ref: ref, text: text, appPID: pid)
             printResult(ok, action: "fill", ref: ref)
 
         case "press":
@@ -281,6 +310,183 @@ struct AgentControl {
             let ok = WindowManager.focusWindow(wid)
             printResult(ok, action: "focus", ref: widStr)
 
+        case "focus-bg":
+            guard let widStr = cmdArgs.first, let wid = UInt32(widStr) else {
+                fputs("error: usage: focus-bg <windowID>\n", stderr)
+                exit(1)
+            }
+            let ok = WindowManager.focusWindowBackground(wid)
+            var meta: [String: Any] = [
+                "spi_available": BackgroundFocus.isFocusWithoutRaiseAvailable,
+                "auth_post_available": BackgroundFocus.isAuthPostAvailable
+            ]
+            if !BackgroundFocus.lastError.isEmpty {
+                meta["last_error"] = BackgroundFocus.lastError
+            }
+            printResult(ok, action: "focus-bg", ref: widStr, extra: meta)
+
+        case "bg-focus":
+            guard let targetPID = pid else {
+                fputs("error: bg-focus requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let wid = cmdArgs.first.flatMap { UInt32($0) }
+                ?? WindowManager.firstWindowID(forPID: targetPID)
+                ?? 0
+            let ok = BackgroundFocus.activateWithoutRaise(
+                targetPid: targetPID, targetWid: CGWindowID(wid)
+            )
+            var meta: [String: Any] = [
+                "spi_available": BackgroundFocus.isFocusWithoutRaiseAvailable,
+                "windowID": wid
+            ]
+            if !BackgroundFocus.lastError.isEmpty {
+                meta["last_error"] = BackgroundFocus.lastError
+            }
+            printResult(ok, action: "bg-focus", ref: "\(targetPID)", extra: meta)
+
+        case "bg-defocus":
+            guard let targetPID = pid else {
+                fputs("error: bg-defocus requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let ok = BackgroundFocus.defocusWithoutRaise(targetPid: targetPID)
+            var meta: [String: Any] = [:]
+            if !BackgroundFocus.lastError.isEmpty {
+                meta["last_error"] = BackgroundFocus.lastError
+            }
+            printResult(ok, action: "bg-defocus", ref: "\(targetPID)", extra: meta)
+
+        case "bg-click":
+            guard let targetPID = pid else {
+                fputs("error: bg-click requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let nums = cmdArgs.compactMap { Double($0) }
+            guard nums.count >= 2 else {
+                fputs("error: usage: bg-click x y [--button left|right]\n", stderr)
+                exit(1)
+            }
+            let btn: CGMouseButton = cmdArgs.contains("--right") ? .right : .left
+            let wid = cmdArgs.first(where: { $0.hasPrefix("--window=") })
+                .flatMap { CGWindowID($0.dropFirst("--window=".count)) }
+            let ok = BackgroundFocus.bgClick(
+                pid: targetPID, windowID: wid,
+                x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn
+            )
+            printResult(ok, action: "bg-click", ref: "\(Int(nums[0])),\(Int(nums[1]))")
+
+        case "bg-type":
+            guard let targetPID = pid else {
+                fputs("error: bg-type requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let text = cmdArgs.joined(separator: " ")
+            guard !text.isEmpty else {
+                fputs("error: usage: bg-type <text>\n", stderr)
+                exit(1)
+            }
+            let ok = BackgroundFocus.bgType(pid: targetPID, text: text)
+            printResult(ok, action: "bg-type", ref: text)
+
+        case "bg-press":
+            guard let targetPID = pid else {
+                fputs("error: bg-press requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            guard let key = cmdArgs.first else {
+                fputs("error: usage: bg-press <key>\n", stderr)
+                exit(1)
+            }
+            let ok = BackgroundFocus.bgPress(pid: targetPID, key: key)
+            printResult(ok, action: "bg-press", ref: key)
+
+        case "bg-act":
+            // Combo: bg-focus + action + bg-defocus
+            guard let targetPID = pid else {
+                fputs("error: bg-act requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            guard let subCmd = cmdArgs.first else {
+                fputs("error: usage: bg-act <click|type|press> ...\n", stderr)
+                exit(1)
+            }
+            let subArgs = Array(cmdArgs.dropFirst())
+            let wid = WindowManager.firstWindowID(forPID: targetPID) ?? 0
+            BackgroundFocus.activateWithoutRaise(targetPid: targetPID, targetWid: CGWindowID(wid))
+            usleep(50_000)
+            var ok = false
+            switch subCmd {
+            case "click":
+                let nums = subArgs.compactMap { Double($0) }
+                if nums.count >= 2 {
+                    let btn: CGMouseButton = subArgs.contains("--right") ? .right : .left
+                    ok = BackgroundFocus.bgClick(pid: targetPID, x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn)
+                } else {
+                    fputs("error: bg-act click x y\n", stderr)
+                    exit(1)
+                }
+            case "type":
+                let text = subArgs.joined(separator: " ")
+                guard !text.isEmpty else { fputs("error: bg-act type <text>\n", stderr); exit(1) }
+                ok = BackgroundFocus.bgType(pid: targetPID, text: text)
+            case "press":
+                guard let key = subArgs.first else { fputs("error: bg-act press <key>\n", stderr); exit(1) }
+                ok = BackgroundFocus.bgPress(pid: targetPID, key: key)
+            default:
+                fputs("error: unknown bg-act sub-command '\(subCmd)'\n", stderr)
+                exit(1)
+            }
+            usleep(50_000)
+            BackgroundFocus.defocusWithoutRaise(targetPid: targetPID)
+            printResult(ok, action: "bg-act", ref: "\(subCmd) \(subArgs.joined(separator: " "))")
+
+        case "stealth-act":
+            guard let targetPID = pid else {
+                fputs("error: stealth-act requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            guard let subCmd = cmdArgs.first else {
+                fputs("error: usage: stealth-act <snapshot|click|type|press> ...\n", stderr)
+                exit(1)
+            }
+            guard let wid = WindowManager.firstWindowID(forPID: targetPID) else {
+                fputs("error: no window found for pid \(targetPID)\n", stderr)
+                exit(1)
+            }
+            let subArgs = Array(cmdArgs.dropFirst())
+            let ok = BackgroundFocus.stealthAct(pid: targetPID, windowID: wid) {
+                switch subCmd {
+                case "snapshot":
+                    let elements = AXScanner.snapshot(appPID: targetPID)
+                    printJSON(elements)
+                    return !elements.isEmpty
+                case "click":
+                    let ref = subArgs.first(where: { isRef($0) })
+                    let nums = subArgs.compactMap { Double($0) }
+                    if let ref = ref {
+                        return AXActions.click(ref: ref, appPID: targetPID)
+                    } else if nums.count >= 2 {
+                        return AXActions.clickAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]))
+                    }
+                    return false
+                case "type":
+                    let text = subArgs.joined(separator: " ")
+                    return BackgroundFocus.bgType(pid: targetPID, text: text)
+                case "press":
+                    if let key = subArgs.first {
+                        return BackgroundFocus.bgPress(pid: targetPID, key: key)
+                    }
+                    return false
+                default:
+                    fputs("error: unknown stealth-act sub-command '\(subCmd)'\n", stderr)
+                    return false
+                }
+            }
+            if subCmd != "snapshot" { // snapshot already printed its own JSON
+                printResult(ok, action: "stealth-act", ref: "\(subCmd)")
+            }
+
         case "move-to-space":
             guard cmdArgs.count >= 2,
                   let wid = UInt32(cmdArgs[0]),
@@ -402,6 +608,109 @@ struct AgentControl {
             }
             printJSON(perms)
 
+        case "cursor":
+            let sub = cmdArgs.first ?? "status"
+            let selfPath = CommandLine.arguments[0]
+            switch sub {
+            case "start", "show":
+                if !CursorDaemon.isDaemonAlive() {
+                    if !CursorDaemon.spawnDaemon(selfPath: selfPath) {
+                        fputs("error: failed to spawn cursor daemon\n", stderr)
+                        exit(1)
+                    }
+                }
+                if let resp = CursorDaemon.sendCommand(["cmd": "show"]) {
+                    print(resp)
+                } else {
+                    printResult(false, action: "cursor", ref: "show", extra: ["error": "daemon not responding"])
+                    exit(1)
+                }
+
+            case "move":
+                // 语法：cursor move x y [--no-animate] [--duration 0.5]
+                let nums = cmdArgs.dropFirst().compactMap { Double($0) }
+                guard nums.count >= 2 else {
+                    fputs("error: usage: cursor move X Y [--no-animate] [--duration SEC]\n", stderr)
+                    exit(1)
+                }
+                if !CursorDaemon.isDaemonAlive() {
+                    if !CursorDaemon.spawnDaemon(selfPath: selfPath) {
+                        fputs("error: failed to spawn cursor daemon\n", stderr)
+                        exit(1)
+                    }
+                }
+                let animate = !cmdArgs.contains("--no-animate")
+                var duration = 0.35
+                if let di = cmdArgs.firstIndex(of: "--duration"), di + 1 < cmdArgs.count,
+                   let d = Double(cmdArgs[di + 1]) { duration = d }
+                let payload: [String: Any] = [
+                    "cmd": "move",
+                    "x": nums[0],
+                    "y": nums[1],
+                    "animate": animate,
+                    "duration": duration,
+                ]
+                if let resp = CursorDaemon.sendCommand(payload) {
+                    print(resp)
+                } else {
+                    printResult(false, action: "cursor", ref: "move", extra: ["error": "daemon not responding"])
+                    exit(1)
+                }
+
+            case "hide":
+                if !CursorDaemon.isDaemonAlive() {
+                    print(#"{"ok":true,"note":"daemon not running"}"#)
+                    return
+                }
+                print(CursorDaemon.sendCommand(["cmd": "hide"]) ?? #"{"ok":false}"#)
+
+            case "stop":
+                if !CursorDaemon.isDaemonAlive() {
+                    print(#"{"ok":true,"note":"daemon not running"}"#)
+                    return
+                }
+                print(CursorDaemon.sendCommand(["cmd": "stop"]) ?? #"{"ok":false}"#)
+
+            case "status":
+                if !CursorDaemon.isDaemonAlive() {
+                    print(#"{"ok":true,"running":false}"#)
+                    return
+                }
+                print(CursorDaemon.sendCommand(["cmd": "status"]) ?? #"{"ok":false}"#)
+
+            default:
+                fputs("error: unknown cursor subcommand '\(sub)'. Use: start | move | hide | stop | status\n", stderr)
+                exit(1)
+            }
+
+        case "ax-enable":
+            // 诊断 / 触发工具：对指定 pid 写 AXManualAccessibility + AXEnhancedUserInterface，
+            // 打开 Chromium/Electron app 的 web AX tree。返回 snapshot 前后的 interactive count 对比。
+            guard let p = pid else {
+                fputs("error: ax-enable requires --pid or --app\n", stderr)
+                exit(1)
+            }
+            let beforeCount = AXScanner.snapshot(appPID: p).filter { $0.interactive }.count
+            let ok = AXEnablementAssertion.shared.assert(pid: p)
+            // Chromium 实际构建 AX tree 需要几十毫秒
+            usleep(300_000)
+            let afterCount = AXScanner.snapshot(appPID: p).filter { $0.interactive }.count
+            let result: [String: Any] = [
+                "ok": ok,
+                "action": "ax-enable",
+                "pid": Int(p),
+                "before_interactive": beforeCount,
+                "after_interactive": afterCount,
+                "delta": afterCount - beforeCount,
+                "note": ok
+                    ? "AX enablement asserted (AXManualAccessibility or AXEnhancedUserInterface accepted)"
+                    : "both AX enablement attributes unwritable — native Cocoa, or macOS 26+ where these are deprecated (Chrome 147 still builds full AX tree by default)"
+            ]
+            if let data = try? JSONSerialization.data(withJSONObject: result, options: .prettyPrinted),
+               let str = String(data: data, encoding: .utf8) {
+                print(str)
+            }
+
         case "help", "--help", "-h":
             printUsage()
 
@@ -448,11 +757,12 @@ struct AgentControl {
         }
     }
 
-    static func printResult(_ ok: Bool, action: String, ref: String) {
+    static func printResult(_ ok: Bool, action: String, ref: String, extra: [String: Any] = [:]) {
         var result: [String: Any] = ["ok": ok, "action": action, "ref": ref]
         if !ok {
             result["error"] = "action '\(action)' failed for \(ref)"
         }
+        for (k, v) in extra { result[k] = v }
         if let data = try? JSONSerialization.data(withJSONObject: result),
            let str = String(data: data, encoding: .utf8) {
             print(str)
@@ -476,9 +786,34 @@ struct AgentControl {
           screenshot @ref [path]                 元素截图
           screenshot --full [path]               全屏截图 (显式 opt-in)
 
+        Background Control (SkyLight — 不抢焦点):
+          bg-focus                               后台激活 (需 --pid/--app)
+          bg-defocus                             取消后台激活
+          bg-click x y [--right]                 后台点击
+          bg-type "text"                         后台输入文字
+          bg-press <key>                         后台按键 (如 cmd+t)
+          bg-act <click|type|press> ...          bg-focus + 动作 + bg-defocus
+          stealth-act <snapshot|click|...>       最小化窗口静默操作
+
+        FocusGuard (AX 模拟焦点 — 推荐, macOS 26 可用):
+          click @ref --focus-guard               三层 focus 栈包裹 (Chromium AX enable + AXFocused swap + activation reverter)
+          fill @ref "text" --focus-guard         同上 (app 不抢前台, 不抢真 focus)
+          dblclick/rightclick @ref --focus-guard
+          note: --focus-guard == --bg, 别名
+
+        Virtual Cursor (lavender 箭头, 不动真光标):
+          cursor start                           启动 daemon + 显示虚拟光标
+          cursor move X Y [--no-animate] [--duration SEC]  平滑移动
+          cursor hide / stop / status
+
+        Diagnostics:
+          ax-enable                              写 AXManualAccessibility/AXEnhancedUserInterface
+                                                 打开 Chromium/Electron web AX tree，返回 before/after interactive count
+
         Window Management:
           windows                                列出所有窗口
-          focus <windowID>                       激活窗口
+          focus <windowID>                       激活窗口 (会抢前台)
+          focus-bg <windowID>                    后台激活 (按 windowID)
           move-to-space <windowID> <spaceID>     移动窗口到空间
           pin <windowID>                         钉到所有空间
           unpin <windowID>                       取消钉住
@@ -503,6 +838,11 @@ struct AgentControl {
           --app <name>   指定目标应用名称或 bundleId
           -i             snapshot 只返回可交互元素
           --fallback     snapshot 同时返回 CGWindowList fallback
+
+        AX (抢焦点) vs SkyLight (后台) 对比:
+          click/press/fill      — AX API, 需要窗口在前台
+          bg-click/bg-press/bg-type — SkyLight, 不打断用户工作
+          stealth-act           — 对最小化窗口操作, 用户无感知
         """)
     }
 }

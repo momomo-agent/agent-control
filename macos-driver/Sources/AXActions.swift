@@ -99,6 +99,111 @@ enum AXActions {
         return true
     }
 
+    /// 后台 click：用 FocusGuard 三层栈包裹。
+    /// - Chromium/Electron: 先打开 web AX tree
+    /// - 所有 app: action 前后 swap AXFocused/AXMain
+    /// - 监听自激活通知，零延迟反弹
+    /// 不走 CGEvent fallback（这会移动真实 cursor）
+    static func clickBackground(ref: String, appPID: pid_t? = nil) -> Bool {
+        guard let el = findElement(ref: ref, appPID: appPID) else {
+            fputs("error: element \(ref) not found\n", stderr)
+            return false
+        }
+
+        // 获取 pid（有 appPID 就用，否则从 el 查）
+        var pid: pid_t = appPID ?? 0
+        if pid == 0 {
+            _ = AXUIElementGetPid(el, &pid)
+        }
+        guard pid > 0 else {
+            fputs("error: cannot resolve pid for element\n", stderr)
+            return false
+        }
+
+        // 查找所在窗口
+        var windowRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(el, kAXWindowAttribute as CFString, &windowRef)
+        let window = windowRef as! AXUIElement?
+
+        // FocusGuard 三层栈包裹
+        return FocusGuard.withFocusSuppressed(
+            pid: pid, window: window, element: el
+        ) { () -> Bool in
+            let result = AXUIElementPerformAction(el, kAXPressAction as CFString)
+            return result == .success
+        }
+    }
+
+    /// 后台右键：AXShowMenu 不 raise
+    static func rightclickBackground(ref: String, appPID: pid_t? = nil) -> Bool {
+        guard let el = findElement(ref: ref, appPID: appPID) else {
+            fputs("error: element \(ref) not found\n", stderr)
+            return false
+        }
+        var pid: pid_t = appPID ?? 0
+        if pid == 0 { _ = AXUIElementGetPid(el, &pid) }
+        guard pid > 0 else { return false }
+
+        var windowRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(el, kAXWindowAttribute as CFString, &windowRef)
+        let window = windowRef as! AXUIElement?
+
+        return FocusGuard.withFocusSuppressed(
+            pid: pid, window: window, element: el
+        ) { () -> Bool in
+            return AXUIElementPerformAction(el, kAXShowMenuAction as CFString) == .success
+        }
+    }
+
+    /// 后台双击：AX 原生不支持，降级为两次 press 之间微延时
+    static func dblclickBackground(ref: String, appPID: pid_t? = nil) -> Bool {
+        guard let el = findElement(ref: ref, appPID: appPID) else {
+            fputs("error: element \(ref) not found\n", stderr)
+            return false
+        }
+        var pid: pid_t = appPID ?? 0
+        if pid == 0 { _ = AXUIElementGetPid(el, &pid) }
+        guard pid > 0 else { return false }
+
+        var windowRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(el, kAXWindowAttribute as CFString, &windowRef)
+        let window = windowRef as! AXUIElement?
+
+        return FocusGuard.withFocusSuppressed(
+            pid: pid, window: window, element: el
+        ) { () -> Bool in
+            let r1 = AXUIElementPerformAction(el, kAXPressAction as CFString)
+            usleep(80_000)
+            let r2 = AXUIElementPerformAction(el, kAXPressAction as CFString)
+            return r1 == .success && r2 == .success
+        }
+    }
+
+    /// 后台文本输入：AXValue 直接写，不做 kAXRaiseAction（会 raise）
+    static func fillBackground(ref: String, text: String, appPID: pid_t? = nil) -> Bool {
+        guard let el = findElement(ref: ref, appPID: appPID) else {
+            fputs("error: element \(ref) not found\n", stderr)
+            return false
+        }
+        var pid: pid_t = appPID ?? 0
+        if pid == 0 { _ = AXUIElementGetPid(el, &pid) }
+        guard pid > 0 else { return false }
+
+        var windowRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(el, kAXWindowAttribute as CFString, &windowRef)
+        let window = windowRef as! AXUIElement?
+
+        return FocusGuard.withFocusSuppressed(
+            pid: pid, window: window, element: el
+        ) { () -> Bool in
+            // 不调 kAXRaiseAction（会抢前台），直接写 value。
+            // FocusGuard Layer 2 已经把 AXFocused 置 true 了，AppKit 状态机
+            // 通常够用
+            let result = AXUIElementSetAttributeValue(el, kAXValueAttribute as CFString, text as CFTypeRef)
+            return result == .success
+        }
+    }
+
     // MARK: - Double Click
 
     static func dblclick(ref: String, appPID: pid_t? = nil) -> Bool {

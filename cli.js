@@ -104,6 +104,14 @@ if (!platform) {
   }
 }
 
+// ── virtual-cursor alias: maps to macos `cursor <sub>` ──
+// Top-level shortcut so `agent-control virtual-cursor start` works without -p macos.
+if (cmd0 === 'virtual-cursor' || cmd0 === 'vcursor') {
+  platform = 'macos';
+  const cmdIdx = driverArgs.indexOf(cmd0);
+  if (cmdIdx >= 0) driverArgs[cmdIdx] = 'cursor';
+}
+
 // ── Route to driver ──
 const { enhance } = require('./snapshot-enhance');
 
@@ -164,9 +172,13 @@ function maybeEnhance(r) {
 
 const drivers = {
   macos: () => {
-    const bin = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
-    if (!require('fs').existsSync(bin)) {
-      console.error('macOS driver not built. Run: cd macos-driver && swift build');
+    const fs_ = require('fs');
+    // Prefer release build when available (optimized), fall back to debug.
+    const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
+    const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
+    const bin = fs_.existsSync(rel) ? rel : dbg;
+    if (!fs_.existsSync(bin)) {
+      console.error('macOS driver not built. Run: cd macos-driver && swift build -c release');
       process.exit(1);
     }
     const timeout = (driverArgs[0] === 'console' || driverArgs[0] === 'logs') ? 30000 : 15000;
@@ -298,9 +310,9 @@ Platforms:
 
 Driver commands:
   snapshot [-i] [-e]        See UI elements
-  click @ref | x y          Click/tap
+  click @ref | x y          Click/tap  (macOS: --focus-guard 后台不抢焦点)
   drag @r1 @r2              Drag between refs or coordinates
-  fill @ref "text"          Clear + type
+  fill @ref "text"          Clear + type  (macOS: --focus-guard)
   select @ref "value"       Select dropdown (web)
   press <key>               Keyboard key
   screenshot [path]         Save PNG (macOS: requires --app, or --full for full-screen)
@@ -308,6 +320,9 @@ Driver commands:
   swipe <dir>               Swipe (iOS/Android)
   close                     Close browser (web)
   console [level] [N]       Show console/system logs
+
+macOS shortcuts (top-level):
+  virtual-cursor start|move|hide|stop|status    Lavender 虚拟光标 (别名 vcursor)
 
 Subcommands:
   auto    -p <plat> --goal "..." [--url <url>]   LLM-driven goal loop

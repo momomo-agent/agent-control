@@ -44,9 +44,14 @@ enum AXScreenshot {
         }
     }
 
-    /// Element region screenshot
+    /// Element region screenshot.
+    ///
+    /// Uses `AXScanner.findUIElement` which mirrors `snapshot(...)` numbering,
+    /// so refs like `@e730` resolve correctly. The previous walker had its own
+    /// predicate that only counted `clickableRoles`, drifting from snapshot refs
+    /// that also include content roles (StaticText / Image / Heading / Group).
     static func element(ref: String, output: String, appPID: pid_t? = nil) async -> Bool {
-        guard let el = AXActions.findElement(ref: ref, appPID: appPID) else {
+        guard let el = AXScanner.findUIElement(ref: ref, appPID: appPID) else {
             fputs("error: element \(ref) not found\n", stderr)
             return false
         }
@@ -64,6 +69,12 @@ enum AXScreenshot {
         AXValueGetValue(pv as! AXValue, .cgPoint, &pos)
         AXValueGetValue(sv as! AXValue, .cgSize, &size)
 
+        if size.width < 1 || size.height < 1 {
+            fputs("error: element \(ref) has zero frame (pos=\(pos) size=\(size))\n", stderr)
+            return false
+        }
+
+        // screencapture -R uses global display points, same unit AX returns.
         let rect = "\(Int(pos.x)),\(Int(pos.y)),\(Int(size.width)),\(Int(size.height))"
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
