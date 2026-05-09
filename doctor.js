@@ -90,14 +90,14 @@ check('Screen Recording permission', 'macos', () => {
   return { ok: false, fix: 'System Settings → Privacy & Security → Screen Recording → add Terminal/iTerm' };
 });
 
-// ── iOS ──
-check('idb installed', 'ios', () => {
+// ── iOS (simulator) ──
+check('idb installed', 'ios-sim', () => {
   const out = run('which idb');
   if (out) return { ok: true, detail: out };
   return { ok: false, fix: 'brew install idb-companion && pip install fb-idb' };
 });
 
-check('Booted simulator', 'ios', () => {
+check('Booted simulator', 'ios-sim', () => {
   const out = run('xcrun simctl list devices booted -j');
   if (!out) return { ok: false, fix: 'Open Xcode → Window → Devices and Simulators → boot a simulator' };
   try {
@@ -108,32 +108,144 @@ check('Booted simulator', 'ios', () => {
       }
     }
   } catch {}
-  return { ok: false, fix: 'xcrun simctl boot "iPhone 16 Pro"' };
+  return { ok: false, soft: true, fix: 'xcrun simctl boot "iPhone 16 Pro"  (optional if only using real device)' };
 });
 
-check('Xcode CLI tools', 'ios', () => {
+check('Xcode CLI tools', 'ios-sim', () => {
   const out = run('xcode-select -p');
   if (out) return { ok: true, detail: out };
   return { ok: false, fix: 'xcode-select --install' };
 });
 
+// ── iOS (real device) ──
+// Resolve python3 + pymobiledevice3. pip --user installs into ~/Library/Python/X.Y/,
+// which often isn't on PATH but `python3 -m pymobiledevice3` still works.
+function findPython() {
+  const candidates = ['python3', '/opt/homebrew/bin/python3', '/usr/bin/python3'];
+  const probe = [
+    'import sys, importlib, importlib.metadata as m',
+    'importlib.import_module("pymobiledevice3")',
+    // importlib.metadata.version returns the dist version even when the pkg has no __version__.
+    'v = ""',
+    'try:\n    v = m.version("pymobiledevice3")\nexcept Exception:\n    v = "?"',
+    'print(sys.executable + "|" + v)',
+  ].join('\n');
+  for (const py of candidates) {
+    const r = spawnSync(py, ['-c', probe],
+      { encoding: 'utf8', timeout: 5000, stdio: ['pipe','pipe','pipe'] });
+    if (r.status === 0 && r.stdout) return { py, info: r.stdout.trim() };
+  }
+  return null;
+}
+
+check('pymobiledevice3 (real device bridge)', 'ios-real', () => {
+  const found = findPython();
+  if (found) {
+    const [execPath, version] = found.info.split('|');
+    return { ok: true, detail: `v${version} via ${path.basename(execPath)}` };
+  }
+  return {
+    ok: false,
+    fix: 'python3 -m pip install --user pymobiledevice3  (real device support; skip if only using simulator)',
+    soft: true,
+  };
+});
+
+check('Connected real device', 'ios-real', () => {
+  const found = findPython();
+  if (!found) return { ok: false, soft: true, detail: 'skip (pymobiledevice3 missing)', fix: 'install pymobiledevice3 first' };
+  const r = spawnSync(found.py, ['-m', 'pymobiledevice3', 'usbmux', 'list', '--no-color'],
+    { encoding: 'utf8', timeout: 6000, stdio: ['pipe','pipe','pipe'] });
+  const text = (r.stdout || '') + (r.stderr || '');
+  // pymobiledevice3 prints a JSON-ish list; empty = "[]" or no Identifier lines.
+  const hasDevice = /"Identifier"|"ConnectionType"|UniqueDeviceID/i.test(text);
+  if (hasDevice) {
+    // Try to extract device name / iOS version for detail.
+    const infoR = spawnSync(found.py, ['-m', 'pymobiledevice3', 'lockdown', 'info', '--no-color'],
+      { encoding: 'utf8', timeout: 8000, stdio: ['pipe','pipe','pipe'] });
+    const info = infoR.stdout || '';
+    const name = (info.match(/"DeviceName":\s*"([^"]+)"/) || [])[1] || '';
+    const ver = (info.match(/"ProductVersion":\s*"([^"]+)"/) || [])[1] || '';
+    const trust = /MobileDeviceDeveloperDisk|HasSiDP|Trusted|com\.apple\.mobile\.lockdown\.trust_agent/i.test(info);
+    const detailBits = [name, ver && 'iOS ' + ver, trust ? 'trusted' : 'untrusted'].filter(Boolean);
+    return { ok: true, detail: detailBits.join(' · ') };
+  }
+  // Device absent. Distinguish "daemon not talking" from "nothing plugged in".
+  // usbmuxd on macOS is launchd-managed; presence of the socket is the real signal.
+  const sockExists = run('test -S /var/run/usbmuxd && echo yes');
+  if (!sockExists) {
+    return {
+      ok: false,
+      soft: true,
+      fix: 'macOS usbmuxd socket missing. Try: `sudo launchctl kickstart -k system/com.apple.usbmuxd` (usually needs a reboot)',
+    };
+  }
+  return {
+    ok: false,
+    soft: true,
+    fix: 'No iOS device detected. 1) Plug via USB-C/Lightning  2) Unlock phone + tap "Trust"  3) Re-run `agent-control doctor -p ios`',
+  };
+});
+
+check('devicectl (Xcode real-device tooling)', 'ios-real', () => {
+  const r = spawnSync('xcrun', ['devicectl', 'list', 'devices'], { encoding: 'utf8', timeout: 6000, stdio: ['pipe','pipe','pipe'] });
+  if (r.status !== 0) {
+    return { ok: false, soft: true, fix: 'Install Xcode (full, not just CLT) to enable `agent-control -p ios --real console` for real-device logs' };
+  }
+  const lines = (r.stdout || '').split('\n').filter(l => /connected|available/i.test(l));
+  if (lines.length === 0) return { ok: true, detail: 'no device (ok if only using simulator)', soft: true };
+  return { ok: true, detail: `${lines.length} device(s) known to devicectl` };
+});
+
 // ── Run ──
-const targets = platform === 'all' ? ['all', 'web', 'macos', 'ios'] : ['all', platform];
+// Expand platform selection to include related sub-groups:
+//   --platform ios  → check common + ios-sim + ios-real
+//   --platform all  → everything
+const ALL_GROUPS = ['all', 'web', 'macos', 'ios-sim', 'ios-real'];
+const PLATFORM_GROUPS = {
+  all: ALL_GROUPS,
+  web: ['all', 'web'],
+  macos: ['all', 'macos'],
+  ios: ['all', 'ios-sim', 'ios-real'],
+  'ios-sim': ['all', 'ios-sim'],
+  'ios-real': ['all', 'ios-real'],
+};
+const targets = PLATFORM_GROUPS[platform] || ['all', platform];
 const relevant = checks.filter(c => targets.includes(c.platform));
 
 console.log(`agent-control doctor (${platform})\n`);
-let allOk = true;
+let hardFail = false;
+let softFail = false;
 
+let lastGroup = null;
 for (const c of relevant) {
+  // Print a small group header when the platform group changes
+  if (c.platform !== lastGroup) {
+    const groupLabel = {
+      all: '— common',
+      web: '— web',
+      macos: '— macos',
+      'ios-sim': '— iOS simulator',
+      'ios-real': '— iOS real device',
+    }[c.platform] || `— ${c.platform}`;
+    console.log(`\n${groupLabel}`);
+    lastGroup = c.platform;
+  }
+
   const r = c.fn();
-  const icon = r.ok ? '✅' : '❌';
+  const isSoft = r.soft === true;
+  const icon = r.ok ? '✅' : (isSoft ? '⚠️ ' : '❌');
   const detail = r.detail ? ` (${r.detail})` : '';
   console.log(`${icon} ${c.name}${detail}`);
   if (!r.ok) {
-    console.log(`   Fix: ${r.fix}`);
-    allOk = false;
+    console.log(`   → ${r.fix}`);
+    if (isSoft) softFail = true; else hardFail = true;
   }
 }
 
-console.log(allOk ? '\nAll checks passed.' : '\nSome checks failed. Fix the issues above before running.');
-process.exit(allOk ? 0 : 1);
+if (!hardFail && !softFail) console.log('\nAll checks passed.');
+else if (!hardFail && softFail) console.log('\nCore checks passed. Optional (⚠️ ) can be enabled later.');
+else console.log('\nSome checks failed. Fix the issues above before running.');
+
+// Soft failures don't break the exit code.
+process.exit(hardFail ? 1 : 0);

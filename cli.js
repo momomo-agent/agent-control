@@ -77,8 +77,144 @@ function getCommand() {
 // ── Subcommand shortcuts ──
 const cmd0 = getCommand();
 if (cmd0 === 'doctor') {
-  const r = spawnSync(process.execPath, [path.join(ROOT, 'doctor.js'), ...driverArgs.slice(1)], { stdio: 'inherit' });
+  const subArgs = driverArgs.slice(1);
+  if (platform) subArgs.push('-p', platform);
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'doctor.js'), ...subArgs], { stdio: 'inherit' });
   process.exit(r.status || 0);
+}
+
+// ── `agent-control shot` — open-the-box screenshot ──
+// Auto-picks the best available backend and uses a sane default output path.
+//   1. Force order: --real > --sim > --macos > auto
+//   2. Auto: iOS simulator (fast) > iOS real device > macOS (only with --app or --full)
+//   3. Default output: ./shot-YYYYMMDD-HHMMSS.png
+if (cmd0 === 'shot') {
+  const shotArgs = driverArgs.slice(1);
+
+  // Per-subcommand help
+  if (shotArgs.includes('--help') || shotArgs.includes('-h') || shotArgs[0] === 'help') {
+    console.log(`agent-control shot — quick screenshot, auto-picks backend.
+
+Usage:
+  agent-control shot [path.png] [options]
+
+Backend (auto by default: iOS simulator > iOS real device > err):
+  --sim                Force iOS simulator (must be booted)
+  --real               Force iOS real device (must be plugged in + trusted)
+  --macos              macOS screen (default --full if no --app)
+  --app <name>         macOS: screenshot a single app window (implies --macos)
+  --full               macOS: full screen (implies --macos)
+
+Options:
+  --open               After saving, open the PNG with default app (macOS: \`open\`)
+  -h, --help           Show this help
+
+Output path:
+  If no path is given, saves to ./shot-YYYYMMDD-HHMMSS.png in the current dir.
+
+Examples:
+  agent-control shot                                # auto
+  agent-control shot /tmp/x.png --open              # auto, then open
+  agent-control shot --real /tmp/real.png
+  agent-control shot --macos --app Finder
+  agent-control shot --full
+`);
+    process.exit(0);
+  }
+
+  const forceReal = shotArgs.includes('--real');
+  const forceSim = shotArgs.includes('--sim');
+  const fullFlag = shotArgs.includes('--full');
+  const appIdx = shotArgs.indexOf('--app');
+  const appName = appIdx !== -1 ? shotArgs[appIdx + 1] : null;
+  const forceMacos = shotArgs.includes('--macos') || platform === 'macos' || fullFlag || !!appName;
+  const openFlag = shotArgs.includes('--open');
+  const explicitPath = shotArgs.find(a => !a.startsWith('-') && a !== appName);
+
+  function ts() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  }
+  const outPath = explicitPath || path.resolve(process.cwd(), `shot-${ts()}.png`);
+
+  function detectIosBackend() {
+    if (forceSim) return 'sim';
+    if (forceReal) return 'real';
+    const simR = spawnSync('xcrun', ['simctl', 'list', 'devices', 'booted', '-j'],
+      { encoding: 'utf8', timeout: 5000, stdio: ['pipe','pipe','pipe'] });
+    if (simR.status === 0 && simR.stdout) {
+      try {
+        const data = JSON.parse(simR.stdout);
+        for (const [, devs] of Object.entries(data.devices)) {
+          for (const d of devs) if (d.state === 'Booted') return 'sim';
+        }
+      } catch {}
+    }
+    const py = spawnSync('python3', [path.join(ROOT, 'ios-driver', 'real-device.py'), 'detect'],
+      { encoding: 'utf8', timeout: 6000, stdio: ['pipe','pipe','pipe'] });
+    if (py.stdout) {
+      try {
+        const d = JSON.parse(py.stdout);
+        if (d.ok && d.devices && d.devices.length > 0) return 'real';
+      } catch {}
+    }
+    return null;
+  }
+
+  let backendChoice = null;
+  if (forceMacos) {
+    backendChoice = 'macos';
+  } else {
+    backendChoice = detectIosBackend();
+    if (!backendChoice) {
+      console.log(JSON.stringify({
+        ok: false,
+        error: 'no iOS device available',
+        hint: 'Options: (a) boot a simulator (`open -a Simulator`); (b) plug in an iPhone + trust this Mac; (c) use `shot --macos --app <name>` or `shot --full` for a Mac screenshot. Diagnose: `agent-control doctor -p ios`.',
+      }, null, 2));
+      process.exit(1);
+    }
+  }
+
+  let result;
+  if (backendChoice === 'macos') {
+    const fs_ = require('fs');
+    const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
+    const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
+    const bin = fs_.existsSync(rel) ? rel : dbg;
+    if (!fs_.existsSync(bin)) {
+      console.log(JSON.stringify({ ok: false, error: 'macOS driver not built', hint: 'cd macos-driver && swift build -c release' }, null, 2));
+      process.exit(1);
+    }
+    const macArgs = ['screenshot'];
+    if (appName) macArgs.push('--app', appName);
+    // If neither --app nor --full specified for macOS, default to full screen.
+    else if (!fullFlag) macArgs.push('--full');
+    if (fullFlag) macArgs.push('--full');
+    macArgs.push(outPath);
+    const r = spawnSync(bin, macArgs, { encoding: 'utf8', timeout: 20000, stdio: ['pipe','pipe','pipe'] });
+    if (r.status === 0 && fs_.existsSync(outPath)) {
+      result = { ok: true, backend: 'macos', path: outPath };
+    } else {
+      result = { ok: false, backend: 'macos', error: (r.stderr || r.stdout || 'screenshot failed').trim() };
+    }
+  } else {
+    const script = path.join(ROOT, 'ios-driver', 'index.js');
+    const flag = backendChoice === 'real' ? '--real' : '--sim';
+    const r = spawnSync('node', [script, flag, 'screenshot', outPath],
+      { encoding: 'utf8', timeout: 25000, stdio: ['pipe','pipe','pipe'] });
+    try { result = JSON.parse(r.stdout || '{}'); }
+    catch { result = { ok: false, error: (r.stderr || r.stdout || 'screenshot failed').trim() }; }
+    if (!result.backend) result.backend = backendChoice === 'real' ? 'ios-real' : 'ios-sim';
+    if (result.ok && !result.path) result.path = outPath;
+  }
+
+  console.log(JSON.stringify(result, null, 2));
+  if (result.ok && openFlag && process.platform === 'darwin') {
+    spawnSync('open', [result.path], { stdio: 'ignore' });
+  }
+  process.exit(result.ok ? 0 : 1);
 }
 if (cmd0 === 'demo') {
   const r = spawnSync(process.execPath, [path.join(ROOT, 'demo.js'), ...driverArgs.slice(1)], { stdio: 'inherit' });
@@ -325,8 +461,9 @@ macOS shortcuts (top-level):
   virtual-cursor start|move|hide|stop|status    Lavender 虚拟光标 (别名 vcursor)
 
 Subcommands:
+  doctor  [-p <plat>]                            Environment check (now covers iOS real-device)
+  shot    [path.png] [--real|--sim|--macos]      Quick screenshot (auto-picks best backend)
   auto    -p <plat> --goal "..." [--url <url>]   LLM-driven goal loop
-  doctor  [-p <plat>]                            Environment check
   run-all [--json]                               Run all flows
   goal    -p <plat> observe|act|act-observe ...  Step-by-step goal runner
   viewer                                         Open HTML report viewer
@@ -339,7 +476,11 @@ Options:
   --sim             Force simulator backend (iOS)
 
 Examples:
-  agent-control doctor
+  agent-control doctor -p ios
+  agent-control shot                                     # auto: sim > real > err
+  agent-control shot --real /tmp/x.png                   # force real device
+  agent-control shot --macos --app Finder                # macOS app window
+  agent-control shot --full /tmp/desktop.png             # macOS full screen
   agent-control -p web open https://example.com
   agent-control -p web -e snapshot
   agent-control -p web click @e3

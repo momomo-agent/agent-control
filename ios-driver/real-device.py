@@ -44,8 +44,18 @@ def out(data):
     sys.exit(0)
 
 
-def err(msg):
-    out({"ok": False, "error": str(msg)})
+def err(msg, hint=None):
+    payload = {"ok": False, "error": str(msg)}
+    if hint:
+        payload["hint"] = hint
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    sys.exit(0)
+
+
+NO_DEVICE_HINT = (
+    "Plug an iPhone/iPad via USB, unlock it and tap 'Trust' on the prompt, "
+    "then re-run. Diagnose with: `agent-control doctor -p ios`."
+)
 
 
 # ── Device discovery ──
@@ -123,7 +133,7 @@ async def cmd_detect():
 async def cmd_info():
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
     info = {
         "name": ld.display_name,
         "udid": ld.udid,
@@ -137,7 +147,7 @@ async def cmd_info():
 async def cmd_devicename():
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
     out({"ok": True, "name": ld.display_name})
 
 
@@ -145,7 +155,7 @@ async def cmd_snapshot(interactive_only=False):
     """Get AX element tree via accessibility audit service."""
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.accessibilityaudit import AccessibilityAudit
 
@@ -194,7 +204,7 @@ async def cmd_source():
     """Get raw WDA XML source tree (richer than AX audit)."""
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.wda import AsyncWdaClient
 
@@ -206,7 +216,7 @@ async def cmd_source():
 async def cmd_screenshot(path=None):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.screenshot import ScreenshotService
 
@@ -225,7 +235,7 @@ async def cmd_screenshot(path=None):
 async def cmd_tap(x, y):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.wda import AsyncWdaClient
 
@@ -239,10 +249,26 @@ async def cmd_tap(x, y):
     out({"ok": True, "action": "tap", "x": x, "y": y})
 
 
+async def cmd_longpress(x, y, duration=1.0):
+    ld = await get_device()
+    if not ld:
+        err("no real device connected", hint=NO_DEVICE_HINT)
+
+    from pymobiledevice3.services.wda import AsyncWdaClient
+
+    async with AsyncWdaClient(ld) as client:
+        sid = await client.start_session()
+        # WDA touchAndHold endpoint
+        await client._request_json("POST", f"/session/{sid}/wda/touchAndHold", {
+            "x": float(x), "y": float(y), "duration": float(duration)
+        })
+    out({"ok": True, "action": "longpress", "x": x, "y": y, "duration": duration})
+
+
 async def cmd_tap_element(uid):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.accessibilityaudit import AccessibilityAudit
 
@@ -258,7 +284,7 @@ async def cmd_tap_element(uid):
 async def cmd_type(text):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.wda import AsyncWdaClient
 
@@ -271,7 +297,7 @@ async def cmd_type(text):
 async def cmd_swipe(direction, amount=0.5):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.wda import AsyncWdaClient
 
@@ -300,7 +326,7 @@ async def cmd_swipe(direction, amount=0.5):
 async def cmd_press(button):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.wda import AsyncWdaClient
 
@@ -313,7 +339,7 @@ async def cmd_press(button):
 async def cmd_launch(bundle_id):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.wda import AsyncWdaClient
 
@@ -325,7 +351,7 @@ async def cmd_launch(bundle_id):
 async def cmd_terminate(bundle_id):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     # Use DVT process control to kill by bundle id
     try:
@@ -343,7 +369,7 @@ async def cmd_terminate(bundle_id):
 async def cmd_unlock():
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.wda import AsyncWdaClient
 
@@ -356,7 +382,7 @@ async def cmd_unlock():
 async def cmd_install(ipa_path):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.installation_proxy import InstallationProxyService
 
@@ -368,7 +394,7 @@ async def cmd_install(ipa_path):
 async def cmd_uninstall(bundle_id):
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.installation_proxy import InstallationProxyService
 
@@ -380,7 +406,7 @@ async def cmd_uninstall(bundle_id):
 async def cmd_list_apps():
     ld = await get_device()
     if not ld:
-        err("no real device connected")
+        err("no real device connected", hint=NO_DEVICE_HINT)
 
     from pymobiledevice3.services.installation_proxy import InstallationProxyService
 
@@ -426,6 +452,15 @@ def main():
                 asyncio.run(cmd_tap(float(args[0]), float(args[1])))
             else:
                 err("tap requires x y coordinates")
+        elif cmd == "longpress":
+            if len(args) >= 2:
+                dur = 1.0
+                for a in args:
+                    if a.startswith("--duration="):
+                        dur = float(a.split("=")[1])
+                asyncio.run(cmd_longpress(float(args[0]), float(args[1]), dur))
+            else:
+                err("longpress requires x y [--duration=N]")
         elif cmd == "tap-element":
             if args:
                 asyncio.run(cmd_tap_element(args[0]))

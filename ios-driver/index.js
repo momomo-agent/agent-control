@@ -78,7 +78,14 @@ if (forceReal) {
   backend = 'real';
 } else if (forceSim) {
   device = getBootedUDID();
-  if (!device) { console.log(JSON.stringify({ ok: false, error: 'no booted simulator (--sim forced)' })); process.exit(1); }
+  if (!device) {
+    console.log(JSON.stringify({
+      ok: false,
+      error: 'no booted simulator (--sim forced)',
+      hint: 'Boot a simulator first: `open -a Simulator`, or pick a device in Xcode → Window → Devices and Simulators.',
+    }, null, 2));
+    process.exit(1);
+  }
   UDID = device.udid;
 } else {
   // Auto: try simulator first, then real device
@@ -89,7 +96,11 @@ if (forceReal) {
   } else if (hasRealDevice()) {
     backend = 'real';
   } else {
-    console.log(JSON.stringify({ ok: false, error: 'no iOS device found (no booted simulator, no USB/WiFi real device)' }));
+    console.log(JSON.stringify({
+      ok: false,
+      error: 'no iOS device found (no booted simulator, no USB/WiFi real device)',
+      hint: 'Either boot a simulator (`open -a Simulator`) or plug in an iPhone/iPad and trust this Mac. Diagnose with `agent-control doctor -p ios`.',
+    }, null, 2));
     process.exit(1);
   }
 }
@@ -430,16 +441,18 @@ try {
         break;
       }
       case 'longpress': {
-        // Real device longpress via tap with duration (WDA doesn't have native longpress, use tap + hold)
         const a1 = args[1], a2 = args[2];
+        const durArg = args.find(a => a.startsWith('--duration='));
+        const dur = durArg ? durArg.split('=')[1] : '0.5';
         if (isRefArg(a1)) {
           const el = findEl(a1);
           if (!el || !el.uid) { result = { ok: false, error: `${a1} not found or no uid` }; break; }
-          result = realDevice(['tap-element', el.uid]); // TODO: add duration support
+          const p = center(el);
+          result = realDevice(['longpress', String(Math.round(p.x)), String(Math.round(p.y)), `--duration=${dur}`]);
         } else if (a1 && a2) {
-          result = realDevice(['tap', a1, a2]); // TODO: add duration
+          result = realDevice(['longpress', a1, a2, `--duration=${dur}`]);
         } else {
-          result = { ok: false, error: 'longpress requires @ref or x y' };
+          result = { ok: false, error: 'longpress requires @ref or x y [--duration=N]' };
         }
         break;
       }
