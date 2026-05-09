@@ -252,6 +252,32 @@ async function executeCommand(args, page, browser, context) {
   const cmd = args[0];
   if (!cmd) return { ok: false, error: 'no command' };
 
+  if (cmd === 'help' || cmd === '--help' || cmd === '-h') {
+    return { ok: true, help: [
+      'agent-control-web — Playwright-powered browser driver',
+      '',
+      'Daemon:',
+      '  Auto-started at 127.0.0.1:3901 on first command. Kill with `close`.',
+      '  --cdp <ws://...>          Connect to an existing Chrome via CDP instead of launching.',
+      '',
+      'Commands (chain with ; or &&):',
+      '  open <url>                Navigate',
+      '  snapshot [-i]             Get DOM / interactive tree',
+      '  find <text>               Filter snapshot by text match',
+      '  click @ref | x y          Click (--right for right-click)',
+      '  fill @ref "text"          Clear + type into input (use --submit to press Enter)',
+      '  type "text"               Type at focus',
+      '  press <key>               Keyboard key (Enter, Escape, ArrowDown, ...)',
+      '  select @ref "value"       Select option from dropdown',
+      '  drag x1 y1 x2 y2          Mouse drag',
+      '  scroll dir [amount]       Scroll up/down/left/right',
+      '  screenshot [@ref] [path]  PNG (default /tmp/agent-control-web.png, --full for fullpage)',
+      '  wait <ms>|@ref|url=<re>   Wait for timeout / element / URL match',
+      '  eval "js"                 Run JS in page context',
+      '  close                     Close browser + daemon',
+    ].join('\n') };
+  }
+
   let result;
   try {
     switch (cmd) {

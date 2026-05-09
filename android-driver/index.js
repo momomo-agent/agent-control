@@ -31,13 +31,21 @@ function adb(args, opts = {}) {
   try {
     return execSync(cmd, { encoding: 'utf8', timeout: opts.timeout || 30000, stdio: ['pipe', 'pipe', 'pipe'], ...opts }).trim();
   } catch (e) {
-    return e.stdout?.trim() || e.message;
+    const msg = e.message || '';
+    if (/command not found|ENOENT/i.test(msg)) {
+      throw Object.assign(new Error('adb not found on PATH'), {
+        hint: 'Install Android platform-tools: `brew install --cask android-platform-tools` (macOS) or download from https://developer.android.com/tools/releases/platform-tools',
+      });
+    }
+    return e.stdout?.trim() || msg;
   }
 }
 
 function getSerial() {
   if (SERIAL) return SERIAL;
-  const out = adb('devices');
+  let out;
+  try { out = adb('devices'); }
+  catch (e) { return null; }
   const lines = out.split('\n').slice(1).filter(l => l.includes('device') && !l.includes('offline'));
   if (lines.length === 0) return null;
   return lines[0].split('\t')[0];
@@ -136,10 +144,44 @@ function isRefArg(a) { return a && (/^@e\d+$/.test(a) || /^e\d+$/.test(a)); }
 
 function run(args) {
   const cmd = args[0];
-  if (!cmd) return { ok: false, error: 'no command' };
+  if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
+    console.log([
+      'agent-control-android — adb + uiautomator bridge',
+      '',
+      'Prerequisites:',
+      '  • Android platform-tools on PATH (adb)',
+      '  • Connected device / running emulator (verify: adb devices)',
+      '  • For USB: enable Developer Options + USB debugging on the device',
+      '',
+      'Commands:',
+      '  snapshot [-i]             UI element tree (JSON)',
+      '  tap @ref | x y            Tap element or coordinates',
+      '  longpress @ref | x y      Long press [--duration=ms]',
+      '  swipe dir [amount]        Swipe up/down/left/right',
+      '  fill @ref "text"          Type text into element',
+      '  press key                 Key event (home/back/enter/menu/power/volumeUp/volumeDown)',
+      '  screenshot [path]         Capture screen',
+      '  screenshot @ref [path]    Element-scoped screenshot (crops full)',
+      '  open <package>            Launch app by package name',
+      '  start <pkg/.Activity>     Start specific activity',
+      '  stop <package>            Force-stop app',
+      '  devices                   List connected devices',
+      '  current                   Show current foreground activity',
+      '  console [level] [N]       logcat tail (--tag=X, --package=X, --clear)',
+      '  shell <cmd>               Raw adb shell',
+      '',
+      'Environment:',
+      '  ANDROID_SERIAL            Pin a specific device when multiple are connected.',
+    ].join('\n'));
+    return { ok: true };
+  }
 
   const serial = getSerial();
-  if (!serial && cmd !== 'devices') return { ok: false, error: 'no Android device connected. Start emulator or connect device.' };
+  if (!serial && cmd !== 'devices') return {
+    ok: false,
+    error: 'no Android device connected',
+    hint: 'Start an emulator (`emulator -avd <name>`), or connect a device over USB with debugging enabled. Verify with `adb devices`.',
+  };
 
   switch (cmd) {
     case 'snapshot': {
@@ -408,7 +450,19 @@ function run(args) {
 // ── Main ──
 if (require.main === module) {
   const args = process.argv.slice(2);
-  const result = run(args);
+  let result;
+  try {
+    result = run(args);
+  } catch (e) {
+    result = { ok: false, error: e.message || String(e) };
+    if (e.hint) result.hint = e.hint;
+  }
+  if (result && !result.ok && !result.hint) {
+    // Attach contextual hint for common failures
+    if (/adb not found/i.test(result.error || '')) {
+      result.hint = 'Install Android platform-tools: `brew install --cask android-platform-tools`';
+    }
+  }
   console.log(JSON.stringify(result, null, 2));
 }
 

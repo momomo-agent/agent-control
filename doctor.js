@@ -197,11 +197,55 @@ check('devicectl (Xcode real-device tooling)', 'ios-real', () => {
   return { ok: true, detail: `${lines.length} device(s) known to devicectl` };
 });
 
+// ── Android ──
+check('adb on PATH', 'android', () => {
+  const out = run('which adb');
+  if (out) return { ok: true, detail: out };
+  return { ok: false, soft: true, fix: 'brew install --cask android-platform-tools  (or download from https://developer.android.com/tools/releases/platform-tools)' };
+});
+
+check('Connected Android device', 'android', () => {
+  const out = run('adb devices 2>&1');
+  if (!out) return { ok: false, soft: true, fix: 'No `adb`. Install platform-tools first.' };
+  const lines = out.split('\n').slice(1)
+    .filter(l => l.trim())
+    .filter(l => /\bdevice\b/.test(l) && !l.includes('offline') && !l.includes('unauthorized'));
+  const unauth = out.split('\n').some(l => l.includes('unauthorized'));
+  if (unauth) return { ok: false, soft: true, fix: 'Unlock the phone and tap "Allow" on the USB debugging dialog.' };
+  if (lines.length === 0) return {
+    ok: false, soft: true,
+    fix: 'Start an emulator (`emulator -avd <name>`) or plug in a device with USB debugging enabled.',
+  };
+  return { ok: true, detail: lines.map(l => l.split('\t')[0]).join(', ') };
+});
+
+// ── Electron ──
+check('Electron CDP driver deps', 'electron', () => {
+  try {
+    require.resolve('ws');
+    return { ok: true, detail: 'ws installed' };
+  } catch {
+    return { ok: false, fix: 'cd ' + __dirname + ' && npm install ws' };
+  }
+});
+
+// ── Flutter ──
+check('Dart VM Service hint', 'flutter', () => {
+  const url = process.env.FLUTTER_VM_SERVICE_URL;
+  if (url) return { ok: true, detail: url };
+  return {
+    ok: true,
+    soft: true,
+    detail: 'not set',
+    fix: 'Export FLUTTER_VM_SERVICE_URL=ws://127.0.0.1:<port>/ws before running, or pass --vm-service ws://...',
+  };
+});
+
 // ── Run ──
 // Expand platform selection to include related sub-groups:
 //   --platform ios  → check common + ios-sim + ios-real
 //   --platform all  → everything
-const ALL_GROUPS = ['all', 'web', 'macos', 'ios-sim', 'ios-real'];
+const ALL_GROUPS = ['all', 'web', 'macos', 'ios-sim', 'ios-real', 'android', 'electron', 'flutter'];
 const PLATFORM_GROUPS = {
   all: ALL_GROUPS,
   web: ['all', 'web'],
@@ -209,6 +253,9 @@ const PLATFORM_GROUPS = {
   ios: ['all', 'ios-sim', 'ios-real'],
   'ios-sim': ['all', 'ios-sim'],
   'ios-real': ['all', 'ios-real'],
+  android: ['all', 'android'],
+  electron: ['all', 'electron'],
+  flutter: ['all', 'flutter'],
 };
 const targets = PLATFORM_GROUPS[platform] || ['all', platform];
 const relevant = checks.filter(c => targets.includes(c.platform));
@@ -227,6 +274,9 @@ for (const c of relevant) {
       macos: '— macos',
       'ios-sim': '— iOS simulator',
       'ios-real': '— iOS real device',
+      android: '— android',
+      electron: '— electron',
+      flutter: '— flutter',
     }[c.platform] || `— ${c.platform}`;
     console.log(`\n${groupLabel}`);
     lastGroup = c.platform;

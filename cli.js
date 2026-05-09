@@ -74,8 +74,201 @@ function getCommand() {
   return null;
 }
 
+// ── Per-platform help (avoids spawning drivers / daemons just for --help) ──
+const PLATFORM_HELP = {
+  web: [
+    'agent-control-web — Playwright-powered browser driver',
+    '',
+    'Daemon: auto-starts at 127.0.0.1:3901 on first command. Kill with `close`.',
+    '  --cdp <ws://...>          Connect to an existing Chrome via CDP instead of launching.',
+    '',
+    'Commands (chain with ; or &&):',
+    '  open <url>                Navigate',
+    '  snapshot [-i]             Get DOM / interactive tree',
+    '  find <text>               Filter snapshot by text match',
+    '  click @ref | x y          Click (--right for right-click)',
+    '  fill @ref "text"          Clear + type (--submit to press Enter)',
+    '  type "text"               Type at focus',
+    '  press <key>               Keyboard key (Enter, Escape, ArrowDown, ...)',
+    '  select @ref "value"       Select option from dropdown',
+    '  scroll dir [amount]       Scroll up/down/left/right',
+    '  screenshot [@ref] [path]  PNG (default /tmp/agent-control-web.png, --full for fullpage)',
+    '  wait <ms>|@ref|url=<re>   Wait for timeout / element / URL match',
+    '  eval "js"                 Run JS in page context',
+    '  close                     Close browser + daemon',
+  ].join('\n'),
+  macos: [
+    'agent-control-macos — Accessibility (AX) driver',
+    '',
+    'Prerequisite: System Settings → Privacy & Security → Accessibility → allow Terminal / iTerm / Node',
+    '',
+    'Target selection:',
+    '  --app <name|bundleId>     Target an app window (recommended, privacy-friendly)',
+    '  --pid <pid>               Target a specific app by PID',
+    '',
+    'Commands:',
+    '  snapshot [-i|-e]          Element tree (-i interactive only, -e enhanced summary)',
+    '  find <text>               Filter snapshot by label/value',
+    '  click @ref | x y          Click (--focus-guard to not steal focus)',
+    '  double-click @ref | x y   Double-click (--focus-guard ok)',
+    '  right-click @ref | x y    Right-click',
+    '  fill @ref "text"          Focus + type (--focus-guard ok)',
+    '  type "text"               Type at current focus',
+    '  press <key>               Send key (Enter, Tab, Escape, cmd+shift+4, ...)',
+    '  drag @from @to            Drag between refs or coordinates',
+    '  scroll dir [amount]       Scroll inside focused window',
+    '  screenshot [path]         PNG (requires --app, or --full for full-screen)',
+    '  hover @ref | x y          Move cursor without clicking',
+    '  activate                  Bring target app to front',
+    '  console [N]               Tail unified log for target app (--level=<info|debug|error>)',
+    '',
+    'macOS shortcuts (top-level):',
+    '  virtual-cursor start|move|hide|stop|status    Lavender virtual cursor (alias vcursor)',
+  ].join('\n'),
+  ios: [
+    'agent-control-ios — iOS simulator + real-device driver',
+    '',
+    'Backend auto-selection (override with --sim / --real):',
+    '  • If a simulator is booted → use idb (fast)',
+    '  • Else if an iPhone/iPad is plugged in + trusted → use pymobiledevice3',
+    '',
+    'Commands:',
+    '  snapshot [-i]             UI element tree',
+    '  tap @ref | x y            Tap',
+    '  fill @ref "text"          Focus + type',
+    '  type "text"               Type at focus',
+    '  swipe <dir> [amount]      Swipe up/down/left/right',
+    '  press home|lock|siri      Hardware button (sim); volumeUp/Down on real',
+    '  screenshot [path]         PNG (element-scoped with @ref)',
+    '  longpress @ref | x y      Long press [--duration=N ms]',
+    '  drag x1 y1 x2 y2          Drag',
+    '  open <url>                Open URL',
+    '  launch <bundleId>         Launch app',
+    '  terminate <bundleId>      Kill app',
+    '  list-apps                 List installed apps',
+    '  windows                   List windows/scenes (simulator)',
+    '  console [--process=X] N   Stream system log (simulator)',
+    '  unlock                    Real-device only',
+    '  install <ipa>             Real-device only',
+    '',
+    'Diagnose: agent-control doctor -p ios',
+  ].join('\n'),
+  android: [
+    'agent-control-android — adb + uiautomator bridge',
+    '',
+    'Prerequisites:',
+    '  • Android platform-tools on PATH (`adb`)',
+    '  • Connected device / running emulator (verify: `adb devices`)',
+    '  • For USB: enable Developer Options + USB debugging on the device',
+    '',
+    'Commands:',
+    '  snapshot [-i]             UI element tree',
+    '  tap @ref | x y            Tap',
+    '  longpress @ref | x y      Long press [--duration=ms]',
+    '  swipe <dir> [amount]      Swipe up/down/left/right',
+    '  fill @ref "text"          Type text into element',
+    '  press <key>               home/back/enter/menu/power/volumeUp/volumeDown',
+    '  screenshot [@ref] [path]  PNG (element-scoped crops the full capture)',
+    '  open <package>            Launch app by package name',
+    '  start <pkg/.Activity>     Start specific activity',
+    '  stop <package>            Force-stop app',
+    '  devices                   List connected devices',
+    '  current                   Show current foreground activity',
+    '  console [level] [N]       logcat tail (--tag=X, --package=X, --clear)',
+    '  shell <cmd>               Raw adb shell',
+    '',
+    'Environment: ANDROID_SERIAL pins a specific device when multiple are connected.',
+  ].join('\n'),
+  electron: [
+    'agent-control-electron — Electron app CDP driver',
+    '',
+    'Target must expose Chrome DevTools:',
+    '  • Set CDP_PORT via --port <n> or ELECTRON_DEBUG_PORT env (default 9229)',
+    '  • The Electron app must be launched with --remote-debugging-port=<n>',
+    '  • --target <idx|substr>  Pick a page/webview (index or title/URL substring; default 0)',
+    '',
+    'Commands:',
+    '  windows                   List Page/Webview/iframe targets',
+    '  navigate <url>            Load URL in selected target',
+    '  reload                    Reload',
+    '  snapshot [-i|-e]          DOM element tree (--ui for renderer ui)',
+    '  click @ref | x y          Click',
+    '  double-click @ref | x y',
+    '  right-click @ref | x y',
+    '  fill @ref "text"          Clear + type',
+    '  press <key>               Keyboard key (Enter, cmd+shift+p, ...)',
+    '  scroll dir                Scroll',
+    '  eval "js"                 Run JS in page context',
+    '  screenshot [path]         PNG (for webviews, falls through to macOS AX driver)',
+    '',
+    'Example: agent-control -p electron --port 9223 --target RemoteClaw snapshot',
+  ].join('\n'),
+  flutter: [
+    'agent-control-flutter — Dart VM Service driver',
+    '',
+    'Prereq: launch the Flutter app with --observatory-port / --vm-service-port.',
+    'Set FLUTTER_VM_SERVICE_URL=ws://127.0.0.1:<port>/ws before running, or',
+    'pass --vm-service ws://... as the first arg.',
+    '',
+    'Commands:',
+    '  snapshot [-i]             Widget/semantics tree',
+    '  click @ref | x y          Tap',
+    '  fill @ref "text"          Enter text',
+    '  scroll dir [amount]       Scroll',
+    '  swipe dir                 Swipe gesture',
+    '  press <key>               Key event (enter/tab/escape/back/...)',
+    '  longpress @ref | x y      [--duration=ms]',
+    '  drag @from @to | x1 y1 x2 y2',
+    '  find <text>               Find widgets by text',
+    '  back                      Pop navigation',
+    '  screenshot [path]         PNG',
+  ].join('\n'),
+};
+
+// ── `agent-control snap` / `agent-control click` — auto-pick platform shortcuts ──
+// Rule: if --platform is given, pass-through; otherwise:
+//   snap: prefer iOS sim > macOS (frontmost app) > web
+//   click: same as snap
+function pickAutoPlatform() {
+  // iOS sim booted?
+  const simR = spawnSync('xcrun', ['simctl', 'list', 'devices', 'booted', '-j'],
+    { encoding: 'utf8', timeout: 4000, stdio: ['pipe','pipe','pipe'] });
+  if (simR.status === 0 && simR.stdout) {
+    try {
+      const data = JSON.parse(simR.stdout);
+      for (const [, devs] of Object.entries(data.devices)) {
+        for (const d of devs) if (d.state === 'Booted') return 'ios';
+      }
+    } catch {}
+  }
+  // Web daemon running?
+  const fs_ = require('fs');
+  try {
+    const s = JSON.parse(fs_.readFileSync('/tmp/agent-control-web.json', 'utf8'));
+    process.kill(s.pid, 0);
+    return 'web';
+  } catch {}
+  // Fallback: macOS
+  return 'macos';
+}
+
 // ── Subcommand shortcuts ──
 const cmd0 = getCommand();
+
+// snap / click / shot — shortcuts that need cmd0 resolved first
+if (cmd0 === 'snap' && !platform) {
+  platform = pickAutoPlatform();
+  const idx = driverArgs.indexOf('snap');
+  if (idx !== -1) driverArgs[idx] = 'snapshot';
+}
+if (cmd0 === 'click' && !platform) {
+  platform = pickAutoPlatform();
+  if (platform === 'ios') {
+    const idx = driverArgs.indexOf('click');
+    if (idx !== -1) driverArgs[idx] = 'tap';
+  }
+}
+
 if (cmd0 === 'doctor') {
   const subArgs = driverArgs.slice(1);
   if (platform) subArgs.push('-p', platform);
@@ -85,40 +278,46 @@ if (cmd0 === 'doctor') {
 
 // ── `agent-control shot` — open-the-box screenshot ──
 // Auto-picks the best available backend and uses a sane default output path.
-//   1. Force order: --real > --sim > --macos > auto
-//   2. Auto: iOS simulator (fast) > iOS real device > macOS (only with --app or --full)
-//   3. Default output: ./shot-YYYYMMDD-HHMMSS.png
+//   Force order: --real > --sim > --macos > --web > --android > --electron > auto
+//   Auto: iOS simulator > iOS real device > macOS > err
+//   Default output: ./shot-YYYYMMDD-HHMMSS.png
 if (cmd0 === 'shot') {
   const shotArgs = driverArgs.slice(1);
 
-  // Per-subcommand help
   if (shotArgs.includes('--help') || shotArgs.includes('-h') || shotArgs[0] === 'help') {
-    console.log(`agent-control shot — quick screenshot, auto-picks backend.
-
-Usage:
-  agent-control shot [path.png] [options]
-
-Backend (auto by default: iOS simulator > iOS real device > err):
-  --sim                Force iOS simulator (must be booted)
-  --real               Force iOS real device (must be plugged in + trusted)
-  --macos              macOS screen (default --full if no --app)
-  --app <name>         macOS: screenshot a single app window (implies --macos)
-  --full               macOS: full screen (implies --macos)
-
-Options:
-  --open               After saving, open the PNG with default app (macOS: \`open\`)
-  -h, --help           Show this help
-
-Output path:
-  If no path is given, saves to ./shot-YYYYMMDD-HHMMSS.png in the current dir.
-
-Examples:
-  agent-control shot                                # auto
-  agent-control shot /tmp/x.png --open              # auto, then open
-  agent-control shot --real /tmp/real.png
-  agent-control shot --macos --app Finder
-  agent-control shot --full
-`);
+    console.log([
+      'agent-control shot — quick screenshot, auto-picks backend.',
+      '',
+      'Usage:',
+      '  agent-control shot [path.png] [options]',
+      '',
+      'Backend (auto by default: iOS sim > iOS real > macOS > err):',
+      '  --sim                Force iOS simulator (must be booted)',
+      '  --real               Force iOS real device (must be plugged in + trusted)',
+      '  --macos              macOS screen (default --full if no --app)',
+      '  --app <name>         macOS: screenshot a single app window (implies --macos)',
+      '  --full               macOS: full screen (implies --macos)',
+      '  --web [@ref]         Active browser page (optional element ref)',
+      '  --android            Connected Android device / emulator',
+      '  --electron           Current Electron target (needs --port)',
+      '  --port <n>           Electron debug port (default 9229)',
+      '',
+      'Options:',
+      '  --open               Open the PNG after saving',
+      '  -h, --help           Show this help',
+      '',
+      'Output path:',
+      '  If no path is given, saves to ./shot-YYYYMMDD-HHMMSS.png in the current dir.',
+      '',
+      'Examples:',
+      '  agent-control shot                                # auto',
+      '  agent-control shot /tmp/x.png --open              # auto + open',
+      '  agent-control shot --real /tmp/real.png',
+      '  agent-control shot --macos --app Finder',
+      '  agent-control shot --web                          # active browser page',
+      '  agent-control shot --android /tmp/android.png',
+      '  agent-control shot --electron --port 9223',
+    ].join('\n'));
     process.exit(0);
   }
 
@@ -128,8 +327,24 @@ Examples:
   const appIdx = shotArgs.indexOf('--app');
   const appName = appIdx !== -1 ? shotArgs[appIdx + 1] : null;
   const forceMacos = shotArgs.includes('--macos') || platform === 'macos' || fullFlag || !!appName;
+  const forceWeb = shotArgs.includes('--web');
+  const forceAndroid = shotArgs.includes('--android');
+  const forceElectron = shotArgs.includes('--electron');
+  const portIdx = shotArgs.indexOf('--port');
+  const electronPort = portIdx !== -1 ? shotArgs[portIdx + 1] : null;
   const openFlag = shotArgs.includes('--open');
-  const explicitPath = shotArgs.find(a => !a.startsWith('-') && a !== appName);
+  const refArg = shotArgs.find(a => /^@?e\d+$/.test(a));
+  // Anything that's not a known flag or its value and not a ref is the output path
+  const KNOWN_FLAGS = new Set(['--real','--sim','--macos','--full','--web','--android','--electron','--open','--help','-h']);
+  const KNOWN_FLAGS_WITH_VAL = new Set(['--app','--port']);
+  const explicitPath = shotArgs.find((a, i) => {
+    if (KNOWN_FLAGS.has(a)) return false;
+    if (KNOWN_FLAGS_WITH_VAL.has(a)) return false;
+    if (i > 0 && KNOWN_FLAGS_WITH_VAL.has(shotArgs[i - 1])) return false; // flag value
+    if (a.startsWith('-')) return false;
+    if (/^@?e\d+$/.test(a)) return false;
+    return true;
+  });
 
   function ts() {
     const d = new Date();
@@ -163,23 +378,26 @@ Examples:
   }
 
   let backendChoice = null;
-  if (forceMacos) {
-    backendChoice = 'macos';
-  } else {
+  if (forceMacos) backendChoice = 'macos';
+  else if (forceWeb) backendChoice = 'web';
+  else if (forceAndroid) backendChoice = 'android';
+  else if (forceElectron) backendChoice = 'electron';
+  else {
+    // Auto: iOS first (sim > real), then macOS as fallback
     backendChoice = detectIosBackend();
     if (!backendChoice) {
       console.log(JSON.stringify({
         ok: false,
-        error: 'no iOS device available',
-        hint: 'Options: (a) boot a simulator (`open -a Simulator`); (b) plug in an iPhone + trust this Mac; (c) use `shot --macos --app <name>` or `shot --full` for a Mac screenshot. Diagnose: `agent-control doctor -p ios`.',
+        error: 'no device available for automatic capture',
+        hint: 'Options: (a) boot a simulator (`open -a Simulator`); (b) plug in an iPhone + trust this Mac; (c) `shot --macos` for Mac screen; (d) `shot --web` if a browser daemon is running. Diagnose: `agent-control doctor`.',
       }, null, 2));
       process.exit(1);
     }
   }
 
   let result;
+  const fs_ = require('fs');
   if (backendChoice === 'macos') {
-    const fs_ = require('fs');
     const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
     const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
     const bin = fs_.existsSync(rel) ? rel : dbg;
@@ -189,7 +407,6 @@ Examples:
     }
     const macArgs = ['screenshot'];
     if (appName) macArgs.push('--app', appName);
-    // If neither --app nor --full specified for macOS, default to full screen.
     else if (!fullFlag) macArgs.push('--full');
     if (fullFlag) macArgs.push('--full');
     macArgs.push(outPath);
@@ -199,7 +416,42 @@ Examples:
     } else {
       result = { ok: false, backend: 'macos', error: (r.stderr || r.stdout || 'screenshot failed').trim() };
     }
+  } else if (backendChoice === 'web') {
+    // Delegate to cli.js -p web screenshot <path>
+    const webArgs = ['screenshot'];
+    if (refArg) webArgs.push(refArg.startsWith('@') ? refArg : '@' + refArg);
+    webArgs.push(outPath);
+    const r = spawnSync('node', [path.join(ROOT, 'cli.js'), '-p', 'web', ...webArgs],
+      { encoding: 'utf8', timeout: 30000, stdio: ['pipe','pipe','pipe'] });
+    try { result = JSON.parse(r.stdout || '{}'); }
+    catch { result = { ok: false, error: (r.stderr || r.stdout || 'screenshot failed').trim() }; }
+    result.backend = 'web';
+    if (result.ok && !result.path) result.path = outPath;
+    if (!result.ok && !result.hint) {
+      result.hint = 'Start the browser first: `agent-control -p web open https://example.com`.';
+    }
+  } else if (backendChoice === 'android') {
+    const r = spawnSync('node', [path.join(ROOT, 'android-driver', 'index.js'), 'screenshot', outPath],
+      { encoding: 'utf8', timeout: 25000, stdio: ['pipe','pipe','pipe'] });
+    try { result = JSON.parse(r.stdout || '{}'); }
+    catch { result = { ok: false, error: (r.stderr || r.stdout || 'screenshot failed').trim() }; }
+    result.backend = 'android';
+    if (result.ok && !result.path) result.path = outPath;
+  } else if (backendChoice === 'electron') {
+    const electronArgs = [];
+    if (electronPort) electronArgs.push('--port', electronPort);
+    electronArgs.push('screenshot', outPath);
+    const r = spawnSync('node', [path.join(ROOT, 'electron-driver', 'index.js'), ...electronArgs],
+      { encoding: 'utf8', timeout: 25000, stdio: ['pipe','pipe','pipe'] });
+    try { result = JSON.parse(r.stdout || '{}'); }
+    catch { result = { ok: false, error: (r.stderr || r.stdout || 'screenshot failed').trim() }; }
+    result.backend = 'electron';
+    if (result.ok && !result.path) result.path = outPath;
+    if (!result.ok && !result.hint) {
+      result.hint = 'Launch your Electron app with --remote-debugging-port=<port>, then `shot --electron --port <port>`.';
+    }
   } else {
+    // iOS backend (sim or real)
     const script = path.join(ROOT, 'ios-driver', 'index.js');
     const flag = backendChoice === 'real' ? '--real' : '--sim';
     const r = spawnSync('node', [script, flag, 'screenshot', outPath],
@@ -231,6 +483,9 @@ if (cmd0 === 'find' && platform !== 'web') {
   global.__findQuery = query;
 }
 
+// Track whether user explicitly passed -p <plat>
+const userSpecifiedPlatform = platform !== null;
+
 // ── Auto-detect platform ──
 if (!platform) {
   if (cmd0 === 'open' || cmd0 === 'navigate' || cmd0 === 'goto') {
@@ -238,6 +493,13 @@ if (!platform) {
   } else {
     platform = 'macos'; // default
   }
+}
+
+// ── Per-platform help (print directly, don't spawn drivers/daemons) ──
+if ((cmd0 === 'help' || cmd0 === '--help' || cmd0 === '-h') && userSpecifiedPlatform && PLATFORM_HELP[platform]) {
+  console.log(PLATFORM_HELP[platform]);
+  console.log('\nFor the global overview: `agent-control help`');
+  process.exit(0);
 }
 
 // ── virtual-cursor alias: maps to macos `cursor <sub>` ──
@@ -394,7 +656,9 @@ const drivers = {
   },
   ios: () => {
     const script = path.join(ROOT, 'ios-driver', 'index.js');
-    maybeEnhance(runDriver('node', [script, ...driverArgs]));
+    // iOS snapshot via WDA can take ~30s on first run; give it room.
+    const t = /snapshot|launch|install|uninstall/.test(driverArgs[0] || '') ? 60000 : 25000;
+    maybeEnhance(runDriver('node', [script, ...driverArgs], t));
   },
   android: () => {
     const script = path.join(ROOT, 'android-driver', 'index.js');
@@ -429,44 +693,53 @@ if (cmd0 && subcommands[cmd0]) {
   process.exit(r.status || 0);
 }
 
-if (driverArgs.length === 0 || cmd0 === 'help' || cmd0 === '--help') {
+if (driverArgs.length === 0 || ((cmd0 === 'help' || cmd0 === '--help') && !userSpecifiedPlatform)) {
   console.log(`agent-control — Give AI hands.
 
 Usage:
-  agent-control -p <platform> [-e] [--pid <pid>] <command> [args...]
+  agent-control -p <platform> [options] <command> [args...]
   agent-control <subcommand> [args...]
+  agent-control <shortcut>  [args...]            # auto-picks platform
 
 Platforms:
   web       Playwright (auto-starts daemon)
-  macos     Accessibility API (--pid to target app)
+  macos     Accessibility API (--pid or --app to target)
   ios       Simulator (idb) + Real Device (pymobiledevice3)
-  android   Emulator via uiautomator (experimental)
-  electron  Electron via CDP
+  android   adb + uiautomator (brew install --cask android-platform-tools)
+  electron  Electron via CDP (requires --remote-debugging-port)
   flutter   Flutter via Dart VM Service Protocol
 
-Driver commands:
-  snapshot [-i] [-e]        See UI elements
-  click @ref | x y          Click/tap  (macOS: --focus-guard 后台不抢焦点)
-  drag @r1 @r2              Drag between refs or coordinates
-  fill @ref "text"          Clear + type  (macOS: --focus-guard)
-  select @ref "value"       Select dropdown (web)
-  press <key>               Keyboard key
-  screenshot [path]         Save PNG (macOS: requires --app, or --full for full-screen)
-  open <url>                Navigate (web)
-  swipe <dir>               Swipe (iOS/Android)
-  close                     Close browser (web)
-  console [level] [N]       Show console/system logs
+Shortcuts (no -p needed):
+  shot [path.png] [flags]        Quick screenshot (auto-picks backend)
+  snap                           Quick snapshot (auto platform)
+  click @ref | x y               Quick click/tap (auto platform)
+
+Driver commands (use with -p <plat>):
+  snapshot [-i] [-e]             See UI elements
+  click @ref | x y               Click/tap  (macOS: --focus-guard)
+  drag @r1 @r2                   Drag between refs or coordinates
+  fill @ref "text"               Clear + type  (macOS: --focus-guard)
+  select @ref "value"            Select dropdown (web)
+  press <key>                    Keyboard key
+  screenshot [path]              Save PNG
+  open <url>                     Navigate (web)
+  swipe <dir>                    Swipe (iOS/Android)
+  close                          Close browser daemon (web)
+  console [level] [N]            System/app logs
 
 macOS shortcuts (top-level):
-  virtual-cursor start|move|hide|stop|status    Lavender 虚拟光标 (别名 vcursor)
+  virtual-cursor start|move|hide|stop|status    Lavender virtual cursor (alias vcursor)
 
 Subcommands:
-  doctor  [-p <plat>]                            Environment check (now covers iOS real-device)
-  shot    [path.png] [--real|--sim|--macos]      Quick screenshot (auto-picks best backend)
+  doctor  [-p <plat>]                            Environment check (all platforms)
+  shot    [path.png] [--real|--sim|--macos|--web|--android|--electron]
   auto    -p <plat> --goal "..." [--url <url>]   LLM-driven goal loop
   run-all [--json]                               Run all flows
   goal    -p <plat> observe|act|act-observe ...  Step-by-step goal runner
   viewer                                         Open HTML report viewer
+
+Per-platform help:
+  agent-control -p <platform> help               # detailed help for one platform
 
 Options:
   -e, --enhanced    Filter interactive elements + semantic summary
@@ -476,19 +749,16 @@ Options:
   --sim             Force simulator backend (iOS)
 
 Examples:
-  agent-control doctor -p ios
-  agent-control shot                                     # auto: sim > real > err
-  agent-control shot --real /tmp/x.png                   # force real device
-  agent-control shot --macos --app Finder                # macOS app window
-  agent-control shot --full /tmp/desktop.png             # macOS full screen
+  agent-control doctor                                   # full self-check
+  agent-control doctor -p ios                            # iOS only
+  agent-control shot                                     # auto screenshot
+  agent-control shot --web --open                        # browser page + open
+  agent-control shot --macos --app Finder
+  agent-control snap                                     # auto snapshot
   agent-control -p web open https://example.com
-  agent-control -p web -e snapshot
-  agent-control -p web click @e3
   agent-control -p macos --app Finder snapshot -i
-  agent-control -p macos screenshot --app com.apple.controlcenter /tmp/menubar.png
-  agent-control -p ios snapshot -i
-  agent-control -p ios --real screenshot /tmp/real.png
   agent-control -p ios --real list-apps
+  agent-control -p android help
   agent-control auto -p web --goal "Sign up" --url https://example.com`);
   process.exit(0);
 }
