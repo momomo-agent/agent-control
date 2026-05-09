@@ -12,6 +12,7 @@
 
 const { execSync, spawnSync } = require('child_process');
 const path = require('path');
+const os = require('os');
 
 const ROOT = __dirname;
 const args = process.argv.slice(2);
@@ -225,11 +226,26 @@ const PLATFORM_HELP = {
   ].join('\n'),
 };
 
-// ── `agent-control snap` / `agent-control click` — auto-pick platform shortcuts ──
-// Rule: if --platform is given, pass-through; otherwise:
-//   snap: prefer iOS sim > macOS (frontmost app) > web
-//   click: same as snap
-function pickAutoPlatform() {
+// ── Auto-pick platform (sticky) ──
+// Remember the last platform + (optionally) target via ~/.cache/agent-control/context.json.
+// When -p is given, update sticky; otherwise, use sticky as the default.
+// First-time fallback uses a sensible heuristic.
+const STICKY_PATH = path.join(os.homedir(), '.cache', 'agent-control', 'context.json');
+
+function readSticky() {
+  try {
+    return JSON.parse(require('fs').readFileSync(STICKY_PATH, 'utf8')) || {};
+  } catch { return {}; }
+}
+function writeSticky(obj) {
+  try {
+    const dir = path.dirname(STICKY_PATH);
+    require('fs').mkdirSync(dir, { recursive: true });
+    require('fs').writeFileSync(STICKY_PATH, JSON.stringify(obj, null, 2));
+  } catch {}
+}
+
+function heuristicPlatform() {
   // iOS sim booted?
   const simR = spawnSync('xcrun', ['simctl', 'list', 'devices', 'booted', '-j'],
     { encoding: 'utf8', timeout: 4000, stdio: ['pipe','pipe','pipe'] });
@@ -248,28 +264,110 @@ function pickAutoPlatform() {
     process.kill(s.pid, 0);
     return 'web';
   } catch {}
+  // Android device connected?
+  const adbR = spawnSync('adb', ['devices'], { encoding: 'utf8', timeout: 3000, stdio: ['pipe','pipe','pipe'] });
+  if (adbR.status === 0 && adbR.stdout) {
+    const lines = adbR.stdout.split('\n').slice(1).filter(l => /\bdevice\b/.test(l));
+    if (lines.length > 0) return 'android';
+  }
   // Fallback: macOS
   return 'macos';
 }
 
+function pickAutoPlatform() {
+  const sticky = readSticky();
+  if (sticky.platform) return sticky.platform;
+  return heuristicPlatform();
+}
+
+// Normalize equivalent commands across platforms (so `agent-control snap` works everywhere).
+const COMMAND_ALIASES = {
+  snap: { default: 'snapshot' },
+  tap: { default: 'click', ios: 'tap', android: 'tap' },
+  click: { default: 'click', ios: 'tap', android: 'tap' },
+};
+
 // ── Subcommand shortcuts ──
 const cmd0 = getCommand();
 
-// snap / click / shot — shortcuts that need cmd0 resolved first
-if (cmd0 === 'snap' && !platform) {
-  platform = pickAutoPlatform();
-  const idx = driverArgs.indexOf('snap');
-  if (idx !== -1) driverArgs[idx] = 'snapshot';
+// Commands that should NOT auto-pick platform (they own their own routing / are global)
+const CLI_SUBCOMMANDS = new Set([
+  'doctor', 'check', 'shot', 'auto', 'run-all', 'goal', 'viewer',
+  'help', '--help', '-h',
+  'virtual-cursor', 'vcursor',
+  'platform', 'context', // the sticky-context management subcommand (below)
+]);
+
+// Manage sticky context: `agent-control platform` / `agent-control context set <plat> [--app X]`
+if (cmd0 === 'platform' || cmd0 === 'context') {
+  const fs_ = require('fs');
+  const sub = driverArgs[1];
+  const sticky = readSticky();
+  if (!sub || sub === 'show' || sub === 'get') {
+    console.log(JSON.stringify(sticky, null, 2));
+    process.exit(0);
+  }
+  if (sub === 'clear' || sub === 'reset') {
+    try { fs_.unlinkSync(STICKY_PATH); } catch {}
+    console.log(JSON.stringify({ ok: true, cleared: true }, null, 2));
+    process.exit(0);
+  }
+  if (sub === 'set') {
+    const plat = driverArgs[2];
+    if (!plat) { console.error('usage: agent-control platform set <web|macos|ios|android|electron|flutter> [--app <name>] [--port <n>]'); process.exit(1); }
+    const next = { platform: plat };
+    const appIdx = driverArgs.indexOf('--app');
+    if (appIdx !== -1) next.app = driverArgs[appIdx + 1];
+    const portIdx = driverArgs.indexOf('--port');
+    if (portIdx !== -1) next.port = driverArgs[portIdx + 1];
+    writeSticky(next);
+    console.log(JSON.stringify({ ok: true, ...next }, null, 2));
+    process.exit(0);
+  }
+  console.error('usage: agent-control platform [show|set <plat>|clear]');
+  process.exit(1);
 }
-if (cmd0 === 'click' && !platform) {
+
+// If user passed -p explicitly, persist to sticky (so next run remembers).
+if (platform) {
+  const fs_ = require('fs');
+  const sticky = readSticky();
+  const appIdx = driverArgs.indexOf('--app');
+  const portIdx = driverArgs.indexOf('--port');
+  const next = { platform };
+  if (appIdx !== -1) next.app = driverArgs[appIdx + 1];
+  else if (sticky.platform === platform && sticky.app) next.app = sticky.app;
+  if (portIdx !== -1) next.port = driverArgs[portIdx + 1];
+  else if (sticky.platform === platform && sticky.port) next.port = sticky.port;
+  writeSticky(next);
+}
+
+// Auto-pick platform for unknown/non-subcommand first-tokens when -p missing.
+// Excludes the CLI subcommands above (they handle themselves).
+if (!platform && cmd0 && !CLI_SUBCOMMANDS.has(cmd0)) {
   platform = pickAutoPlatform();
-  if (platform === 'ios') {
-    const idx = driverArgs.indexOf('click');
-    if (idx !== -1) driverArgs[idx] = 'tap';
+  // If sticky has --app and user didn't pass one, inject it for macos.
+  const sticky = readSticky();
+  if (platform === 'macos' && sticky.app && !driverArgs.includes('--app')) {
+    // Insert '--app <name>' just after the first token so the macOS driver parses it.
+    driverArgs.push('--app', sticky.app);
+  }
+  if (platform === 'electron' && sticky.port && !driverArgs.includes('--port')) {
+    driverArgs.push('--port', sticky.port);
   }
 }
 
-if (cmd0 === 'doctor') {
+// Apply command aliases so cross-platform verbs work uniformly.
+if (cmd0 && COMMAND_ALIASES[cmd0]) {
+  const spec = COMMAND_ALIASES[cmd0];
+  const resolved = spec[platform] || spec.default;
+  if (resolved && resolved !== cmd0) {
+    const idx = driverArgs.indexOf(cmd0);
+    if (idx !== -1) driverArgs[idx] = resolved;
+  }
+}
+
+if (cmd0 === 'doctor' || cmd0 === 'check') {
   const subArgs = driverArgs.slice(1);
   if (platform) subArgs.push('-p', platform);
   const r = spawnSync(process.execPath, [path.join(ROOT, 'doctor.js'), ...subArgs], { stdio: 'inherit' });
@@ -486,15 +584,6 @@ if (cmd0 === 'find' && platform !== 'web') {
 // Track whether user explicitly passed -p <plat>
 const userSpecifiedPlatform = platform !== null;
 
-// ── Auto-detect platform ──
-if (!platform) {
-  if (cmd0 === 'open' || cmd0 === 'navigate' || cmd0 === 'goto') {
-    platform = 'web';
-  } else {
-    platform = 'macos'; // default
-  }
-}
-
 // ── Per-platform help (print directly, don't spawn drivers/daemons) ──
 if ((cmd0 === 'help' || cmd0 === '--help' || cmd0 === '-h') && userSpecifiedPlatform && PLATFORM_HELP[platform]) {
   console.log(PLATFORM_HELP[platform]);
@@ -674,25 +763,6 @@ const drivers = {
   },
 };
 
-if (!drivers[platform]) {
-  console.error(JSON.stringify({ ok: false, error: `unknown platform '${platform}'. Use: macos, web, ios, android, electron` }));
-  process.exit(1);
-}
-
-// Top-level subcommands → delegate
-const subcommands = {
-  auto: 'auto.js',
-  doctor: 'doctor.js',
-  'run-all': 'run-all.js',
-  goal: 'goal-runner.js',
-  viewer: 'viewer.js',
-};
-if (cmd0 && subcommands[cmd0]) {
-  const { spawnSync: ss } = require('child_process');
-  const r = ss('node', [path.join(ROOT, subcommands[cmd0]), ...args.slice(args.indexOf(cmd0) + 1)], { stdio: 'inherit', encoding: 'utf8' });
-  process.exit(r.status || 0);
-}
-
 if (driverArgs.length === 0 || ((cmd0 === 'help' || cmd0 === '--help') && !userSpecifiedPlatform)) {
   console.log(`agent-control — Give AI hands.
 
@@ -709,10 +779,21 @@ Platforms:
   electron  Electron via CDP (requires --remote-debugging-port)
   flutter   Flutter via Dart VM Service Protocol
 
-Shortcuts (no -p needed):
-  shot [path.png] [flags]        Quick screenshot (auto-picks backend)
-  snap                           Quick snapshot (auto platform)
-  click @ref | x y               Quick click/tap (auto platform)
+Shortcuts (no -p needed — uses sticky context, falls back to heuristic):
+  shot [path.png] [flags]        Quick screenshot
+  snap [-i]                      Quick snapshot
+  click @ref | x y               Click/tap
+  fill @ref "text"               Fill
+  press <key>                    Key
+  screenshot [path]              Screenshot
+  open <url>                     Navigate (web)
+  <any driver command>           Routes to sticky platform
+
+Sticky context:
+  agent-control platform show                    Print current sticky context
+  agent-control platform set <plat> [--app X]    Pin platform (+ optional target)
+  agent-control platform clear                   Forget sticky
+  # Also: every time you pass -p <plat>, sticky updates automatically.
 
 Driver commands (use with -p <plat>):
   snapshot [-i] [-e]             See UI elements
@@ -761,6 +842,25 @@ Examples:
   agent-control -p android help
   agent-control auto -p web --goal "Sign up" --url https://example.com`);
   process.exit(0);
+}
+
+// Top-level subcommands → delegate (must come after help so `help` isn't misrouted)
+const subcommands = {
+  auto: 'auto.js',
+  doctor: 'doctor.js',
+  'run-all': 'run-all.js',
+  goal: 'goal-runner.js',
+  viewer: 'viewer.js',
+};
+if (cmd0 && subcommands[cmd0]) {
+  const { spawnSync: ss } = require('child_process');
+  const r = ss('node', [path.join(ROOT, subcommands[cmd0]), ...args.slice(args.indexOf(cmd0) + 1)], { stdio: 'inherit', encoding: 'utf8' });
+  process.exit(r.status || 0);
+}
+
+if (!drivers[platform]) {
+  console.error(JSON.stringify({ ok: false, error: `unknown platform '${platform}'. Use: macos, web, ios, android, electron, flutter` }));
+  process.exit(1);
 }
 
 drivers[platform]();
