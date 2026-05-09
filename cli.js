@@ -670,12 +670,73 @@ function runDriver(cmd, args, timeout = 15000) {
   return r;
 }
 
+// List visible windows across all apps (macOS overview)
+function macosOverview() {
+  const { execSync: es } = require('child_process');
+  try {
+    // Get window list via CGWindowListCopyWindowInfo
+    const script = `
+      const app = Application('System Events');
+      const procs = app.processes.whose({visible: true})();
+      const result = [];
+      for (const p of procs) {
+        try {
+          const wins = p.windows();
+          for (const w of wins) {
+            try {
+              result.push({ app: p.name(), title: w.name() || '', id: w.properties().id || '' });
+            } catch(e) {}
+          }
+        } catch(e) {}
+      }
+      JSON.stringify(result);
+    `;
+    const raw = es(`osascript -l JavaScript -e '${script.replace(/'/g, "'\\''")}' 2>/dev/null`, { encoding: 'utf8', timeout: 10000 }).trim();
+    return JSON.parse(raw || '[]');
+  } catch(e) {
+    // Fallback: simpler approach
+    try {
+      const raw = es(`osascript -e 'tell application "System Events" to get {name, title} of every window of (every process whose visible is true)' 2>/dev/null`, { encoding: 'utf8', timeout: 5000 }).trim();
+      return [{ raw }];
+    } catch(e2) { return []; }
+  }
+}
+
+function showOverview(reason) {
+  const windows = macosOverview();
+  console.log(`${reason}`);
+  console.log('');
+  if (windows.length === 0) {
+    console.log('No visible windows found.');
+  } else {
+    console.log('Visible windows:');
+    const seen = new Set();
+    for (const w of windows) {
+      if (!w.app) continue;
+      const key = `${w.app}|${w.title}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const title = w.title ? ` — ${w.title.slice(0, 60)}` : '';
+      console.log(`  • ${w.app}${title}`);
+    }
+  }
+  console.log('');
+  console.log('Pick one:  agent-control use macos --app <name>');
+  console.log('Or snap all:  agent-control -p macos snapshot  (no --app = frontmost)');
+}
+
 function maybeEnhance(r) {
   const out = (r.stdout || '').trim();
   const err = (r.stderr || '').trim();
 
-  // Check for empty/error results and provide helpful messages
+  // Check for empty/error results — on macOS snapshot, show overview instead of cryptic error
   if (r.status !== 0 && !out) {
+    if (platform === 'macos' && driverArgs.includes('snapshot')) {
+      const appArg = driverArgs.find((a, i) => driverArgs[i-1] === '--app') || 'target app';
+      showOverview(`"${appArg}" has no accessible windows.`);
+      flushAndExit(1);
+      return;
+    }
     const hints = {
       macos: 'Check: is the app running? Is --pid correct? Grant Accessibility permission in System Settings > Privacy.',
       ios: 'Check: is Simulator running with a booted device? Run: xcrun simctl list devices booted',
