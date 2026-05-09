@@ -706,6 +706,19 @@ function showOverview(reason) {
   const windows = macosOverview();
   console.log(`${reason}`);
   console.log('');
+  // Show current sticky context
+  const fs_ = require('fs');
+  const ctxPath = path.join(os.homedir(), '.cache', 'agent-control', 'context.json');
+  try {
+    const ctx = JSON.parse(fs_.readFileSync(ctxPath, 'utf8'));
+    if (ctx.platform || ctx.app) {
+      const parts = [ctx.platform || ''];
+      if (ctx.app) parts.push(`--app ${ctx.app}`);
+      if (ctx.port) parts.push(`--port ${ctx.port}`);
+      console.log(`Current sticky: ${parts.join(' ')}`);
+      console.log('');
+    }
+  } catch(e) {}
   if (windows.length === 0) {
     console.log('No visible windows found.');
   } else {
