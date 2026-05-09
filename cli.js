@@ -44,8 +44,8 @@ for (let i = 0; i < args.length; i++) {
     enhanced = true;
   } else if (args[i] === '--compact' || args[i] === '-c') {
     compact = true; enhanced = true;
-  } else if (args[i] === '--json') {
-    jsonMode = true; enhanced = true;
+  } else if (args[i] === '--json' || args[i] === '--raw') {
+    jsonMode = true; enhanced = false;
   } else if (args[i] === '--all') {
     allMode = true; enhanced = true;
   } else if (args[i] === '--pid') {
@@ -295,8 +295,55 @@ const CLI_SUBCOMMANDS = new Set([
   'doctor', 'check', 'shot', 'auto', 'run-all', 'goal', 'viewer',
   'help', '--help', '-h',
   'virtual-cursor', 'vcursor',
-  'platform', 'context', // the sticky-context management subcommand (below)
+  'platform', 'context',              // sticky-context management (below)
+  'use', 'switch',                     // shorthand for `platform set`
+  'where', 'who', 'pwd',               // shorthand for `platform show`
+  'unuse',                             // shorthand for `platform clear`
 ]);
+
+const VALID_PLATFORMS = new Set(['web', 'macos', 'ios', 'android', 'electron', 'flutter']);
+
+// Shorthand verbs that just manage sticky context without running a driver.
+//   agent-control use <plat> [--app X] [--port N]
+//   agent-control switch <plat> ...
+//   agent-control where | who | pwd
+//   agent-control unuse
+if (cmd0 === 'use' || cmd0 === 'switch') {
+  const plat = driverArgs[1];
+  if (!plat || !VALID_PLATFORMS.has(plat)) {
+    console.error('usage: agent-control use <web|macos|ios|android|electron|flutter> [--app <name>] [--port <n>]');
+    process.exit(1);
+  }
+  const next = { platform: plat };
+  const appIdx = driverArgs.indexOf('--app');
+  if (appIdx !== -1) next.app = driverArgs[appIdx + 1];
+  const portIdx = driverArgs.indexOf('--port');
+  if (portIdx !== -1) next.port = driverArgs[portIdx + 1];
+  writeSticky(next);
+  const extras = [];
+  if (next.app) extras.push(`--app ${next.app}`);
+  if (next.port) extras.push(`--port ${next.port}`);
+  console.log(`✓ using ${plat}${extras.length ? ' ' + extras.join(' ') : ''}`);
+  process.exit(0);
+}
+if (cmd0 === 'where' || cmd0 === 'who' || cmd0 === 'pwd') {
+  const sticky = readSticky();
+  if (!sticky.platform) {
+    console.log('(no sticky context) — set with `agent-control use <platform>`');
+  } else {
+    const extras = [];
+    if (sticky.app) extras.push(`--app ${sticky.app}`);
+    if (sticky.port) extras.push(`--port ${sticky.port}`);
+    console.log(`${sticky.platform}${extras.length ? ' ' + extras.join(' ') : ''}`);
+  }
+  process.exit(0);
+}
+if (cmd0 === 'unuse') {
+  const fs_ = require('fs');
+  try { fs_.unlinkSync(STICKY_PATH); } catch {}
+  console.log('✓ sticky cleared');
+  process.exit(0);
+}
 
 // Manage sticky context: `agent-control platform` / `agent-control context set <plat> [--app X]`
 if (cmd0 === 'platform' || cmd0 === 'context') {
@@ -623,6 +670,11 @@ function maybeEnhance(r) {
     return;
   }
 
+  if (!enhanced && !jsonMode && driverArgs.includes('snapshot')) {
+    // snapshot defaults to enhanced text output; use --raw/--json for JSON
+    enhanced = true;
+  }
+
   if (!enhanced || !driverArgs.includes('snapshot')) {
     if (out) process.stdout.write(out + '\n');
     if (err) process.stderr.write(err + '\n');
@@ -789,11 +841,12 @@ Shortcuts (no -p needed — uses sticky context, falls back to heuristic):
   open <url>                     Navigate (web)
   <any driver command>           Routes to sticky platform
 
-Sticky context:
-  agent-control platform show                    Print current sticky context
-  agent-control platform set <plat> [--app X]    Pin platform (+ optional target)
-  agent-control platform clear                   Forget sticky
-  # Also: every time you pass -p <plat>, sticky updates automatically.
+Switch / show target device (no side-effects):
+  agent-control use <plat> [--app X] [--port N]   Pin platform (+ optional target)
+  agent-control switch <plat> ...                 Alias of 'use'
+  agent-control where                             Print sticky context
+  agent-control unuse                             Clear sticky
+  # Also: every time you pass -p <plat>, sticky auto-updates.
 
 Driver commands (use with -p <plat>):
   snapshot [-i] [-e]             See UI elements
