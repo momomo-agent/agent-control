@@ -441,43 +441,75 @@ if (cmd0 === 'desktop') {
     console.error('macOS driver not built. Run: cd macos-driver && swift build');
     process.exit(1);
   }
-  const r = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
+  // Pass remaining args to Swift driver (e.g. app name, window ID, tray item)
+  const desktopArgs = driverArgs.slice(1);
+  const r = spawnSync(bin, ['desktop', ...desktopArgs], { encoding: 'utf8', timeout: 15000 });
   if (r.stdout) {
     try {
       const data = JSON.parse(r.stdout);
-      // Pretty print for human readability
-      console.log(`\n⚡ Desktop Overview`);
-      console.log(`  Frontmost: ${data.frontmostApp || 'none'}`);
-      console.log(`  Space: ${data.currentSpaceID || '?'} (${data.spaces?.length || 0} total)`);
-      console.log('');
-      if (data.runningApps?.length) {
-        console.log(`📱 Running Apps (${data.runningApps.length}):`);
-        for (const app of data.runningApps) {
-          const flags = [];
-          if (app.isActive) flags.push('active');
-          if (app.isHidden) flags.push('hidden');
-          if (app.ownsMenuBar) flags.push('menubar');
-          const wins = app.windowCount > 0 ? ` [${app.windowCount} win]` : '';
-          const f = flags.length ? ` (${flags.join(', ')})` : '';
-          console.log(`  • ${app.name}${wins}${f}`);
+      if (desktopArgs.length > 0) {
+        // Drill-down mode: show elements (snapshot or menu items)
+        if (Array.isArray(data)) {
+          // Could be AX elements or menu items
+          const isMenu = data.length > 0 && data[0].hasOwnProperty('hasSubmenu');
+          if (isMenu) {
+            console.log(`\n📌 Menu:`);
+            for (const item of data) {
+              const val = item.value ? ` = ${item.value}` : '';
+              const sub = item.hasSubmenu ? ' ▶' : '';
+              const dis = item.enabled === false ? ' (disabled)' : '';
+              console.log(`  ${item.title || item.role}${val}${sub}${dis}`);
+              if (item.children?.length) {
+                for (const child of item.children) {
+                  console.log(`    ${child.title || child.role}${child.value ? ' = ' + child.value : ''}`);
+                }
+              }
+            }
+          } else {
+            // AX elements from window snapshot
+            const { formatSnapshot } = require('./snapshot-enhance');
+            const text = formatSnapshot(data, { compact: true });
+            console.log(text);
+          }
+        } else {
+          console.log(JSON.stringify(data, null, 2));
         }
+      } else {
+        // Overview mode
+        console.log(`\n⚡ Desktop Overview`);
+        console.log(`  Frontmost: ${data.frontmostApp || 'none'}`);
+        console.log(`  Space: ${data.currentSpaceID || '?'} (${data.spaces?.length || 0} total)`);
         console.log('');
-      }
-      if (data.windows?.length) {
-        console.log(`🖼  Windows (${data.windows.length}):`);
-        for (const w of data.windows) {
-          const title = w.title ? ` — ${w.title.slice(0, 50)}` : '';
-          const active = w.isActive ? ' *' : '';
-          console.log(`  • ${w.app}${title}${active}  [${w.frame.w}×${w.frame.h} at ${w.frame.x},${w.frame.y}]`);
+        if (data.runningApps?.length) {
+          console.log(`📱 Running Apps (${data.runningApps.length}):`);
+          for (const app of data.runningApps) {
+            const flags = [];
+            if (app.isActive) flags.push('active');
+            if (app.isHidden) flags.push('hidden');
+            if (app.ownsMenuBar) flags.push('menubar');
+            const wins = app.windowCount > 0 ? ` [${app.windowCount} win]` : '';
+            const f = flags.length ? ` (${flags.join(', ')})` : '';
+            console.log(`  • ${app.name}${wins}${f}`);
+          }
+          console.log('');
         }
-        console.log('');
-      }
-      if (data.menuExtras?.length) {
-        console.log(`📌 Menu Extras: ${data.menuExtras.join(', ')}`);
-        console.log('');
+        if (data.windows?.length) {
+          console.log(`🖼  Windows (${data.windows.length}):`);
+          for (const w of data.windows) {
+            const title = w.title ? ` — ${w.title.slice(0, 50)}` : '';
+            const active = w.isActive ? ' *' : '';
+            console.log(`  • ${w.app}${title}${active}  [${w.frame.w}×${w.frame.h} at ${w.frame.x},${w.frame.y}]`);
+          }
+          console.log('');
+        }
+        if (data.menuExtras?.length) {
+          console.log(`📌 Menu Extras: ${data.menuExtras.join(', ')}`);
+          console.log('');
+        }
       }
       if (jsonMode) console.log(JSON.stringify(data, null, 2));
     } catch(e) {
+      // Not JSON, just print raw
       console.log(r.stdout);
     }
   }

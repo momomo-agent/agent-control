@@ -594,8 +594,45 @@ struct AgentControl {
         // ── Desktop Overview ──
 
         case "desktop":
-            let overview = WindowManager.desktopOverview()
-            printJSON(overview)
+            if let target = cmdArgs.first {
+                // Drill-down mode: look into a specific window or tray item
+                if let wid = UInt32(target) {
+                    // By window ID — snapshot that window's app
+                    let winPid = WindowManager.pidForWindow(wid)
+                    guard winPid > 0 else {
+                        fputs("error: window \(wid) not found\n", stderr)
+                        exit(1)
+                    }
+                    let elements = AXScanner.snapshot(appPID: winPid)
+                    printJSON(elements)
+                } else {
+                    // By name — could be an app name or a tray item
+                    let nameLower = target.lowercased()
+                    
+                    // First check if it matches a menu extra
+                    let trayResult = WindowManager.openMenuExtra(named: target)
+                    if let items = trayResult {
+                        printJSON(items)
+                    } else {
+                        // Try as app name — find its windows and snapshot
+                        let apps = NSWorkspace.shared.runningApplications.filter {
+                            $0.activationPolicy == .regular &&
+                            ($0.localizedName?.lowercased().contains(nameLower) == true ||
+                             $0.bundleIdentifier?.lowercased().contains(nameLower) == true)
+                        }
+                        guard let app = apps.first else {
+                            fputs("error: no app or tray item matching '\(target)'\n", stderr)
+                            exit(1)
+                        }
+                        let elements = AXScanner.snapshot(appPID: app.processIdentifier)
+                        printJSON(elements)
+                    }
+                }
+            } else {
+                // No argument — full overview
+                let overview = WindowManager.desktopOverview()
+                printJSON(overview)
+            }
 
         // ── Doctor / TCC ──
 

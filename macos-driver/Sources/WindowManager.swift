@@ -632,6 +632,117 @@ enum WindowManager {
         return AXUIElementSetAttributeValue(axWin, kAXMinimizedAttribute as CFString, false as CFBoolean) == .success
     }
 
+    // MARK: - Menu Extra Interaction
+
+    struct MenuItemInfo: Encodable {
+        let title: String
+        let role: String
+        let enabled: Bool
+        let hasSubmenu: Bool
+        let value: String?
+        let children: [MenuItemInfo]?
+    }
+
+    /// Open a menu extra by name, read its contents, then close it. Returns nil if not found.
+    static func openMenuExtra(named name: String) -> [MenuItemInfo]? {
+        let nameLower = name.lowercased()
+        let targetBundles = ["com.apple.controlcenter", "com.apple.systemuiserver"]
+
+        for bundleID in targetBundles {
+            guard let serverApp = NSWorkspace.shared.runningApplications.first(where: {
+                $0.bundleIdentifier == bundleID
+            }) else { continue }
+
+            let app = AXUIElementCreateApplication(serverApp.processIdentifier)
+            var menuBar: CFTypeRef?
+            AXUIElementCopyAttributeValue(app, "AXExtrasMenuBar" as CFString, &menuBar)
+            if menuBar == nil {
+                AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &menuBar)
+            }
+            guard let bar = menuBar else { continue }
+
+            var children: CFTypeRef?
+            AXUIElementCopyAttributeValue(bar as! AXUIElement, kAXChildrenAttribute as CFString, &children)
+            guard let items = children as? [AXUIElement] else { continue }
+
+            for item in items {
+                let itemName = axString(item, kAXTitleAttribute as CFString)
+                    ?? axString(item, kAXDescriptionAttribute as CFString)
+                    ?? axString(item, kAXValueAttribute as CFString)
+                    ?? ""
+                guard itemName.lowercased().contains(nameLower) else { continue }
+
+                // Found the tray item — press it to open
+                AXUIElementPerformAction(item, kAXPressAction as CFString)
+                usleep(400_000) // 400ms for panel to appear
+
+                // Snapshot the entire ControlCenter process — filter out MenuBarItems
+                let allElements = AXScanner.snapshot(appPID: serverApp.processIdentifier)
+                var result: [MenuItemInfo] = []
+                for el in allElements {
+                    // Skip menu bar items themselves
+                    if el.role == "MenuBarItem" { continue }
+                    result.append(MenuItemInfo(
+                        title: el.label ?? "",
+                        role: el.role,
+                        enabled: el.interactive,
+                        hasSubmenu: false,
+                        value: el.value,
+                        children: nil
+                    ))
+                }
+
+                // Close the panel by pressing the item again
+                AXUIElementPerformAction(item, kAXPressAction as CFString)
+
+                return result
+            }
+        }
+        return nil
+    }
+
+    private static func readMenuItems(_ element: AXUIElement) -> [MenuItemInfo] {
+        var role_: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role_)
+        let role = (role_ as? String) ?? "Unknown"
+
+        let title = axString(element, kAXTitleAttribute as CFString) ?? ""
+        let enabled = axBool(element, kAXEnabledAttribute as CFString) ?? true
+        let value = axString(element, kAXValueAttribute as CFString)
+
+        var hasSubmenu = false
+        var subItems: [MenuItemInfo]? = nil
+
+        var children: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children)
+        if let kids = children as? [AXUIElement], !kids.isEmpty {
+            hasSubmenu = true
+            subItems = []
+            for kid in kids {
+                subItems!.append(contentsOf: readMenuItems(kid))
+            }
+        }
+
+        // Skip separators and empty items
+        if role == "AXMenuItemSeparator" || (title.isEmpty && value == nil && !hasSubmenu) {
+            return subItems ?? []
+        }
+
+        return [MenuItemInfo(title: title, role: role, enabled: enabled, hasSubmenu: hasSubmenu, value: value, children: subItems)]
+    }
+
+    private static func axString(_ el: AXUIElement, _ attr: CFString) -> String? {
+        var val: CFTypeRef?
+        AXUIElementCopyAttributeValue(el, attr, &val)
+        return val as? String
+    }
+
+    private static func axBool(_ el: AXUIElement, _ attr: CFString) -> Bool? {
+        var val: CFTypeRef?
+        AXUIElementCopyAttributeValue(el, attr, &val)
+        return val as? Bool
+    }
+
     // MARK: - Desktop Overview
 
     struct DesktopOverview: Encodable {
