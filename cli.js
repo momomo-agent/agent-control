@@ -507,7 +507,7 @@ if (cmd0 === 'desktop') {
   }
 
   const desktopArgs = driverArgs.slice(1);
-  const ACTION_VERBS = new Set(['click', 'fill', 'press', 'dblclick', 'rightclick', 'scroll', 'drag']);
+  const ACTION_VERBS = new Set(['click', 'fill', 'press', 'dblclick', 'rightclick', 'scroll', 'drag', 'close', 'minimize', 'maximize', 'fullscreen', 'move', 'resize', 'focus', 'hide', 'show']);
 
   // Parse: [target...] [action] [action-args...]
   // Find the first action verb in args
@@ -525,7 +525,105 @@ if (cmd0 === 'desktop') {
     // Resolve target to --app name
     let appName_ = targetArgs[0] || null;
 
-    // Build the driver command: action + --app + --bg + action args
+    // Window management actions need special handling
+    const WINDOW_ACTIONS = new Set(['close', 'minimize', 'maximize', 'fullscreen', 'move', 'resize', 'focus', 'hide', 'show']);
+
+    if (WINDOW_ACTIONS.has(action)) {
+      // Window-level operation: find window ID first, then execute
+      let drvArgs;
+      if (action === 'close') {
+        // Get window ID for the app, then close-window
+        drvArgs = ['close-window'];
+        if (appName_) {
+          // Get first window ID for this app
+          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
+          try {
+            const overview = JSON.parse(wr.stdout);
+            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
+            if (win) drvArgs.push(String(win.windowID));
+            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
+          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
+        } else if (actionArgs[0]) {
+          drvArgs.push(actionArgs[0]);
+        }
+      } else if (action === 'minimize') {
+        drvArgs = ['minimize'];
+        if (appName_) {
+          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
+          try {
+            const overview = JSON.parse(wr.stdout);
+            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
+            if (win) drvArgs.push(String(win.windowID));
+            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
+          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
+        } else if (actionArgs[0]) {
+          drvArgs.push(actionArgs[0]);
+        }
+      } else if (action === 'focus') {
+        drvArgs = ['focus'];
+        if (appName_) {
+          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
+          try {
+            const overview = JSON.parse(wr.stdout);
+            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
+            if (win) drvArgs.push(String(win.windowID));
+            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
+          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
+        } else if (actionArgs[0]) {
+          drvArgs.push(actionArgs[0]);
+        }
+      } else if (action === 'move') {
+        // move x y
+        drvArgs = ['move-window'];
+        if (appName_) {
+          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
+          try {
+            const overview = JSON.parse(wr.stdout);
+            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
+            if (win) drvArgs.push(String(win.windowID));
+            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
+          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
+        }
+        drvArgs.push(...actionArgs);
+      } else if (action === 'resize') {
+        drvArgs = ['resize-window'];
+        if (appName_) {
+          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
+          try {
+            const overview = JSON.parse(wr.stdout);
+            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
+            if (win) drvArgs.push(String(win.windowID));
+            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
+          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
+        }
+        drvArgs.push(...actionArgs);
+      } else if (action === 'hide') {
+        // Hide app via NSRunningApplication
+        drvArgs = ['hide'];
+        if (appName_) drvArgs.push('--app', appName_);
+      } else if (action === 'show') {
+        drvArgs = ['unhide'];
+        if (appName_) drvArgs.push('--app', appName_);
+      } else {
+        drvArgs = [action, ...actionArgs];
+      }
+
+      const r = spawnSync(bin, drvArgs, { encoding: 'utf8', timeout: 15000 });
+      if (r.stdout) {
+        try {
+          const data = JSON.parse(r.stdout);
+          if (data.ok !== false) {
+            console.log(`✅ ${action}: ${appName_ || actionArgs.join(' ')}`);
+          } else {
+            console.error(`❌ ${action} failed: ${data.error || 'unknown'}`);
+          }
+        } catch(e) { console.log(r.stdout); }
+      }
+      if (r.stderr) process.stderr.write(r.stderr);
+      process.exit(r.status || 0);
+    }
+
+    // Element-level action (click, fill, press, etc.)
     const drvArgs = [action];
     if (appName_) drvArgs.push('--app', appName_);
     // Default to --bg (background, no focus steal)

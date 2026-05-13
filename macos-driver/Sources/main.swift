@@ -648,6 +648,61 @@ struct AgentControl {
             let ok = WindowManager.closeWindow(wid)
             printResult(ok, action: "close-window", ref: widStr)
 
+        case "hide":
+            guard let targetPID = pid else {
+                fputs("error: hide requires --app or --pid\n", stderr)
+                exit(1)
+            }
+            let appEl = AXUIElementCreateApplication(targetPID)
+            let hideOk = AXUIElementSetAttributeValue(appEl, "AXHidden" as CFString, true as CFBoolean) == .success
+            if !hideOk {
+                // Fallback: try NSRunningApplication
+                if let app = NSWorkspace.shared.runningApplications.first(where: { $0.processIdentifier == targetPID }) {
+                    let ok = app.hide()
+                    printResult(ok, action: "hide", ref: String(targetPID))
+                } else {
+                    printResult(false, action: "hide", ref: String(targetPID))
+                }
+            } else {
+                printResult(true, action: "hide", ref: String(targetPID))
+            }
+
+        case "unhide":
+            guard let targetPID = pid else {
+                fputs("error: unhide requires --app or --pid\n", stderr)
+                exit(1)
+            }
+            let unhideAppEl = AXUIElementCreateApplication(targetPID)
+            let unhideOk = AXUIElementSetAttributeValue(unhideAppEl, "AXHidden" as CFString, false as CFBoolean) == .success
+            if !unhideOk {
+                if let app = NSWorkspace.shared.runningApplications.first(where: { $0.processIdentifier == targetPID }) {
+                    let ok = app.unhide()
+                    printResult(ok, action: "unhide", ref: String(targetPID))
+                } else {
+                    printResult(false, action: "unhide", ref: String(targetPID))
+                }
+            } else {
+                printResult(true, action: "unhide", ref: String(targetPID))
+            }
+
+        case "move-window":
+            guard cmdArgs.count >= 3, let wid = UInt32(cmdArgs[0]),
+                  let x = Int(cmdArgs[1]), let y = Int(cmdArgs[2]) else {
+                fputs("error: usage: move-window <windowID> <x> <y>\n", stderr)
+                exit(1)
+            }
+            let ok = WindowManager.moveWindow(wid, x: x, y: y)
+            printResult(ok, action: "move-window", ref: String(wid))
+
+        case "resize-window":
+            guard cmdArgs.count >= 3, let wid = UInt32(cmdArgs[0]),
+                  let w = Int(cmdArgs[1]), let h = Int(cmdArgs[2]) else {
+                fputs("error: usage: resize-window <windowID> <width> <height>\n", stderr)
+                exit(1)
+            }
+            let ok = WindowManager.resizeWindow(wid, w: w, h: h)
+            printResult(ok, action: "resize-window", ref: String(wid))
+
         // ── Spaces ──
 
         case "spaces":
