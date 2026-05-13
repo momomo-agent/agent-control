@@ -311,6 +311,7 @@ const CLI_SUBCOMMANDS = new Set([
   'doctor', 'check', 'shot', 'auto', 'run-all', 'goal', 'viewer',
   'help', '--help', '-h',
   'virtual-cursor', 'vcursor',
+  'desktop',                             // global desktop overview
   'platform', 'context',              // sticky-context management (below)
   'use', 'switch',                     // shorthand for `platform set`
   'where', 'who', 'pwd',               // shorthand for `platform show`
@@ -428,6 +429,60 @@ if (cmd0 && COMMAND_ALIASES[cmd0]) {
     const idx = driverArgs.indexOf(cmd0);
     if (idx !== -1) driverArgs[idx] = resolved;
   }
+}
+
+if (cmd0 === 'desktop') {
+  // Call Swift macOS driver's desktop command directly
+  const fs_ = require('fs');
+  const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
+  const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
+  const bin = fs_.existsSync(rel) ? rel : dbg;
+  if (!fs_.existsSync(bin)) {
+    console.error('macOS driver not built. Run: cd macos-driver && swift build');
+    process.exit(1);
+  }
+  const r = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
+  if (r.stdout) {
+    try {
+      const data = JSON.parse(r.stdout);
+      // Pretty print for human readability
+      console.log(`\n⚡ Desktop Overview`);
+      console.log(`  Frontmost: ${data.frontmostApp || 'none'}`);
+      console.log(`  Space: ${data.currentSpaceID || '?'} (${data.spaces?.length || 0} total)`);
+      console.log('');
+      if (data.runningApps?.length) {
+        console.log(`📱 Running Apps (${data.runningApps.length}):`);
+        for (const app of data.runningApps) {
+          const flags = [];
+          if (app.isActive) flags.push('active');
+          if (app.isHidden) flags.push('hidden');
+          if (app.ownsMenuBar) flags.push('menubar');
+          const wins = app.windowCount > 0 ? ` [${app.windowCount} win]` : '';
+          const f = flags.length ? ` (${flags.join(', ')})` : '';
+          console.log(`  • ${app.name}${wins}${f}`);
+        }
+        console.log('');
+      }
+      if (data.windows?.length) {
+        console.log(`🖼  Windows (${data.windows.length}):`);
+        for (const w of data.windows) {
+          const title = w.title ? ` — ${w.title.slice(0, 50)}` : '';
+          const active = w.isActive ? ' *' : '';
+          console.log(`  • ${w.app}${title}${active}  [${w.frame.w}×${w.frame.h} at ${w.frame.x},${w.frame.y}]`);
+        }
+        console.log('');
+      }
+      if (data.menuExtras?.length) {
+        console.log(`📌 Menu Extras: ${data.menuExtras.join(', ')}`);
+        console.log('');
+      }
+      if (jsonMode) console.log(JSON.stringify(data, null, 2));
+    } catch(e) {
+      console.log(r.stdout);
+    }
+  }
+  if (r.stderr) process.stderr.write(r.stderr);
+  process.exit(r.status || 0);
 }
 
 if (cmd0 === 'doctor' || cmd0 === 'check') {

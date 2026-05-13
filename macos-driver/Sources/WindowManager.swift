@@ -632,6 +632,129 @@ enum WindowManager {
         return AXUIElementSetAttributeValue(axWin, kAXMinimizedAttribute as CFString, false as CFBoolean) == .success
     }
 
+    // MARK: - Desktop Overview
+
+    struct DesktopOverview: Encodable {
+        let frontmostApp: String?
+        let frontmostPID: Int32?
+        let runningApps: [RunningAppInfo]
+        let windows: [WindowSummary]
+        let menuExtras: [String]
+        let spaces: [SpaceInfo]
+        let currentSpaceID: UInt64?
+    }
+
+    struct RunningAppInfo: Encodable {
+        let name: String
+        let bundleID: String?
+        let pid: Int32
+        let isActive: Bool
+        let isHidden: Bool
+        let windowCount: Int
+        let ownsMenuBar: Bool
+    }
+
+    struct WindowSummary: Encodable {
+        let windowID: UInt32
+        let app: String
+        let title: String?
+        let frame: ACElement.ACFrame
+        let isActive: Bool
+        let spaceID: UInt64?
+    }
+
+    /// One-shot desktop state: frontmost app, all windows, running apps, menu extras, spaces.
+    static func desktopOverview() -> DesktopOverview {
+        let frontApp = NSWorkspace.shared.frontmostApplication
+        let windowCounts = countWindowsByPID()
+
+        // Running apps (Dock-visible = activationPolicy .regular)
+        let apps = NSWorkspace.shared.runningApplications
+        let runningApps: [RunningAppInfo] = apps.compactMap { app in
+            guard app.activationPolicy == .regular else { return nil }
+            let name = app.localizedName ?? app.bundleURL?.lastPathComponent.replacingOccurrences(of: ".app", with: "") ?? "unknown"
+            return RunningAppInfo(
+                name: name,
+                bundleID: app.bundleIdentifier,
+                pid: app.processIdentifier,
+                isActive: app.isActive,
+                isHidden: app.isHidden,
+                windowCount: windowCounts[app.processIdentifier] ?? 0,
+                ownsMenuBar: app.ownsMenuBar
+            )
+        }
+
+        // Visible windows (layer 0, on screen)
+        let allWindows = listWindows()
+        let windowSummaries: [WindowSummary] = allWindows.map { w in
+            WindowSummary(
+                windowID: w.windowID,
+                app: w.ownerName,
+                title: w.name,
+                frame: w.frame,
+                isActive: w.ownerPID == (frontApp?.processIdentifier ?? -1),
+                spaceID: w.spaceIDs.first
+            )
+        }
+
+        // Menu bar extras (right side icons)
+        let menuExtras = getMenuExtras()
+
+        // Spaces
+        let spaces = listSpaces()
+        let currentSpace = spaces.first(where: { $0.isCurrent })?.spaceID
+
+        return DesktopOverview(
+            frontmostApp: frontApp?.localizedName,
+            frontmostPID: frontApp?.processIdentifier,
+            runningApps: runningApps,
+            windows: windowSummaries,
+            menuExtras: menuExtras,
+            spaces: spaces,
+            currentSpaceID: currentSpace
+        )
+    }
+
+    /// Read menu bar extras via AX (System Events → menu bar 2 → menu bar items)
+    private static func getMenuExtras() -> [String] {
+        let systemEvents = AXUIElementCreateApplication(pid_t(ProcessInfo.processInfo.processIdentifier))
+        // Menu extras live in the SystemUIServer process
+        guard let serverApp = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleIdentifier == "com.apple.systemuiserver" ||
+            $0.bundleIdentifier == "com.apple.controlcenter"
+        }) else { return [] }
+
+        let app = AXUIElementCreateApplication(serverApp.processIdentifier)
+        var menuBar: CFTypeRef?
+        // Try extras menu bar (menu bar 2 in AX)
+        AXUIElementCopyAttributeValue(app, "AXExtrasMenuBar" as CFString, &menuBar)
+        if menuBar == nil {
+            // Fallback: get menu bar items from regular menu bar
+            AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &menuBar)
+        }
+        guard let bar = menuBar else { return [] }
+
+        var children: CFTypeRef?
+        AXUIElementCopyAttributeValue(bar as! AXUIElement, kAXChildrenAttribute as CFString, &children)
+        guard let items = children as? [AXUIElement] else { return [] }
+
+        var names: [String] = []
+        for item in items {
+            var title: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &title)
+            if let t = title as? String, !t.isEmpty {
+                names.append(t)
+            } else {
+                var desc: CFTypeRef?
+                AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &desc)
+                if let d = desc as? String, !d.isEmpty {
+                    names.append(d)
+                }
+            }
+        }
+        return names
+    }
+
     // MARK: - Helpers
 
     private static func axWindowForID(_ targetWID: UInt32, pid: pid_t? = nil) -> AXUIElement? {

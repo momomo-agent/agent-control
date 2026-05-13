@@ -591,6 +591,12 @@ struct AgentControl {
                 exit(1)
             }
 
+        // ── Desktop Overview ──
+
+        case "desktop":
+            let overview = WindowManager.desktopOverview()
+            printJSON(overview)
+
         // ── Doctor / TCC ──
 
         case "doctor":
@@ -829,6 +835,9 @@ struct AgentControl {
         Processes:
           processes                              列出 GUI 应用
           process <pid|name>                     查看进程详情
+
+        Desktop:
+          desktop                                一次返回完整桌面状态（frontmost/窗口/运行中app/menubar/spaces）
 
         Diagnostics:
           doctor                                 检查权限状态
