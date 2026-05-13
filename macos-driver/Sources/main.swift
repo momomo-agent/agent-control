@@ -71,6 +71,44 @@ func readMenuItem(_ el: AXUIElement, depth: Int, expandTarget: String?) -> [Stri
     return entry
 }
 
+/// Click a menu item by name within an opened menu bar item
+func clickMenuItem(_ menuBarItem: AXUIElement, target: String) -> Bool {
+    let targetLower = target.lowercased()
+
+    var menuChildren: CFTypeRef?
+    AXUIElementCopyAttributeValue(menuBarItem, kAXChildrenAttribute as CFString, &menuChildren)
+    guard let menus = menuChildren as? [AXUIElement] else { return false }
+
+    for menu in menus {
+        var items: CFTypeRef?
+        AXUIElementCopyAttributeValue(menu, kAXChildrenAttribute as CFString, &items)
+        guard let menuItems = items as? [AXUIElement] else { continue }
+
+        for item in menuItems {
+            var title: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &title)
+            let name = (title as? String) ?? ""
+
+            if name.lowercased().contains(targetLower) {
+                // Check if it has a submenu — if so, open it and search inside
+                var subChildren: CFTypeRef?
+                AXUIElementCopyAttributeValue(item, kAXChildrenAttribute as CFString, &subChildren)
+                if let subs = subChildren as? [AXUIElement], !subs.isEmpty {
+                    // It's a submenu parent — hover to open, then search inside
+                    // For now just press it (AXPress on submenu parent opens it)
+                    AXUIElementPerformAction(item, kAXPressAction as CFString)
+                    return true
+                }
+
+                // Regular menu item — click it
+                AXUIElementPerformAction(item, kAXPressAction as CFString)
+                return true
+            }
+        }
+    }
+    return false
+}
+
 // MARK: - CLI Entry Point
 
 @main
@@ -698,6 +736,16 @@ struct AgentControl {
             } else {
                 // Find and open the specified menu
                 let targetMenu = cmdArgs[0].lowercased()
+                let clickTarget = cmdArgs.count > 1 ? cmdArgs[1] : nil
+                // Check if --click flag is present (explicit click mode)
+                let isClickMode = args.contains("--click")
+                // If second arg exists and isn't a flag, treat as submenu expand OR click target
+                let expandTarget: String?
+                if let ct = clickTarget, !ct.hasPrefix("--") {
+                    expandTarget = ct
+                } else {
+                    expandTarget = nil
+                }
                 var found = false
 
                 for item in menuBarItems {
@@ -711,6 +759,20 @@ struct AgentControl {
                     AXUIElementPerformAction(item, kAXPressAction as CFString)
                     usleep(200_000)
 
+                    // If click mode with a target, find and click the menu item
+                    if isClickMode, let target = expandTarget {
+                        let clicked = clickMenuItem(item, target: target)
+                        if clicked {
+                            print("{\"ok\": true, \"action\": \"click\", \"target\": \"\(target)\"}")
+                        } else {
+                            // Close menu on failure
+                            AXUIElementPerformAction(item, kAXCancelAction as CFString)
+                            fputs("error: menu item '\(target)' not found\n", stderr)
+                            exit(1)
+                        }
+                        break
+                    }
+
                     // Read menu contents
                     var menuChildren: CFTypeRef?
                     AXUIElementCopyAttributeValue(item, kAXChildrenAttribute as CFString, &menuChildren)
@@ -722,7 +784,7 @@ struct AgentControl {
                             AXUIElementCopyAttributeValue(menu, kAXChildrenAttribute as CFString, &items_)
                             if let menuItems = items_ as? [AXUIElement] {
                                 for mi in menuItems {
-                                    let entry = readMenuItem(mi, depth: 0, expandTarget: cmdArgs.count > 1 ? cmdArgs[1] : nil)
+                                    let entry = readMenuItem(mi, depth: 0, expandTarget: expandTarget)
                                     if let e = entry { results.append(e) }
                                 }
                             }

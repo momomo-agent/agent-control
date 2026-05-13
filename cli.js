@@ -453,8 +453,15 @@ if (cmd0 === 'menu') {
   if (r.stdout) {
     try {
       const data = JSON.parse(r.stdout);
-      if (Array.isArray(data)) {
-        if (menuArgs.length === 0) {
+      if (data.ok !== undefined) {
+        // Click result
+        if (data.ok) {
+          console.log(`✅ Clicked: ${data.target}`);
+        } else {
+          console.error(`❌ Failed to click: ${data.target}`);
+        }
+      } else if (Array.isArray(data)) {
+        if (menuArgs.filter(a => !a.startsWith('--')).length === 0) {
           // List menu names
           console.log('\n📋 Menus:');
           for (const m of data) {
@@ -462,7 +469,8 @@ if (cmd0 === 'menu') {
           }
         } else {
           // Show menu items
-          console.log(`\n📋 ${menuArgs[0]}:`);
+          const menuName = menuArgs.find(a => !a.startsWith('--')) || '';
+          console.log(`\n📋 ${menuName}:`);
           for (const item of data) {
             const dis = item.enabled === false ? ' (disabled)' : '';
             const sub = item.hasSubmenu ? ' ▶' : '';
