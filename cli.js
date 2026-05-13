@@ -312,6 +312,7 @@ const CLI_SUBCOMMANDS = new Set([
   'help', '--help', '-h',
   'virtual-cursor', 'vcursor',
   'desktop',                             // global desktop overview
+  'menu',                                // app menu exploration
   'platform', 'context',              // sticky-context management (below)
   'use', 'switch',                     // shorthand for `platform set`
   'where', 'who', 'pwd',               // shorthand for `platform show`
@@ -429,6 +430,61 @@ if (cmd0 && COMMAND_ALIASES[cmd0]) {
     const idx = driverArgs.indexOf(cmd0);
     if (idx !== -1) driverArgs[idx] = resolved;
   }
+}
+
+if (cmd0 === 'menu') {
+  const fs_ = require('fs');
+  const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
+  const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
+  const bin = fs_.existsSync(rel) ? rel : dbg;
+  if (!fs_.existsSync(bin)) {
+    console.error('macOS driver not built. Run: cd macos-driver && swift build');
+    process.exit(1);
+  }
+  const menuArgs = driverArgs.slice(1);
+  // Pass --app if sticky context has one
+  const sticky = readSticky();
+  const swiftArgs = ['menu'];
+  if (sticky.app && !menuArgs.includes('--app')) {
+    swiftArgs.push('--app', sticky.app);
+  }
+  swiftArgs.push(...menuArgs);
+  const r = spawnSync(bin, swiftArgs, { encoding: 'utf8', timeout: 10000 });
+  if (r.stdout) {
+    try {
+      const data = JSON.parse(r.stdout);
+      if (Array.isArray(data)) {
+        if (menuArgs.length === 0) {
+          // List menu names
+          console.log('\n📋 Menus:');
+          for (const m of data) {
+            console.log(`  • ${m.title}`);
+          }
+        } else {
+          // Show menu items
+          console.log(`\n📋 ${menuArgs[0]}:`);
+          for (const item of data) {
+            const dis = item.enabled === false ? ' (disabled)' : '';
+            const sub = item.hasSubmenu ? ' ▶' : '';
+            const key = item.shortcut ? `  [⌘${item.shortcut}]` : '';
+            console.log(`  ${item.title}${sub}${key}${dis}`);
+            if (item.children) {
+              for (const child of item.children) {
+                const cdis = child.enabled === false ? ' (disabled)' : '';
+                const ckey = child.shortcut ? `  [⌘${child.shortcut}]` : '';
+                console.log(`    ${child.title}${ckey}${cdis}`);
+              }
+            }
+          }
+        }
+      }
+      if (jsonMode) console.log(JSON.stringify(data, null, 2));
+    } catch(e) {
+      console.log(r.stdout);
+    }
+  }
+  if (r.stderr) process.stderr.write(r.stderr);
+  process.exit(r.status || 0);
 }
 
 if (cmd0 === 'desktop') {

@@ -10,6 +10,67 @@ func isRef(_ s: String) -> Bool {
     return false
 }
 
+/// Read a menu item into a dictionary, optionally expanding a submenu
+func readMenuItem(_ el: AXUIElement, depth: Int, expandTarget: String?) -> [String: Any]? {
+    var role_: CFTypeRef?
+    AXUIElementCopyAttributeValue(el, kAXRoleAttribute as CFString, &role_)
+    let role = (role_ as? String) ?? ""
+
+    // Skip separators
+    if role == "AXMenuItemSeparator" { return nil }
+
+    var title_: CFTypeRef?
+    AXUIElementCopyAttributeValue(el, kAXTitleAttribute as CFString, &title_)
+    let title = (title_ as? String) ?? ""
+
+    var enabled_: CFTypeRef?
+    AXUIElementCopyAttributeValue(el, kAXEnabledAttribute as CFString, &enabled_)
+    let enabled = (enabled_ as? Bool) ?? true
+
+    var shortcut_: CFTypeRef?
+    AXUIElementCopyAttributeValue(el, "AXMenuItemCmdChar" as CFString, &shortcut_)
+    let shortcut = shortcut_ as? String
+
+    var modifiers_: CFTypeRef?
+    AXUIElementCopyAttributeValue(el, "AXMenuItemCmdModifiers" as CFString, &modifiers_)
+
+    // Check for submenu
+    var children_: CFTypeRef?
+    AXUIElementCopyAttributeValue(el, kAXChildrenAttribute as CFString, &children_)
+    let hasSubmenu = (children_ as? [AXUIElement])?.isEmpty == false
+
+    var entry: [String: Any] = [
+        "title": title,
+        "enabled": enabled,
+    ]
+    if hasSubmenu { entry["hasSubmenu"] = true }
+    if let s = shortcut, !s.isEmpty { entry["shortcut"] = s }
+
+    // Expand submenu if it matches the target
+    if hasSubmenu, let target = expandTarget, title.lowercased().contains(target.lowercased()) {
+        if let subMenus = children_ as? [AXUIElement] {
+            var subItems: [[String: Any]] = []
+            for subMenu in subMenus {
+                var subChildren: CFTypeRef?
+                AXUIElementCopyAttributeValue(subMenu, kAXChildrenAttribute as CFString, &subChildren)
+                if let items = subChildren as? [AXUIElement] {
+                    for item in items {
+                        if let sub = readMenuItem(item, depth: depth + 1, expandTarget: nil) {
+                            subItems.append(sub)
+                        }
+                    }
+                }
+            }
+            entry["children"] = subItems
+        }
+    }
+
+    // Skip empty untitled items
+    if title.isEmpty && !hasSubmenu { return nil }
+
+    return entry
+}
+
 // MARK: - CLI Entry Point
 
 @main
@@ -589,6 +650,97 @@ struct AgentControl {
             } else {
                 fputs("error: usage: process <pid|name>\n", stderr)
                 exit(1)
+            }
+
+        // ── Menu Exploration ──
+
+        case "menu":
+            // Resolve target app
+            let menuAppPID: pid_t
+            if let p = pid {
+                menuAppPID = p
+            } else {
+                guard let front = NSWorkspace.shared.frontmostApplication else {
+                    fputs("error: no frontmost app\n", stderr)
+                    exit(1)
+                }
+                menuAppPID = front.processIdentifier
+            }
+
+            let appEl = AXUIElementCreateApplication(menuAppPID)
+            var menuBarRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(appEl, kAXMenuBarAttribute as CFString, &menuBarRef)
+            guard let menuBar = menuBarRef else {
+                fputs("error: cannot access menu bar\n", stderr)
+                exit(1)
+            }
+
+            var barChildren: CFTypeRef?
+            AXUIElementCopyAttributeValue(menuBar as! AXUIElement, kAXChildrenAttribute as CFString, &barChildren)
+            guard let menuBarItems = barChildren as? [AXUIElement] else {
+                fputs("error: no menu bar items\n", stderr)
+                exit(1)
+            }
+
+            if cmdArgs.isEmpty {
+                // No args: list all top-level menu names
+                var menuNames: [[String: Any]] = []
+                for item in menuBarItems {
+                    var title: CFTypeRef?
+                    AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &title)
+                    let name = (title as? String) ?? ""
+                    if !name.isEmpty {
+                        menuNames.append(["title": name])
+                    }
+                }
+                let data = try! JSONSerialization.data(withJSONObject: menuNames, options: [.prettyPrinted])
+                print(String(data: data, encoding: .utf8)!)
+            } else {
+                // Find and open the specified menu
+                let targetMenu = cmdArgs[0].lowercased()
+                var found = false
+
+                for item in menuBarItems {
+                    var title: CFTypeRef?
+                    AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &title)
+                    let name = (title as? String) ?? ""
+                    guard name.lowercased().contains(targetMenu) else { continue }
+                    found = true
+
+                    // Press to open the menu
+                    AXUIElementPerformAction(item, kAXPressAction as CFString)
+                    usleep(200_000)
+
+                    // Read menu contents
+                    var menuChildren: CFTypeRef?
+                    AXUIElementCopyAttributeValue(item, kAXChildrenAttribute as CFString, &menuChildren)
+
+                    var results: [[String: Any]] = []
+                    if let menus = menuChildren as? [AXUIElement] {
+                        for menu in menus {
+                            var items_: CFTypeRef?
+                            AXUIElementCopyAttributeValue(menu, kAXChildrenAttribute as CFString, &items_)
+                            if let menuItems = items_ as? [AXUIElement] {
+                                for mi in menuItems {
+                                    let entry = readMenuItem(mi, depth: 0, expandTarget: cmdArgs.count > 1 ? cmdArgs[1] : nil)
+                                    if let e = entry { results.append(e) }
+                                }
+                            }
+                        }
+                    }
+
+                    // Close menu
+                    AXUIElementPerformAction(item, kAXCancelAction as CFString)
+
+                    let data = try! JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted])
+                    print(String(data: data, encoding: .utf8)!)
+                    break
+                }
+
+                if !found {
+                    fputs("error: menu '\(cmdArgs[0])' not found\n", stderr)
+                    exit(1)
+                }
             }
 
         // ── Desktop Overview ──
