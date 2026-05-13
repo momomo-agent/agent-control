@@ -737,9 +737,8 @@ struct AgentControl {
                 // Find and open the specified menu
                 let targetMenu = cmdArgs[0].lowercased()
                 let clickTarget = cmdArgs.count > 1 ? cmdArgs[1] : nil
-                // Check if --click flag is present (explicit click mode)
-                let isClickMode = args.contains("--click")
-                // If second arg exists and isn't a flag, treat as submenu expand OR click target
+                // Second arg = click target by default. Use --expand to only view submenu.
+                let expandOnly = args.contains("--expand")
                 let expandTarget: String?
                 if let ct = clickTarget, !ct.hasPrefix("--") {
                     expandTarget = ct
@@ -759,8 +758,8 @@ struct AgentControl {
                     AXUIElementPerformAction(item, kAXPressAction as CFString)
                     usleep(200_000)
 
-                    // If click mode with a target, find and click the menu item
-                    if isClickMode, let target = expandTarget {
+                    // If we have a target and not expand-only, click it
+                    if let target = expandTarget, !expandOnly {
                         let clicked = clickMenuItem(item, target: target)
                         if clicked {
                             print("{\"ok\": true, \"action\": \"click\", \"target\": \"\(target)\"}")
@@ -773,7 +772,7 @@ struct AgentControl {
                         break
                     }
 
-                    // Read menu contents
+                    // Read menu contents (view mode)
                     var menuChildren: CFTypeRef?
                     AXUIElementCopyAttributeValue(item, kAXChildrenAttribute as CFString, &menuChildren)
 

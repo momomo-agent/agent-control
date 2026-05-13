@@ -505,8 +505,51 @@ if (cmd0 === 'desktop') {
     console.error('macOS driver not built. Run: cd macos-driver && swift build');
     process.exit(1);
   }
-  // Pass remaining args to Swift driver (e.g. app name, window ID, tray item)
+
   const desktopArgs = driverArgs.slice(1);
+  const ACTION_VERBS = new Set(['click', 'fill', 'press', 'dblclick', 'rightclick', 'scroll', 'drag']);
+
+  // Parse: [target...] [action] [action-args...]
+  // Find the first action verb in args
+  let actionIdx = -1;
+  for (let i = 0; i < desktopArgs.length; i++) {
+    if (ACTION_VERBS.has(desktopArgs[i])) { actionIdx = i; break; }
+  }
+
+  if (actionIdx >= 0) {
+    // Action mode: desktop "Cursor" click @e5
+    const targetArgs = desktopArgs.slice(0, actionIdx); // e.g. ["Cursor"]
+    const action = desktopArgs[actionIdx]; // e.g. "click"
+    const actionArgs = desktopArgs.slice(actionIdx + 1); // e.g. ["@e5"]
+
+    // Resolve target to --app name
+    let appName_ = targetArgs[0] || null;
+
+    // Build the driver command: action + --app + --bg + action args
+    const drvArgs = [action];
+    if (appName_) drvArgs.push('--app', appName_);
+    // Default to --bg (background, no focus steal)
+    if (!actionArgs.includes('--fg') && !actionArgs.includes('--foreground')) {
+      drvArgs.push('--bg');
+    }
+    drvArgs.push(...actionArgs);
+
+    const r = spawnSync(bin, drvArgs, { encoding: 'utf8', timeout: 15000 });
+    if (r.stdout) {
+      try {
+        const data = JSON.parse(r.stdout);
+        if (data.ok) {
+          console.log(`✅ ${action}: ${actionArgs.join(' ')}`);
+        } else {
+          console.error(`❌ ${action} failed: ${data.error || 'unknown'}`);
+        }
+      } catch(e) { console.log(r.stdout); }
+    }
+    if (r.stderr) process.stderr.write(r.stderr);
+    process.exit(r.status || 0);
+  }
+
+  // No action verb — view mode (overview or drill-down)
   const r = spawnSync(bin, ['desktop', ...desktopArgs], { encoding: 'utf8', timeout: 15000 });
   if (r.stdout) {
     try {
