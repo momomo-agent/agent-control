@@ -715,40 +715,49 @@ enum WindowManager {
         )
     }
 
-    /// Read menu bar extras via AX (System Events → menu bar 2 → menu bar items)
+    /// Read menu bar extras via AX — scans ControlCenter + SystemUIServer processes
     private static func getMenuExtras() -> [String] {
-        let systemEvents = AXUIElementCreateApplication(pid_t(ProcessInfo.processInfo.processIdentifier))
-        // Menu extras live in the SystemUIServer process
-        guard let serverApp = NSWorkspace.shared.runningApplications.first(where: {
-            $0.bundleIdentifier == "com.apple.systemuiserver" ||
-            $0.bundleIdentifier == "com.apple.controlcenter"
-        }) else { return [] }
-
-        let app = AXUIElementCreateApplication(serverApp.processIdentifier)
-        var menuBar: CFTypeRef?
-        // Try extras menu bar (menu bar 2 in AX)
-        AXUIElementCopyAttributeValue(app, "AXExtrasMenuBar" as CFString, &menuBar)
-        if menuBar == nil {
-            // Fallback: get menu bar items from regular menu bar
-            AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &menuBar)
-        }
-        guard let bar = menuBar else { return [] }
-
-        var children: CFTypeRef?
-        AXUIElementCopyAttributeValue(bar as! AXUIElement, kAXChildrenAttribute as CFString, &children)
-        guard let items = children as? [AXUIElement] else { return [] }
-
+        let targetBundles = ["com.apple.controlcenter", "com.apple.systemuiserver"]
         var names: [String] = []
-        for item in items {
-            var title: CFTypeRef?
-            AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &title)
-            if let t = title as? String, !t.isEmpty {
-                names.append(t)
-            } else {
+
+        for bundleID in targetBundles {
+            guard let serverApp = NSWorkspace.shared.runningApplications.first(where: {
+                $0.bundleIdentifier == bundleID
+            }) else { continue }
+
+            let app = AXUIElementCreateApplication(serverApp.processIdentifier)
+
+            // Try AXExtrasMenuBar first (macOS 13+), then regular menu bar
+            var menuBar: CFTypeRef?
+            AXUIElementCopyAttributeValue(app, "AXExtrasMenuBar" as CFString, &menuBar)
+            if menuBar == nil {
+                AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &menuBar)
+            }
+            guard let bar = menuBar else { continue }
+
+            var children: CFTypeRef?
+            AXUIElementCopyAttributeValue(bar as! AXUIElement, kAXChildrenAttribute as CFString, &children)
+            guard let items = children as? [AXUIElement] else { continue }
+
+            for item in items {
+                // Try title first, then description (AXDescription), then role description
+                var title: CFTypeRef?
+                AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &title)
+                if let t = title as? String, !t.isEmpty {
+                    names.append(t)
+                    continue
+                }
                 var desc: CFTypeRef?
                 AXUIElementCopyAttributeValue(item, kAXDescriptionAttribute as CFString, &desc)
                 if let d = desc as? String, !d.isEmpty {
                     names.append(d)
+                    continue
+                }
+                // Last resort: check value (e.g. clock shows time as value)
+                var value: CFTypeRef?
+                AXUIElementCopyAttributeValue(item, kAXValueAttribute as CFString, &value)
+                if let v = value as? String, !v.isEmpty {
+                    names.append(v)
                 }
             }
         }
