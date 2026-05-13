@@ -71,6 +71,47 @@ func readMenuItem(_ el: AXUIElement, depth: Int, expandTarget: String?) -> [Stri
     return entry
 }
 
+enum MenuActionResult {
+    case clicked
+    case expanded
+    case notFound
+}
+
+/// Smart menu action: if target has submenu, return .expanded; if leaf, click and return .clicked
+func smartMenuAction(_ menuBarItem: AXUIElement, target: String) -> MenuActionResult {
+    let targetLower = target.lowercased()
+
+    var menuChildren: CFTypeRef?
+    AXUIElementCopyAttributeValue(menuBarItem, kAXChildrenAttribute as CFString, &menuChildren)
+    guard let menus = menuChildren as? [AXUIElement] else { return .notFound }
+
+    for menu in menus {
+        var items: CFTypeRef?
+        AXUIElementCopyAttributeValue(menu, kAXChildrenAttribute as CFString, &items)
+        guard let menuItems = items as? [AXUIElement] else { continue }
+
+        for item in menuItems {
+            var title: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXTitleAttribute as CFString, &title)
+            let name = (title as? String) ?? ""
+            guard name.lowercased().contains(targetLower) else { continue }
+
+            // Check if it has a submenu
+            var subChildren: CFTypeRef?
+            AXUIElementCopyAttributeValue(item, kAXChildrenAttribute as CFString, &subChildren)
+            if let subs = subChildren as? [AXUIElement], !subs.isEmpty {
+                // Has submenu → don't click, just report expanded
+                return .expanded
+            }
+
+            // Leaf item → click it
+            AXUIElementPerformAction(item, kAXPressAction as CFString)
+            return .clicked
+        }
+    }
+    return .notFound
+}
+
 /// Click a menu item by name within an opened menu bar item
 func clickMenuItem(_ menuBarItem: AXUIElement, target: String) -> Bool {
     let targetLower = target.lowercased()
@@ -792,8 +833,7 @@ struct AgentControl {
                 // Find and open the specified menu
                 let targetMenu = cmdArgs[0].lowercased()
                 let clickTarget = cmdArgs.count > 1 ? cmdArgs[1] : nil
-                // Second arg = click target by default. Use --expand to only view submenu.
-                let expandOnly = args.contains("--expand")
+                // Second arg: auto-detect — has submenu? expand and show. No submenu? click it.
                 let expandTarget: String?
                 if let ct = clickTarget, !ct.hasPrefix("--") {
                     expandTarget = ct
@@ -813,13 +853,32 @@ struct AgentControl {
                     AXUIElementPerformAction(item, kAXPressAction as CFString)
                     usleep(200_000)
 
-                    // If we have a target and not expand-only, click it
-                    if let target = expandTarget, !expandOnly {
-                        let clicked = clickMenuItem(item, target: target)
-                        if clicked {
+                    // If we have a target, auto-detect: submenu → expand, leaf → click
+                    if let target = expandTarget {
+                        let result = smartMenuAction(item, target: target)
+                        if result == .clicked {
                             print("{\"ok\": true, \"action\": \"click\", \"target\": \"\(target)\"}")
+                        } else if result == .expanded {
+                            // Read and print the expanded submenu
+                            var menuChildren: CFTypeRef?
+                            AXUIElementCopyAttributeValue(item, kAXChildrenAttribute as CFString, &menuChildren)
+                            var results: [[String: Any]] = []
+                            if let menus = menuChildren as? [AXUIElement] {
+                                for menu in menus {
+                                    var items_: CFTypeRef?
+                                    AXUIElementCopyAttributeValue(menu, kAXChildrenAttribute as CFString, &items_)
+                                    if let menuItems = items_ as? [AXUIElement] {
+                                        for mi in menuItems {
+                                            let entry = readMenuItem(mi, depth: 0, expandTarget: target)
+                                            if let e = entry { results.append(e) }
+                                        }
+                                    }
+                                }
+                            }
+                            AXUIElementPerformAction(item, kAXCancelAction as CFString)
+                            let data = try! JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted])
+                            print(String(data: data, encoding: .utf8)!)
                         } else {
-                            // Close menu on failure
                             AXUIElementPerformAction(item, kAXCancelAction as CFString)
                             fputs("error: menu item '\(target)' not found\n", stderr)
                             exit(1)
