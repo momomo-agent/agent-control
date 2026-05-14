@@ -205,6 +205,38 @@ struct AgentControl {
         let pid = parsePID(args)
 
         switch command {
+        case "read":
+            // Read full AX value of a ref — no truncation
+            guard let ref = cmdArgs.first(where: { $0.hasPrefix("@") }) else {
+                fputs("error: read requires a ref (e.g. @e1)\n", stderr)
+                exit(1)
+            }
+            guard pid != nil else {
+                fputs("error: read requires --app <name>\n", stderr)
+                exit(1)
+            }
+            let elements = AXScanner.snapshot(appPID: pid!)
+            func findRef(_ items: [ACElement], _ target: String) -> ACElement? {
+                for item in items {
+                    if item.ref == target { return item }
+                    if let children = item.children, let found = findRef(children, target) {
+                        return found
+                    }
+                }
+                return nil
+            }
+            guard let el = findRef(elements, ref) else {
+                fputs("error: ref \(ref) not found\n", stderr)
+                exit(1)
+            }
+            if let val = el.value, !val.isEmpty {
+                print(val)
+            } else if !el.label.isEmpty {
+                print(el.label)
+            } else {
+                fputs("(empty)\n", stderr)
+            }
+
         case "snapshot":
             let interactive = args.contains("-i")
             let jsonMode = args.contains("--json")

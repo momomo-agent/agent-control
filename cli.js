@@ -471,7 +471,7 @@ if (cmd0 === 'desktop' || cmd0 === 'screen') {
   // Parse path segments and --verb
   // Path = all args before the first --verb (e.g. --click, --fill, --press)
   // Verb = --click / --fill / --press / --dblclick / --rightclick / --longpress / --drag / --scroll / --screenshot
-  const VERB_FLAGS = new Set(['--click', '--fill', '--press', '--dblclick', '--rightclick', '--longpress', '--drag', '--scroll', '--screenshot', '--hover', '--activate', '--find']);
+  const VERB_FLAGS = new Set(['--click', '--fill', '--press', '--dblclick', '--rightclick', '--longpress', '--drag', '--scroll', '--screenshot', '--hover', '--activate', '--find', '--read']);
   let verbIdx = -1;
   for (let i = 0; i < desktopArgs.length; i++) {
     if (VERB_FLAGS.has(desktopArgs[i])) { verbIdx = i; break; }
@@ -552,8 +552,8 @@ if (cmd0 === 'desktop' || cmd0 === 'screen') {
     }
     if (r.stderr) process.stderr.write(r.stderr);
 
-    // After action, print snapshot (unless --no-snapshot or screenshot)
-    if (!verbArgs.includes('--no-snapshot') && verb !== 'screenshot' && r.status === 0) {
+    // After action, print snapshot (unless --no-snapshot or screenshot/read)
+    if (!verbArgs.includes('--no-snapshot') && verb !== 'screenshot' && verb !== 'read' && r.status === 0) {
       const snapArgs = [swiftCmd];
       if (appName_) snapArgs.push(appName_);
       if (jsonMode) snapArgs.push('--json');

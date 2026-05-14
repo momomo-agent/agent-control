@@ -273,7 +273,12 @@ enum TreeFormatter {
         }
 
         if let val = el.value, !val.isEmpty, val != el.label {
-            parts.append("val=\"\(val.prefix(40))\"")
+            // TextArea (terminals, editors): show more content
+            let limit = el.role == "AXTextArea" ? 500 : 80
+            let display = val.count > limit ? String(val.suffix(limit)) : val
+            // Replace newlines for single-line display
+            let cleaned = display.replacingOccurrences(of: "\n", with: "↵")
+            parts.append("val=\"\(cleaned)\"")
         }
 
         return parts.joined(separator: " ")
