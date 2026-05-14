@@ -90,6 +90,17 @@ agent-control screen "App" --scroll down
 agent-control screen "App" --drag @e1 @e5
 ```
 
+### Read full element content
+
+Tree output truncates long values (e.g. terminal buffers). Use `--read` to get the full content:
+
+```bash
+agent-control screen "Ghostty" --read @e1     # full terminal buffer (can be 200KB+)
+agent-control screen "Cursor" --read @e8      # full text field content
+```
+
+Useful for terminals (Ghostty/iTerm/Terminal), text editors, and any TextArea with long content.
+
 ### Screenshot
 
 ```bash
@@ -105,6 +116,7 @@ agent-control screen "Simulator" --screenshot /tmp/s.png # single app window
 | `--bg` | Background mode (default, no focus steal) |
 | `--fg` | Foreground mode (bring app to front) |
 | `--no-snapshot` | Skip post-action snapshot |
+| `--read @ref` | Read full AX value of an element (no truncation) |
 
 ## Legacy `-p` Interface
 
@@ -139,12 +151,46 @@ agent-control -p android snapshot
 - **App-scoped screenshots**: `--app` captures only that window, not full screen.
 - **Indented tree output**: Human and agent readable. `@ref` inline with elements.
 - **Multi-display aware**: Windows grouped by which physical display they're on.
+- **Z-order aware**: Windows sorted front-to-back. Top 3 expanded, rest collapsed to title.
+- **Window refs (`@w`)**: Each window gets `@w1`, `@w2` etc. in z-order for disambiguation.
 - **Browser auto-detection**: `screen "Chrome"` automatically fetches web page content via CDP.
 - **Active app shown**: Header shows which app has focus; window sections tagged `[active]`.
 
 ## Output Format
 
-Indented tree with `@ref` for interactive elements:
+`screen` output (full desktop):
+
+```
+Screen [active: Cursor, 2 displays, 89 interactive]
+
+  Menu Bar:
+    @e1 MenuBarItem "Apple"
+    ...
+  Dock:
+    @e16 DockItem "访达"
+    ...
+
+  Windows:
+
+    @w1 Cursor "main.swift": [active]
+      @e50 TextField "Search"
+      @e51 Button "Run"
+
+    @w2 Discord "#dm": 
+      @e60 Button "Send"
+
+    @w3 Ghostty "Claude Code":
+      @e70 TextArea val="...last 500 chars..."
+
+    @w4 Finder "Downloads" [12 elements]
+    @w5 Notion "notes" [3 elements]
+```
+
+- Top 3 windows expanded (by z-order), rest collapsed to `[N elements]`
+- Collapsed windows: `screen "Notion"` to drill in
+- Same-name windows disambiguated by `@w` ref
+
+App drill output:
 
 ```
 App "Finder" [42 interactive, 58 total]
