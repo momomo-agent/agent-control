@@ -13,9 +13,21 @@
 const { execSync, spawnSync } = require('child_process');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 
 const ROOT = __dirname;
 const args = process.argv.slice(2);
+
+// Resolve macOS Swift binary: prebuilt bin/ > release build > debug build
+function resolveMacOSBinary() {
+  const prebuilt = path.join(ROOT, 'bin', 'agent-control-macos');
+  const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
+  const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
+  if (fs.existsSync(prebuilt)) return prebuilt;
+  if (fs.existsSync(rel)) return rel;
+  if (fs.existsSync(dbg)) return dbg;
+  return null;
+}
 
 // Ensure stdout is fully flushed before exit (pipe mode truncation fix)
 const _origExit = process.exit.bind(process);
@@ -438,12 +450,9 @@ if (cmd0 && COMMAND_ALIASES[cmd0]) {
 if (cmd0 === 'desktop' || cmd0 === 'screen') {
   // Path-based desktop command: desktop [target...] [--verb] [verb-args...] [--bg]
   // Swift binary handles all formatting (indented tree by default, --json for JSON)
-  const fs_ = require('fs');
-  const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
-  const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
-  const bin = fs_.existsSync(rel) ? rel : dbg;
-  if (!fs_.existsSync(bin)) {
-    console.error('macOS driver not built. Run: cd macos-driver && swift build');
+  const bin = resolveMacOSBinary();
+  if (!bin) {
+    console.error('macOS driver not found. Install with: npm install -g agent-control');
     process.exit(1);
   }
 
@@ -735,11 +744,9 @@ if (cmd0 === 'shot') {
   let result;
   const fs_ = require('fs');
   if (backendChoice === 'macos') {
-    const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
-    const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
-    const bin = fs_.existsSync(rel) ? rel : dbg;
-    if (!fs_.existsSync(bin)) {
-      console.log(JSON.stringify({ ok: false, error: 'macOS driver not built', hint: 'cd macos-driver && swift build -c release' }, null, 2));
+    const bin = resolveMacOSBinary();
+    if (!bin) {
+      console.log(JSON.stringify({ ok: false, error: 'macOS driver not found', hint: 'npm install -g agent-control' }, null, 2));
       process.exit(1);
     }
     const macArgs = ['screenshot'];
@@ -981,12 +988,9 @@ function maybeEnhance(r) {
 const drivers = {
   macos: () => {
     const fs_ = require('fs');
-    // Prefer release build when available (optimized), fall back to debug.
-    const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
-    const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
-    const bin = fs_.existsSync(rel) ? rel : dbg;
-    if (!fs_.existsSync(bin)) {
-      console.error('macOS driver not built. Run: cd macos-driver && swift build -c release');
+    const bin = resolveMacOSBinary();
+    if (!bin) {
+      console.error('macOS driver not found. Install with: npm install -g agent-control');
       process.exit(1);
     }
     const timeout = (driverArgs[0] === 'console' || driverArgs[0] === 'logs') ? 30000 : 15000;
