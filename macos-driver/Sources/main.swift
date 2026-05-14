@@ -207,6 +207,7 @@ struct AgentControl {
         switch command {
         case "snapshot":
             let interactive = args.contains("-i")
+            let jsonMode = args.contains("--json")
             let fallback = args.contains("--fallback")
             var elements = AXScanner.snapshot(appPID: pid)
             // AX fallback: if AX returns nothing, use CGWindowList
@@ -217,8 +218,18 @@ struct AgentControl {
                     fputs("info: AX tree empty, using CGWindowList fallback (\(elements.count) windows)\n", stderr)
                 }
             }
-            let output = interactive ? elements.filter { $0.interactive } : elements
-            printJSON(output)
+            if jsonMode {
+                let output = interactive ? elements.filter { $0.interactive } : elements
+                printJSON(output)
+            } else {
+                let (text, intCount, total) = TreeFormatter.format(elements, interactive: interactive)
+                // Print summary header
+                let appName = pid.flatMap { p in
+                    NSWorkspace.shared.runningApplications.first(where: { $0.processIdentifier == p })?.localizedName
+                } ?? "unknown"
+                print("App \"\(appName)\" [\(intCount) interactive, \(total) total]")
+                print(text)
+            }
 
         case "click":
             let ref = cmdArgs.first(where: { isRef($0) })
@@ -316,7 +327,15 @@ struct AgentControl {
                     key = mods.joined(separator: "+") + "+" + key
                 }
             }
-            let ok = AXActions.press(key: key)
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
+            let ok: Bool
+            if bg, let targetPID = pid {
+                ok = FocusGuard.withFocusSuppressed(pid: targetPID, window: nil, element: nil) {
+                    AXActions.press(key: key)
+                }
+            } else {
+                ok = AXActions.press(key: key)
+            }
             printResult(ok, action: "press", ref: key)
 
         case "longpress":
@@ -325,35 +344,73 @@ struct AgentControl {
             let durationArg = cmdArgs.first(where: { $0.hasPrefix("--duration=") })
             let durationMs = durationArg.flatMap { Double($0.dropFirst("--duration=".count)) } ?? 1000.0
             let duration = durationMs / 1000.0
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
             if let ref = ref {
-                let ok = AXActions.longpress(ref: ref, duration: duration, appPID: pid)
+                let ok: Bool
+                if bg, let targetPID = pid {
+                    ok = FocusGuard.withFocusSuppressed(pid: targetPID, window: nil, element: nil) {
+                        AXActions.longpress(ref: ref, duration: duration, appPID: targetPID)
+                    }
+                } else {
+                    ok = AXActions.longpress(ref: ref, duration: duration, appPID: pid)
+                }
                 printResult(ok, action: "longpress", ref: ref)
             } else if nums.count >= 2 {
-                let ok = AXActions.longpressAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), duration: duration)
+                let ok: Bool
+                if bg, let targetPID = pid {
+                    ok = FocusGuard.withFocusSuppressed(pid: targetPID, window: nil, element: nil) {
+                        AXActions.longpressAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), duration: duration)
+                    }
+                } else {
+                    ok = AXActions.longpressAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]), duration: duration)
+                }
                 printResult(ok, action: "longpress", ref: "\(Int(nums[0])),\(Int(nums[1]))")
             } else {
-                fputs("error: usage: longpress @ref | longpress x y [--duration=1000]\n", stderr)
+                fputs("error: usage: longpress @ref | longpress x y [--duration=1000] [--bg]\n", stderr)
                 exit(1)
             }
 
         case "drag":
             let refs = cmdArgs.filter { isRef($0) }
             let nums = cmdArgs.compactMap { Double($0) }
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
             if refs.count == 2 {
-                let ok = AXActions.drag(fromRef: refs[0], toRef: refs[1], appPID: pid)
+                let ok: Bool
+                if bg, let targetPID = pid {
+                    ok = FocusGuard.withFocusSuppressed(pid: targetPID, window: nil, element: nil) {
+                        AXActions.drag(fromRef: refs[0], toRef: refs[1], appPID: targetPID)
+                    }
+                } else {
+                    ok = AXActions.drag(fromRef: refs[0], toRef: refs[1], appPID: pid)
+                }
                 printResult(ok, action: "drag", ref: "\(refs[0]) → \(refs[1])")
             } else if nums.count >= 4 {
-                let ok = AXActions.dragCoord(x1: CGFloat(nums[0]), y1: CGFloat(nums[1]), x2: CGFloat(nums[2]), y2: CGFloat(nums[3]))
+                let ok: Bool
+                if bg, let targetPID = pid {
+                    ok = FocusGuard.withFocusSuppressed(pid: targetPID, window: nil, element: nil) {
+                        AXActions.dragCoord(x1: CGFloat(nums[0]), y1: CGFloat(nums[1]), x2: CGFloat(nums[2]), y2: CGFloat(nums[3]))
+                    }
+                } else {
+                    ok = AXActions.dragCoord(x1: CGFloat(nums[0]), y1: CGFloat(nums[1]), x2: CGFloat(nums[2]), y2: CGFloat(nums[3]))
+                }
                 printResult(ok, action: "drag", ref: "\(Int(nums[0])),\(Int(nums[1])) → \(Int(nums[2])),\(Int(nums[3]))")
             } else {
-                fputs("error: usage: drag @from @to | drag x1 y1 x2 y2\n", stderr)
+                fputs("error: usage: drag @from @to | drag x1 y1 x2 y2 [--bg]\n", stderr)
                 exit(1)
             }
 
         case "scroll":
-            let dir = cmdArgs.first ?? "down"
-            let amount = cmdArgs.count > 1 ? Int32(cmdArgs[1]) ?? 100 : 100
-            let ok = AXActions.scroll(direction: dir, amount: amount)
+            let dir = cmdArgs.first(where: { !$0.hasPrefix("--") }) ?? "down"
+            let amount = cmdArgs.compactMap({ Int32($0) }).first ?? 100
+            let bg = cmdArgs.contains("--bg") || cmdArgs.contains("--background") || cmdArgs.contains("--focus-guard") || args.contains("--focus-guard")
+            let ok: Bool
+            if bg, let targetPID = pid {
+                ok = FocusGuard.withFocusSuppressed(pid: targetPID, window: nil, element: nil) {
+                    AXActions.scroll(direction: dir, amount: amount)
+                }
+            } else {
+                ok = AXActions.scroll(direction: dir, amount: amount)
+            }
             printResult(ok, action: "scroll", ref: "\(dir) \(amount)")
 
         case "screenshot":
@@ -450,182 +507,7 @@ struct AgentControl {
             let ok = WindowManager.focusWindow(wid)
             printResult(ok, action: "focus", ref: widStr)
 
-        case "focus-bg":
-            guard let widStr = cmdArgs.first, let wid = UInt32(widStr) else {
-                fputs("error: usage: focus-bg <windowID>\n", stderr)
-                exit(1)
-            }
-            let ok = WindowManager.focusWindowBackground(wid)
-            var meta: [String: Any] = [
-                "spi_available": BackgroundFocus.isFocusWithoutRaiseAvailable,
-                "auth_post_available": BackgroundFocus.isAuthPostAvailable
-            ]
-            if !BackgroundFocus.lastError.isEmpty {
-                meta["last_error"] = BackgroundFocus.lastError
-            }
-            printResult(ok, action: "focus-bg", ref: widStr, extra: meta)
 
-        case "bg-focus":
-            guard let targetPID = pid else {
-                fputs("error: bg-focus requires --pid or --app\n", stderr)
-                exit(1)
-            }
-            let wid = cmdArgs.first.flatMap { UInt32($0) }
-                ?? WindowManager.firstWindowID(forPID: targetPID)
-                ?? 0
-            let ok = BackgroundFocus.activateWithoutRaise(
-                targetPid: targetPID, targetWid: CGWindowID(wid)
-            )
-            var meta: [String: Any] = [
-                "spi_available": BackgroundFocus.isFocusWithoutRaiseAvailable,
-                "windowID": wid
-            ]
-            if !BackgroundFocus.lastError.isEmpty {
-                meta["last_error"] = BackgroundFocus.lastError
-            }
-            printResult(ok, action: "bg-focus", ref: "\(targetPID)", extra: meta)
-
-        case "bg-defocus":
-            guard let targetPID = pid else {
-                fputs("error: bg-defocus requires --pid or --app\n", stderr)
-                exit(1)
-            }
-            let ok = BackgroundFocus.defocusWithoutRaise(targetPid: targetPID)
-            var meta: [String: Any] = [:]
-            if !BackgroundFocus.lastError.isEmpty {
-                meta["last_error"] = BackgroundFocus.lastError
-            }
-            printResult(ok, action: "bg-defocus", ref: "\(targetPID)", extra: meta)
-
-        case "bg-click":
-            guard let targetPID = pid else {
-                fputs("error: bg-click requires --pid or --app\n", stderr)
-                exit(1)
-            }
-            let nums = cmdArgs.compactMap { Double($0) }
-            guard nums.count >= 2 else {
-                fputs("error: usage: bg-click x y [--button left|right]\n", stderr)
-                exit(1)
-            }
-            let btn: CGMouseButton = cmdArgs.contains("--right") ? .right : .left
-            let wid = cmdArgs.first(where: { $0.hasPrefix("--window=") })
-                .flatMap { CGWindowID($0.dropFirst("--window=".count)) }
-            let ok = BackgroundFocus.bgClick(
-                pid: targetPID, windowID: wid,
-                x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn
-            )
-            printResult(ok, action: "bg-click", ref: "\(Int(nums[0])),\(Int(nums[1]))")
-
-        case "bg-type":
-            guard let targetPID = pid else {
-                fputs("error: bg-type requires --pid or --app\n", stderr)
-                exit(1)
-            }
-            let text = cmdArgs.joined(separator: " ")
-            guard !text.isEmpty else {
-                fputs("error: usage: bg-type <text>\n", stderr)
-                exit(1)
-            }
-            let ok = BackgroundFocus.bgType(pid: targetPID, text: text)
-            printResult(ok, action: "bg-type", ref: text)
-
-        case "bg-press":
-            guard let targetPID = pid else {
-                fputs("error: bg-press requires --pid or --app\n", stderr)
-                exit(1)
-            }
-            guard let key = cmdArgs.first else {
-                fputs("error: usage: bg-press <key>\n", stderr)
-                exit(1)
-            }
-            let ok = BackgroundFocus.bgPress(pid: targetPID, key: key)
-            printResult(ok, action: "bg-press", ref: key)
-
-        case "bg-act":
-            // Combo: bg-focus + action + bg-defocus
-            guard let targetPID = pid else {
-                fputs("error: bg-act requires --pid or --app\n", stderr)
-                exit(1)
-            }
-            guard let subCmd = cmdArgs.first else {
-                fputs("error: usage: bg-act <click|type|press> ...\n", stderr)
-                exit(1)
-            }
-            let subArgs = Array(cmdArgs.dropFirst())
-            let wid = WindowManager.firstWindowID(forPID: targetPID) ?? 0
-            BackgroundFocus.activateWithoutRaise(targetPid: targetPID, targetWid: CGWindowID(wid))
-            usleep(50_000)
-            var ok = false
-            switch subCmd {
-            case "click":
-                let nums = subArgs.compactMap { Double($0) }
-                if nums.count >= 2 {
-                    let btn: CGMouseButton = subArgs.contains("--right") ? .right : .left
-                    ok = BackgroundFocus.bgClick(pid: targetPID, x: CGFloat(nums[0]), y: CGFloat(nums[1]), button: btn)
-                } else {
-                    fputs("error: bg-act click x y\n", stderr)
-                    exit(1)
-                }
-            case "type":
-                let text = subArgs.joined(separator: " ")
-                guard !text.isEmpty else { fputs("error: bg-act type <text>\n", stderr); exit(1) }
-                ok = BackgroundFocus.bgType(pid: targetPID, text: text)
-            case "press":
-                guard let key = subArgs.first else { fputs("error: bg-act press <key>\n", stderr); exit(1) }
-                ok = BackgroundFocus.bgPress(pid: targetPID, key: key)
-            default:
-                fputs("error: unknown bg-act sub-command '\(subCmd)'\n", stderr)
-                exit(1)
-            }
-            usleep(50_000)
-            BackgroundFocus.defocusWithoutRaise(targetPid: targetPID)
-            printResult(ok, action: "bg-act", ref: "\(subCmd) \(subArgs.joined(separator: " "))")
-
-        case "stealth-act":
-            guard let targetPID = pid else {
-                fputs("error: stealth-act requires --pid or --app\n", stderr)
-                exit(1)
-            }
-            guard let subCmd = cmdArgs.first else {
-                fputs("error: usage: stealth-act <snapshot|click|type|press> ...\n", stderr)
-                exit(1)
-            }
-            guard let wid = WindowManager.firstWindowID(forPID: targetPID) else {
-                fputs("error: no window found for pid \(targetPID)\n", stderr)
-                exit(1)
-            }
-            let subArgs = Array(cmdArgs.dropFirst())
-            let ok = BackgroundFocus.stealthAct(pid: targetPID, windowID: wid) {
-                switch subCmd {
-                case "snapshot":
-                    let elements = AXScanner.snapshot(appPID: targetPID)
-                    printJSON(elements)
-                    return !elements.isEmpty
-                case "click":
-                    let ref = subArgs.first(where: { isRef($0) })
-                    let nums = subArgs.compactMap { Double($0) }
-                    if let ref = ref {
-                        return AXActions.click(ref: ref, appPID: targetPID)
-                    } else if nums.count >= 2 {
-                        return AXActions.clickAt(x: CGFloat(nums[0]), y: CGFloat(nums[1]))
-                    }
-                    return false
-                case "type":
-                    let text = subArgs.joined(separator: " ")
-                    return BackgroundFocus.bgType(pid: targetPID, text: text)
-                case "press":
-                    if let key = subArgs.first {
-                        return BackgroundFocus.bgPress(pid: targetPID, key: key)
-                    }
-                    return false
-                default:
-                    fputs("error: unknown stealth-act sub-command '\(subCmd)'\n", stderr)
-                    return false
-                }
-            }
-            if subCmd != "snapshot" { // snapshot already printed its own JSON
-                printResult(ok, action: "stealth-act", ref: "\(subCmd)")
-            }
 
         case "move-to-space":
             guard cmdArgs.count >= 2,
@@ -920,8 +802,63 @@ struct AgentControl {
 
         // ── Desktop Overview ──
 
+        case "screen":
+            let jsonMode = args.contains("--json")
+            if let target = cmdArgs.first(where: { !$0.hasPrefix("--") }) {
+                // Drill into a specific app/window (same as desktop drill)
+                let nameLower = target.lowercased()
+                if let wid = UInt32(target) {
+                    let winPid = WindowManager.pidForWindow(wid)
+                    guard winPid > 0 else {
+                        fputs("error: window \(wid) not found\n", stderr)
+                        exit(1)
+                    }
+                    let elements = AXScanner.snapshot(appPID: winPid)
+                    if jsonMode {
+                        printJSON(elements)
+                    } else {
+                        let appName = NSWorkspace.shared.runningApplications.first(where: { $0.processIdentifier == winPid })?.localizedName ?? "unknown"
+                        print(TreeFormatter.formatApp(name: appName, elements: elements))
+                    }
+                } else {
+                    // Try as app name
+                    let apps = NSWorkspace.shared.runningApplications.filter {
+                        $0.activationPolicy == .regular &&
+                        ($0.localizedName?.lowercased().contains(nameLower) == true ||
+                         $0.bundleIdentifier?.lowercased().contains(nameLower) == true)
+                    }
+                    guard let app = apps.first else {
+                        fputs("error: no app matching '\(target)'\n", stderr)
+                        exit(1)
+                    }
+                    let elements = AXScanner.snapshot(appPID: app.processIdentifier)
+                    if jsonMode {
+                        printJSON(elements)
+                    } else {
+                        print(TreeFormatter.formatApp(name: app.localizedName ?? target, elements: elements))
+                    }
+                }
+            } else {
+                                // Full screen scan: menu bar + dock + all visible windows
+                let (displays, sections) = AXScanner.screenSnapshot()
+                if jsonMode {
+                    // JSON: array of sections with display info
+                    struct JSONSection: Encodable {
+                        let label: String
+                        let displayIndex: Int
+                        let elements: [ACElement]
+                    }
+                    let jsonSections = sections.map { JSONSection(label: $0.label, displayIndex: $0.displayIndex, elements: $0.elements) }
+                    printJSON(jsonSections)
+                } else {
+                    let frontApp = NSWorkspace.shared.frontmostApplication
+                    print(TreeFormatter.formatScreen(sections, displays: displays, frontmostApp: frontApp?.localizedName, frontmostPID: frontApp?.processIdentifier))
+                }
+            }
+
         case "desktop":
-            if let target = cmdArgs.first {
+            let jsonMode = args.contains("--json")
+            if let target = cmdArgs.first(where: { !$0.hasPrefix("--") }) {
                 // Drill-down mode: look into a specific window or tray item
                 if let wid = UInt32(target) {
                     // By window ID — snapshot that window's app
@@ -931,7 +868,12 @@ struct AgentControl {
                         exit(1)
                     }
                     let elements = AXScanner.snapshot(appPID: winPid)
-                    printJSON(elements)
+                    if jsonMode {
+                        printJSON(elements)
+                    } else {
+                        let appName = NSWorkspace.shared.runningApplications.first(where: { $0.processIdentifier == winPid })?.localizedName ?? "unknown"
+                        print(TreeFormatter.formatApp(name: appName, elements: elements))
+                    }
                 } else {
                     // By name — could be an app name or a tray item
                     let nameLower = target.lowercased()
@@ -939,7 +881,15 @@ struct AgentControl {
                     // First check if it matches a menu extra
                     let trayResult = WindowManager.openMenuExtra(named: target)
                     if let items = trayResult {
-                        printJSON(items)
+                        if jsonMode {
+                            printJSON(items)
+                        } else {
+                            print("Menu Extra \"\(target)\"")
+                            for item in items {
+                                let enabled = item.enabled ? "" : " [disabled]"
+                                print("  \(item.title)\(enabled)")
+                            }
+                        }
                     } else {
                         // Try as app name — find its windows and snapshot
                         let apps = NSWorkspace.shared.runningApplications.filter {
@@ -952,13 +902,29 @@ struct AgentControl {
                             exit(1)
                         }
                         let elements = AXScanner.snapshot(appPID: app.processIdentifier)
-                        printJSON(elements)
+                        if jsonMode {
+                            printJSON(elements)
+                        } else {
+                            print(TreeFormatter.formatApp(name: app.localizedName ?? target, elements: elements))
+                        }
                     }
                 }
             } else {
                 // No argument — full overview
                 let overview = WindowManager.desktopOverview()
-                printJSON(overview)
+                if jsonMode {
+                    printJSON(overview)
+                } else {
+                    let text = TreeFormatter.formatDesktop(
+                        frontmostApp: overview.frontmostApp,
+                        runningApps: overview.runningApps.map { (name: $0.name, isActive: $0.isActive, isHidden: $0.isHidden, windowCount: $0.windowCount) },
+                        windows: overview.windows.map { (windowID: $0.windowID, app: $0.app, title: $0.title, frameW: $0.frame.w, frameH: $0.frame.h, frameX: $0.frame.x, frameY: $0.frame.y, isActive: $0.isActive) },
+                        menuExtras: overview.menuExtras,
+                        spaceCount: overview.spaces.count,
+                        currentSpaceID: overview.currentSpaceID
+                    )
+                    print(text)
+                }
             }
 
         // ── Doctor / TCC ──
@@ -979,6 +945,7 @@ struct AgentControl {
             printJSON(perms)
 
         case "cursor":
+            fputs("warning: 'cursor' is deprecated (no functional effect on macOS 26). Will be removed in a future version.\n", stderr)
             let sub = cmdArgs.first ?? "status"
             let selfPath = CommandLine.arguments[0]
             switch sub {
@@ -1156,22 +1123,13 @@ struct AgentControl {
           screenshot @ref [path]                 元素截图
           screenshot --full [path]               全屏截图 (显式 opt-in)
 
-        Background Control (SkyLight — 不抢焦点):
-          bg-focus                               后台激活 (需 --pid/--app)
-          bg-defocus                             取消后台激活
-          bg-click x y [--right]                 后台点击
-          bg-type "text"                         后台输入文字
-          bg-press <key>                         后台按键 (如 cmd+t)
-          bg-act <click|type|press> ...          bg-focus + 动作 + bg-defocus
-          stealth-act <snapshot|click|...>       最小化窗口静默操作
+        Background Mode (--bg flag, AX FocusGuard — macOS 26 可用):
+          click @ref --bg                        三层 focus 栈包裹, app 不抢前台
+          fill @ref "text" --bg                  同上
+          dblclick/rightclick @ref --bg
+          note: --bg / --background / --focus-guard 等价
 
-        FocusGuard (AX 模拟焦点 — 推荐, macOS 26 可用):
-          click @ref --focus-guard               三层 focus 栈包裹 (Chromium AX enable + AXFocused swap + activation reverter)
-          fill @ref "text" --focus-guard         同上 (app 不抢前台, 不抢真 focus)
-          dblclick/rightclick @ref --focus-guard
-          note: --focus-guard == --bg, 别名
-
-        Virtual Cursor (lavender 箭头, 不动真光标):
+        Virtual Cursor (DEPRECATED — no functional effect on macOS 26):
           cursor start                           启动 daemon + 显示虚拟光标
           cursor move X Y [--no-animate] [--duration SEC]  平滑移动
           cursor hide / stop / status
@@ -1183,7 +1141,6 @@ struct AgentControl {
         Window Management:
           windows                                列出所有窗口
           focus <windowID>                       激活窗口 (会抢前台)
-          focus-bg <windowID>                    后台激活 (按 windowID)
           move-to-space <windowID> <spaceID>     移动窗口到空间
           pin <windowID>                         钉到所有空间
           unpin <windowID>                       取消钉住
@@ -1212,10 +1169,9 @@ struct AgentControl {
           -i             snapshot 只返回可交互元素
           --fallback     snapshot 同时返回 CGWindowList fallback
 
-        AX (抢焦点) vs SkyLight (后台) 对比:
-          click/press/fill      — AX API, 需要窗口在前台
-          bg-click/bg-press/bg-type — SkyLight, 不打断用户工作
-          stealth-act           — 对最小化窗口操作, 用户无感知
+        Background mode:
+          加 --bg 即可后台操作, 不打断用户工作
+          macOS 26 默认 AX action 已不抢前台, --bg 是额外保险
         """)
     }
 }

@@ -124,7 +124,7 @@ const PLATFORM_HELP = {
     '  console [N]               Tail unified log for target app (--level=<info|debug|error>)',
     '',
     'macOS shortcuts (top-level):',
-    '  virtual-cursor start|move|hide|stop|status    Lavender virtual cursor (alias vcursor)',
+    '  virtual-cursor start|move|hide|stop|status    [DEPRECATED] Lavender virtual cursor',
   ].join('\n'),
   ios: [
     'agent-control-ios — iOS simulator + real-device driver',
@@ -311,8 +311,8 @@ const CLI_SUBCOMMANDS = new Set([
   'doctor', 'check', 'shot', 'auto', 'run-all', 'goal', 'viewer',
   'help', '--help', '-h',
   'virtual-cursor', 'vcursor',
-  'desktop',                             // global desktop overview
-  'menu',                                // app menu exploration
+  'desktop',                             // alias for screen (backward compat)
+  'screen',                              // full screen scan (menu bar + dock + windows)
   'platform', 'context',              // sticky-context management (below)
   'use', 'switch',                     // shorthand for `platform set`
   'where', 'who', 'pwd',               // shorthand for `platform show`
@@ -432,71 +432,12 @@ if (cmd0 && COMMAND_ALIASES[cmd0]) {
   }
 }
 
-if (cmd0 === 'menu') {
-  const fs_ = require('fs');
-  const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
-  const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
-  const bin = fs_.existsSync(rel) ? rel : dbg;
-  if (!fs_.existsSync(bin)) {
-    console.error('macOS driver not built. Run: cd macos-driver && swift build');
-    process.exit(1);
-  }
-  const menuArgs = driverArgs.slice(1);
-  // Pass --app if sticky context has one
-  const sticky = readSticky();
-  const swiftArgs = ['menu'];
-  if (sticky.app && !menuArgs.includes('--app')) {
-    swiftArgs.push('--app', sticky.app);
-  }
-  swiftArgs.push(...menuArgs);
-  const r = spawnSync(bin, swiftArgs, { encoding: 'utf8', timeout: 10000 });
-  if (r.stdout) {
-    try {
-      const data = JSON.parse(r.stdout);
-      if (data.ok !== undefined) {
-        // Click result
-        if (data.ok) {
-          console.log(`✅ Clicked: ${data.target}`);
-        } else {
-          console.error(`❌ Failed to click: ${data.target}`);
-        }
-      } else if (Array.isArray(data)) {
-        if (menuArgs.filter(a => !a.startsWith('--')).length === 0) {
-          // List menu names
-          console.log('\n📋 Menus:');
-          for (const m of data) {
-            console.log(`  • ${m.title}`);
-          }
-        } else {
-          // Show menu items
-          const menuName = menuArgs.find(a => !a.startsWith('--')) || '';
-          console.log(`\n📋 ${menuName}:`);
-          for (const item of data) {
-            const dis = item.enabled === false ? ' (disabled)' : '';
-            const sub = item.hasSubmenu ? ' ▶' : '';
-            const key = item.shortcut ? `  [⌘${item.shortcut}]` : '';
-            console.log(`  ${item.title}${sub}${key}${dis}`);
-            if (item.children) {
-              for (const child of item.children) {
-                const cdis = child.enabled === false ? ' (disabled)' : '';
-                const ckey = child.shortcut ? `  [⌘${child.shortcut}]` : '';
-                console.log(`    ${child.title}${ckey}${cdis}`);
-              }
-            }
-          }
-        }
-      }
-      if (jsonMode) console.log(JSON.stringify(data, null, 2));
-    } catch(e) {
-      console.log(r.stdout);
-    }
-  }
-  if (r.stderr) process.stderr.write(r.stderr);
-  process.exit(r.status || 0);
-}
+// menu command removed — menu bar is part of `screen` output
 
-if (cmd0 === 'desktop') {
-  // Call Swift macOS driver's desktop command directly
+
+if (cmd0 === 'desktop' || cmd0 === 'screen') {
+  // Path-based desktop command: desktop [target...] [--verb] [verb-args...] [--bg]
+  // Swift binary handles all formatting (indented tree by default, --json for JSON)
   const fs_ = require('fs');
   const rel = path.join(ROOT, 'macos-driver', '.build', 'release', 'agent-control');
   const dbg = path.join(ROOT, 'macos-driver', '.build', 'debug', 'agent-control');
@@ -506,219 +447,162 @@ if (cmd0 === 'desktop') {
     process.exit(1);
   }
 
-  const desktopArgs = driverArgs.slice(1);
-  const ACTION_VERBS = new Set(['click', 'fill', 'press', 'dblclick', 'rightclick', 'scroll', 'drag', 'close', 'minimize', 'maximize', 'fullscreen', 'move', 'resize', 'focus', 'hide', 'show']);
+  const swiftCmd = 'screen'; // desktop is alias for screen
 
-  // Parse: [target...] [action] [action-args...]
-  // Find the first action verb in args
-  let actionIdx = -1;
+  const desktopArgs = driverArgs.slice(1); // everything after 'desktop'/'screen'
+
+  // Parse path segments and --verb
+    // Known browser apps for auto CDP web content
+  const BROWSER_APPS = {
+    'chrome': 9222, 'google chrome': 9222, 'arc': 9222,
+    'chromium': 9222, 'brave': 9222, 'edge': 9222, 'microsoft edge': 9222,
+    'vivaldi': 9222,
+  };
+
+  // Parse path segments and --verb
+  // Path = all args before the first --verb (e.g. --click, --fill, --press)
+  // Verb = --click / --fill / --press / --dblclick / --rightclick / --longpress / --drag / --scroll / --screenshot
+  const VERB_FLAGS = new Set(['--click', '--fill', '--press', '--dblclick', '--rightclick', '--longpress', '--drag', '--scroll', '--screenshot', '--hover', '--activate', '--find']);
+  let verbIdx = -1;
   for (let i = 0; i < desktopArgs.length; i++) {
-    if (ACTION_VERBS.has(desktopArgs[i])) { actionIdx = i; break; }
+    if (VERB_FLAGS.has(desktopArgs[i])) { verbIdx = i; break; }
   }
 
-  if (actionIdx >= 0) {
-    // Action mode: desktop "Cursor" click @e5
-    const targetArgs = desktopArgs.slice(0, actionIdx); // e.g. ["Cursor"]
-    const action = desktopArgs[actionIdx]; // e.g. "click"
-    const actionArgs = desktopArgs.slice(actionIdx + 1); // e.g. ["@e5"]
+  if (verbIdx >= 0) {
+    // Action mode: desktop "Cursor" --click @e3 --bg
+    const pathSegments = desktopArgs.slice(0, verbIdx); // e.g. ["Cursor"]
+    const verb = desktopArgs[verbIdx].slice(2); // strip "--" → "click"
+    const verbArgs = desktopArgs.slice(verbIdx + 1); // e.g. ["@e3", "--bg"]
 
-    // Resolve target to --app name
-    let appName_ = targetArgs[0] || null;
+    // Resolve target app from path
+    const appName_ = pathSegments[0] || null;
 
-    // Window management actions need special handling
-    const WINDOW_ACTIONS = new Set(['close', 'minimize', 'maximize', 'fullscreen', 'move', 'resize', 'focus', 'hide', 'show']);
+    // Window management verbs
+    const WINDOW_VERBS = new Set(['close', 'minimize', 'move', 'resize', 'focus', 'hide', 'activate']);
 
-    if (WINDOW_ACTIONS.has(action)) {
-      // Window-level operation: find window ID first, then execute
+    if (WINDOW_VERBS.has(verb)) {
       let drvArgs;
-      if (action === 'close') {
-        // Get window ID for the app, then close-window
+      if (verb === 'close') {
         drvArgs = ['close-window'];
-        if (appName_) {
-          // Get first window ID for this app
-          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
-          try {
-            const overview = JSON.parse(wr.stdout);
-            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
-            if (win) drvArgs.push(String(win.windowID));
-            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
-          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
-        } else if (actionArgs[0]) {
-          drvArgs.push(actionArgs[0]);
-        }
-      } else if (action === 'minimize') {
+      } else if (verb === 'minimize') {
         drvArgs = ['minimize'];
-        if (appName_) {
-          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
-          try {
-            const overview = JSON.parse(wr.stdout);
-            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
-            if (win) drvArgs.push(String(win.windowID));
-            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
-          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
-        } else if (actionArgs[0]) {
-          drvArgs.push(actionArgs[0]);
-        }
-      } else if (action === 'focus') {
-        drvArgs = ['focus'];
-        if (appName_) {
-          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
-          try {
-            const overview = JSON.parse(wr.stdout);
-            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
-            if (win) drvArgs.push(String(win.windowID));
-            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
-          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
-        } else if (actionArgs[0]) {
-          drvArgs.push(actionArgs[0]);
-        }
-      } else if (action === 'move') {
-        // move x y
+      } else if (verb === 'move') {
         drvArgs = ['move-window'];
-        if (appName_) {
-          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
-          try {
-            const overview = JSON.parse(wr.stdout);
-            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
-            if (win) drvArgs.push(String(win.windowID));
-            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
-          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
-        }
-        drvArgs.push(...actionArgs);
-      } else if (action === 'resize') {
+      } else if (verb === 'resize') {
         drvArgs = ['resize-window'];
-        if (appName_) {
-          const wr = spawnSync(bin, ['desktop'], { encoding: 'utf8', timeout: 10000 });
-          try {
-            const overview = JSON.parse(wr.stdout);
-            const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
-            if (win) drvArgs.push(String(win.windowID));
-            else { console.error(`❌ No window found for '${appName_}'`); process.exit(1); }
-          } catch(e) { console.error('❌ Failed to get window list'); process.exit(1); }
-        }
-        drvArgs.push(...actionArgs);
-      } else if (action === 'hide') {
-        // Hide app via NSRunningApplication
+      } else if (verb === 'hide') {
         drvArgs = ['hide'];
         if (appName_) drvArgs.push('--app', appName_);
-      } else if (action === 'show') {
-        drvArgs = ['unhide'];
-        if (appName_) drvArgs.push('--app', appName_);
+      } else if (verb === 'activate' || verb === 'focus') {
+        drvArgs = ['focus'];
       } else {
-        drvArgs = [action, ...actionArgs];
+        drvArgs = [verb];
       }
 
-      const r = spawnSync(bin, drvArgs, { encoding: 'utf8', timeout: 15000 });
-      if (r.stdout) {
+      // For window ops that need wid, resolve from desktop --json
+      if (['close', 'minimize', 'move', 'resize', 'focus'].includes(verb) && appName_) {
+        const wr = spawnSync(bin, [swiftCmd, '--json'], { encoding: 'utf8', timeout: 10000 });
         try {
-          const data = JSON.parse(r.stdout);
-          if (data.ok !== false) {
-            console.log(`✅ ${action}: ${appName_ || actionArgs.join(' ')}`);
-          } else {
-            console.error(`❌ ${action} failed: ${data.error || 'unknown'}`);
-          }
-        } catch(e) { console.log(r.stdout); }
+          const overview = JSON.parse(wr.stdout);
+          const win = overview.windows?.find(w => w.app.toLowerCase().includes(appName_.toLowerCase()));
+          if (win) drvArgs.push(String(win.windowID));
+          else { console.error(`error: no window found for '${appName_}'`); process.exit(1); }
+        } catch(e) { console.error('error: failed to get window list'); process.exit(1); }
       }
+      drvArgs.push(...verbArgs);
+
+      const r = spawnSync(bin, drvArgs, { encoding: 'utf8', timeout: 15000 });
+      if (r.stdout) process.stdout.write(r.stdout);
       if (r.stderr) process.stderr.write(r.stderr);
       process.exit(r.status || 0);
     }
 
     // Element-level action (click, fill, press, etc.)
-    const drvArgs = [action];
+    const drvArgs = [verb];
     if (appName_) drvArgs.push('--app', appName_);
-    // Default to --bg (background, no focus steal)
-    if (!actionArgs.includes('--fg') && !actionArgs.includes('--foreground')) {
+    // Screenshot without app target = full screen
+    if (verb === 'screenshot' && !appName_) drvArgs.push('--full');
+    // Default to --bg unless --fg explicitly passed
+    if (!verbArgs.includes('--fg') && !verbArgs.includes('--foreground') && !verbArgs.includes('--bg') && !verbArgs.includes('--background')) {
       drvArgs.push('--bg');
     }
-    drvArgs.push(...actionArgs);
+    drvArgs.push(...verbArgs);
 
     const r = spawnSync(bin, drvArgs, { encoding: 'utf8', timeout: 15000 });
+    // Format action result as readable line
     if (r.stdout) {
       try {
         const data = JSON.parse(r.stdout);
         if (data.ok) {
-          console.log(`✅ ${action}: ${actionArgs.join(' ')}`);
+          const info = data.path || data.ref || '';
+          process.stdout.write(`✓ ${verb} ${info}\n`);
         } else {
-          console.error(`❌ ${action} failed: ${data.error || 'unknown'}`);
+          process.stdout.write(`✗ ${verb} failed: ${data.error || 'unknown'}\n`);
         }
-      } catch(e) { console.log(r.stdout); }
+      } catch(e) { process.stdout.write(r.stdout); }
     }
     if (r.stderr) process.stderr.write(r.stderr);
+
+    // After action, print snapshot (unless --no-snapshot or screenshot)
+    if (!verbArgs.includes('--no-snapshot') && verb !== 'screenshot' && r.status === 0) {
+      const snapArgs = [swiftCmd];
+      if (appName_) snapArgs.push(appName_);
+      if (jsonMode) snapArgs.push('--json');
+      const sr = spawnSync(bin, snapArgs, { encoding: 'utf8', timeout: 10000 });
+      if (sr.stdout) {
+        process.stdout.write('\n');
+        process.stdout.write(sr.stdout);
+      }
+      // If browser app, also append web content
+      if (appName_) {
+        const appLower = appName_.toLowerCase();
+        const cdpPort = BROWSER_APPS[appLower];
+        if (cdpPort && !jsonMode) {
+          const cdpScript = path.join(ROOT, 'cdp-snapshot.js');
+          const cr = spawnSync('node', [cdpScript, '--port', String(cdpPort)], {
+            encoding: 'utf8', timeout: 8000, cwd: ROOT,
+          });
+          if (cr.status === 0 && cr.stdout) {
+            process.stdout.write('\n');
+            process.stdout.write(cr.stdout);
+          }
+        }
+      }
+    }
     process.exit(r.status || 0);
   }
 
-  // No action verb — view mode (overview or drill-down)
-  const r = spawnSync(bin, ['desktop', ...desktopArgs], { encoding: 'utf8', timeout: 15000 });
-  if (r.stdout) {
-    try {
-      const data = JSON.parse(r.stdout);
-      if (desktopArgs.length > 0) {
-        // Drill-down mode: show elements (snapshot or menu items)
-        if (Array.isArray(data)) {
-          // Could be AX elements or menu items
-          const isMenu = data.length > 0 && data[0].hasOwnProperty('hasSubmenu');
-          if (isMenu) {
-            console.log(`\n📌 Menu:`);
-            for (const item of data) {
-              const val = item.value ? ` = ${item.value}` : '';
-              const sub = item.hasSubmenu ? ' ▶' : '';
-              const dis = item.enabled === false ? ' (disabled)' : '';
-              console.log(`  ${item.title || item.role}${val}${sub}${dis}`);
-              if (item.children?.length) {
-                for (const child of item.children) {
-                  console.log(`    ${child.title || child.role}${child.value ? ' = ' + child.value : ''}`);
-                }
-              }
-            }
-          } else {
-            // AX elements from window snapshot
-            const { formatSnapshot } = require('./snapshot-enhance');
-            const text = formatSnapshot(data, { compact: true });
-            console.log(text);
-          }
-        } else {
-          console.log(JSON.stringify(data, null, 2));
-        }
-      } else {
-        // Overview mode
-        console.log(`\n⚡ Desktop Overview`);
-        console.log(`  Frontmost: ${data.frontmostApp || 'none'}`);
-        console.log(`  Space: ${data.currentSpaceID || '?'} (${data.spaces?.length || 0} total)`);
-        console.log('');
-        if (data.runningApps?.length) {
-          console.log(`📱 Running Apps (${data.runningApps.length}):`);
-          for (const app of data.runningApps) {
-            const flags = [];
-            if (app.isActive) flags.push('active');
-            if (app.isHidden) flags.push('hidden');
-            if (app.ownsMenuBar) flags.push('menubar');
-            const wins = app.windowCount > 0 ? ` [${app.windowCount} win]` : '';
-            const f = flags.length ? ` (${flags.join(', ')})` : '';
-            console.log(`  • ${app.name}${wins}${f}`);
-          }
-          console.log('');
-        }
-        if (data.windows?.length) {
-          console.log(`🖼  Windows (${data.windows.length}):`);
-          for (const w of data.windows) {
-            const title = w.title ? ` — ${w.title.slice(0, 50)}` : '';
-            const active = w.isActive ? ' *' : '';
-            console.log(`  • ${w.app}${title}${active}  [${w.frame.w}×${w.frame.h} at ${w.frame.x},${w.frame.y}]`);
-          }
-          console.log('');
-        }
-        if (data.menuExtras?.length) {
-          console.log(`📌 Menu Extras: ${data.menuExtras.join(', ')}`);
-          console.log('');
-        }
+  // No verb — view mode (snapshot). Pass through to Swift binary.
+  const swiftArgs = [swiftCmd, ...desktopArgs];
+  if (jsonMode) swiftArgs.push('--json');
+  const r = spawnSync(bin, swiftArgs, { encoding: 'utf8', timeout: 15000 });
+  if (r.stdout) process.stdout.write(r.stdout);
+  if (r.stderr) process.stderr.write(r.stderr);
+
+  // Auto-detect browser app and append web content via CDP
+  // Determine which app to check: explicit target, or active app from header
+  let browserTarget = desktopArgs[0] || null;
+  if (!browserTarget && r.stdout) {
+    const m = r.stdout.match(/Screen \[active: ([^,\]]+)/);
+    if (m) browserTarget = m[1];
+  }
+  if (browserTarget && !jsonMode) {
+    const appLower = browserTarget.toLowerCase();
+    const cdpPort = BROWSER_APPS[appLower];
+    if (cdpPort) {
+      // Try CDP snapshot for web content
+      const cdpScript = path.join(ROOT, 'cdp-snapshot.js');
+      const cr = spawnSync('node', [cdpScript, '--port', String(cdpPort)], {
+        encoding: 'utf8', timeout: 8000,
+        cwd: ROOT,
+      });
+      if (cr.status === 0 && cr.stdout) {
+        process.stdout.write('\n');
+        process.stdout.write(cr.stdout);
       }
-      if (jsonMode) console.log(JSON.stringify(data, null, 2));
-    } catch(e) {
-      // Not JSON, just print raw
-      console.log(r.stdout);
     }
   }
-  if (r.stderr) process.stderr.write(r.stderr);
+
   process.exit(r.status || 0);
 }
 
@@ -1087,7 +971,10 @@ function maybeEnhance(r) {
       console.log(result.summary);
       console.log(result.text);
     }
-  } catch(e) { console.error('enhance error:', e.message); process.stdout.write(out + '\n'); }
+  } catch(e) {
+    // Not JSON (e.g. Swift binary outputs indented tree directly) — pass through
+    process.stdout.write(out + '\n');
+  }
   flushAndExit(r.status || 0);
 }
 
@@ -1103,6 +990,7 @@ const drivers = {
       process.exit(1);
     }
     const timeout = (driverArgs[0] === 'console' || driverArgs[0] === 'logs') ? 30000 : 15000;
+    if (jsonMode && !driverArgs.includes('--json')) driverArgs.push('--json');
     maybeEnhance(runDriver(bin, driverArgs, timeout));
   },
   web: () => {
@@ -1244,7 +1132,7 @@ Driver commands (use with -p <plat>):
   console [level] [N]            System/app logs
 
 macOS shortcuts (top-level):
-  virtual-cursor start|move|hide|stop|status    Lavender virtual cursor (alias vcursor)
+  virtual-cursor start|move|hide|stop|status    [DEPRECATED] Virtual cursor
 
 Subcommands:
   doctor  [-p <plat>]                            Environment check (all platforms)

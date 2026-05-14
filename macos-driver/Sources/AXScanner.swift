@@ -241,6 +241,191 @@ enum AXScanner {
         role.hasPrefix("AX") ? String(role.dropFirst(2)) : role
     }
 
+    // MARK: - Full Screen Scan
+
+    /// Scan the entire visible screen: menu bar, dock, all visible windows.
+    /// Returns sections with elements, each section has a label and elements.
+    struct ScreenSection {
+        let label: String
+        let elements: [ACElement]
+        var displayIndex: Int = 0  // which display this section belongs to
+    }
+
+    struct DisplayInfo {
+        let index: Int
+        let name: String
+        let frame: CGRect
+        let isMain: Bool
+    }
+
+    static func getDisplays() -> [DisplayInfo] {
+        var displays: [DisplayInfo] = []
+        for (i, screen) in NSScreen.screens.enumerated() {
+            let name = screen.localizedName
+            let isMain = (screen == NSScreen.main)
+            displays.append(DisplayInfo(index: i, name: name, frame: screen.frame, isMain: isMain))
+        }
+        return displays
+    }
+
+    /// Determine which display a window belongs to based on its frame
+    private static func displayForWindow(windowFrame: CGRect, displays: [DisplayInfo]) -> Int {
+        // Find which display contains the window's center
+        let center = CGPoint(x: windowFrame.midX, y: windowFrame.midY)
+        for disp in displays {
+            if disp.frame.contains(center) {
+                return disp.index
+            }
+        }
+        // Fallback: find display with most overlap
+        var bestOverlap: CGFloat = 0
+        var bestIdx = 0
+        for disp in displays {
+            let intersection = disp.frame.intersection(windowFrame)
+            if !intersection.isNull {
+                let area = intersection.width * intersection.height
+                if area > bestOverlap {
+                    bestOverlap = area
+                    bestIdx = disp.index
+                }
+            }
+        }
+        return bestIdx
+    }
+
+    static func screenSnapshot(maxDepthPerWindow: Int = 3) -> ([DisplayInfo], [ScreenSection]) {
+        let displays = getDisplays()
+        var sections: [ScreenSection] = []
+        var counter = 0
+
+        // 1. Menu Bar (frontmost app)
+        if let frontApp = NSWorkspace.shared.frontmostApplication {
+            let app = AXUIElementCreateApplication(frontApp.processIdentifier)
+            var menuBarElements: [ACElement] = []
+            var bar: CFTypeRef?
+            AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &bar)
+            if let barEl = bar {
+                menuBarElements.append(contentsOf: scanElement(barEl as! AXUIElement, depth: 0, maxDepth: 2, counter: &counter, seenAppDepth: 0))
+            }
+            if !menuBarElements.isEmpty {
+                sections.append(ScreenSection(label: "Menu Bar", elements: menuBarElements))
+            }
+        }
+
+        // 2. Menu Extras (right side: ControlCenter + SystemUIServer)
+        let extraBundles = ["com.apple.controlcenter", "com.apple.systemuiserver"]
+        var extraElements: [ACElement] = []
+        for bundleID in extraBundles {
+            guard let serverApp = NSWorkspace.shared.runningApplications.first(where: {
+                $0.bundleIdentifier == bundleID
+            }) else { continue }
+            let app = AXUIElementCreateApplication(serverApp.processIdentifier)
+            var menuBar: CFTypeRef?
+            AXUIElementCopyAttributeValue(app, "AXExtrasMenuBar" as CFString, &menuBar)
+            if menuBar == nil {
+                AXUIElementCopyAttributeValue(app, kAXMenuBarAttribute as CFString, &menuBar)
+            }
+            guard let bar = menuBar else { continue }
+            let children = getChildElements(bar as! AXUIElement)
+            for child in children {
+                let role = attr(child, kAXRoleAttribute) ?? ""
+                let label = attr(child, kAXTitleAttribute) ?? attr(child, kAXDescriptionAttribute) ?? ""
+                if label.isEmpty { continue }
+                counter += 1
+                extraElements.append(ACElement(
+                    ref: "@e\(counter)",
+                    role: cleanRole(role),
+                    label: label,
+                    value: attr(child, kAXValueAttribute),
+                    frame: getFrame(child),
+                    interactive: true,
+                    children: nil
+                ))
+            }
+        }
+        if !extraElements.isEmpty {
+            sections.append(ScreenSection(label: "Menu Extras", elements: extraElements))
+        }
+
+        // 3. Dock
+        if let dockApp = NSWorkspace.shared.runningApplications.first(where: {
+            $0.bundleIdentifier == "com.apple.dock"
+        }) {
+            let app = AXUIElementCreateApplication(dockApp.processIdentifier)
+            var dockElements: [ACElement] = []
+            // Dock has AXChildren with AXList items
+            let children = getChildElements(app)
+            for child in children {
+                let role = attr(child, kAXRoleAttribute) ?? ""
+                if role == "AXList" {
+                    // Dock items are inside AXList
+                    let items = getChildElements(child)
+                    for item in items {
+                        let itemRole = attr(item, kAXRoleAttribute) ?? ""
+                        let itemLabel = attr(item, kAXTitleAttribute) ?? attr(item, kAXDescriptionAttribute) ?? ""
+                        if itemLabel.isEmpty { continue }
+                        counter += 1
+                        dockElements.append(ACElement(
+                            ref: "@e\(counter)",
+                            role: cleanRole(itemRole),
+                            label: itemLabel,
+                            value: nil,
+                            frame: getFrame(item),
+                            interactive: true,
+                            children: nil
+                        ))
+                    }
+                }
+            }
+            if !dockElements.isEmpty {
+                sections.append(ScreenSection(label: "Dock", elements: dockElements))
+            }
+        }
+
+        // 4. Visible Windows (all on-screen apps, shallow scan)
+        let visibleApps = NSWorkspace.shared.runningApplications.filter {
+            $0.activationPolicy == .regular && !$0.isHidden
+        }
+        for visApp in visibleApps {
+            let app = AXUIElementCreateApplication(visApp.processIdentifier)
+            var windows: CFTypeRef?
+            AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windows)
+            guard let winArray = windows as? [AXUIElement], !winArray.isEmpty else { continue }
+
+            let appName = visApp.localizedName ?? "unknown"
+            for win in winArray {
+                // Get window title
+                let winTitle = attr(win, kAXTitleAttribute) ?? ""
+                let sectionLabel = winTitle.isEmpty ? appName : "\(appName) \"\(winTitle)\""
+
+                // Get window frame to determine display
+                let winFrame = getFrame(win)
+                let cgFrame = CGRect(x: CGFloat(winFrame.x), y: CGFloat(winFrame.y),
+                                     width: CGFloat(winFrame.w), height: CGFloat(winFrame.h))
+                let dispIdx = displayForWindow(windowFrame: cgFrame, displays: displays)
+
+                // Shallow scan: only top-level interactive elements
+                var winElements: [ACElement] = []
+                let winRole = attr(win, kAXRoleAttribute) ?? ""
+                if winRole == "AXWindow" {
+                    winElements = scanElement(win, depth: 0, maxDepth: maxDepthPerWindow, counter: &counter, seenAppDepth: 0)
+                } else if winRole == "AXApplication" {
+                    winElements = scanWindowContent(win, counter: &counter, appDepth: 0)
+                } else {
+                    winElements = scanElement(win, depth: 0, maxDepth: maxDepthPerWindow, counter: &counter, seenAppDepth: 0)
+                }
+
+                if !winElements.isEmpty {
+                    var section = ScreenSection(label: sectionLabel, elements: winElements)
+                    section.displayIndex = dispIdx
+                    sections.append(section)
+                }
+            }
+        }
+
+        return (displays, sections)
+    }
+
     // MARK: - Ref → AXUIElement lookup
     //
     // Find the native AXUIElement behind a `@eN` ref using the SAME traversal
