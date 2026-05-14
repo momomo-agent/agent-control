@@ -77,7 +77,12 @@ enum TreeFormatter {
         
         // Separate global sections (menu bar, dock, extras) from window sections
         let globalSections = sections.filter { $0.isGlobal }
-        let windowSections = sections.filter { !$0.isGlobal }.sorted { $0.zOrder < $1.zOrder }
+        var windowSections = sections.filter { !$0.isGlobal }.sorted { $0.zOrder < $1.zOrder }
+
+        // Assign @w refs in z-order (w1 = frontmost)
+        for i in 0..<windowSections.count {
+            windowSections[i].windowRef = "@w\(i + 1)"
+        }
 
         // Group window sections by display
         var windowsByDisplay: [Int: [AXScanner.ScreenSection]] = [:]
@@ -86,10 +91,12 @@ enum TreeFormatter {
         }
 
         // Helper: render a section fully expanded
+                // Helper: render a section fully expanded
         func renderExpanded(_ section: AXScanner.ScreenSection, indent: String) {
             let isActive = frontmostApp != nil && section.label.lowercased().hasPrefix(frontmostApp!.lowercased())
             let activeTag = isActive ? " [active]" : ""
-            lines.append("\(indent)\(section.label):\(activeTag)")
+            let ref = section.windowRef.isEmpty ? "" : "\(section.windowRef) "
+            lines.append("\(indent)\(ref)\(section.label):\(activeTag)")
             let (text, intCount, _) = format(section.elements, interactive: false)
             totalInteractive += intCount
             for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
@@ -104,7 +111,8 @@ enum TreeFormatter {
             // Count interactive elements without rendering
             let (_, intCount, _) = format(section.elements, interactive: false)
             totalInteractive += intCount
-            lines.append("\(indent)\(section.label)\(activeTag) [\(intCount) elements]")
+            let ref = section.windowRef.isEmpty ? "" : "\(section.windowRef) "
+            lines.append("\(indent)\(ref)\(section.label)\(activeTag) [\(intCount) elements]")
         }
 
         // Single display

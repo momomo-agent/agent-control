@@ -251,6 +251,7 @@ enum AXScanner {
         var displayIndex: Int = 0  // which display this section belongs to
         var zOrder: Int = 999      // front-to-back order (0 = frontmost window)
         var isGlobal: Bool = false // menu bar, dock, extras (always shown)
+        var windowRef: String = "" // @w1, @w2, etc. for window-level addressing
     }
 
     struct DisplayInfo {
