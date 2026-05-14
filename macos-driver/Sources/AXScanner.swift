@@ -249,6 +249,8 @@ enum AXScanner {
         let label: String
         let elements: [ACElement]
         var displayIndex: Int = 0  // which display this section belongs to
+        var zOrder: Int = 999      // front-to-back order (0 = frontmost window)
+        var isGlobal: Bool = false // menu bar, dock, extras (always shown)
     }
 
     struct DisplayInfo {
@@ -308,7 +310,7 @@ enum AXScanner {
                 menuBarElements.append(contentsOf: scanElement(barEl as! AXUIElement, depth: 0, maxDepth: 2, counter: &counter, seenAppDepth: 0))
             }
             if !menuBarElements.isEmpty {
-                sections.append(ScreenSection(label: "Menu Bar", elements: menuBarElements))
+                sections.append(ScreenSection(label: "Menu Bar", elements: menuBarElements, isGlobal: true))
             }
         }
 
@@ -344,7 +346,7 @@ enum AXScanner {
             }
         }
         if !extraElements.isEmpty {
-            sections.append(ScreenSection(label: "Menu Extras", elements: extraElements))
+            sections.append(ScreenSection(label: "Menu Extras", elements: extraElements, isGlobal: true))
         }
 
         // 3. Dock
@@ -378,11 +380,37 @@ enum AXScanner {
                 }
             }
             if !dockElements.isEmpty {
-                sections.append(ScreenSection(label: "Dock", elements: dockElements))
+                sections.append(ScreenSection(label: "Dock", elements: dockElements, isGlobal: true))
             }
         }
 
         // 4. Visible Windows (all on-screen apps, shallow scan)
+        // Get CG window list in z-order (front to back) for z-index assignment
+        struct CGWinInfo {
+            let pid: pid_t
+            let title: String
+            let frame: CGRect
+            let zOrder: Int
+        }
+        var cgWindows: [CGWinInfo] = []
+        if let winList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+            var z = 0
+            for info in winList {
+                guard let pid = info[kCGWindowOwnerPID as String] as? pid_t,
+                      let layer = info[kCGWindowLayer as String] as? Int,
+                      layer == 0  // normal window layer only
+                else { continue }
+                let title = info[kCGWindowName as String] as? String ?? ""
+                let bounds = info[kCGWindowBounds as String] as? [String: CGFloat] ?? [:]
+                let frame = CGRect(
+                    x: bounds["X"] ?? 0, y: bounds["Y"] ?? 0,
+                    width: bounds["Width"] ?? 0, height: bounds["Height"] ?? 0
+                )
+                cgWindows.append(CGWinInfo(pid: pid, title: title, frame: frame, zOrder: z))
+                z += 1
+            }
+        }
+
         let visibleApps = NSWorkspace.shared.runningApplications.filter {
             $0.activationPolicy == .regular && !$0.isHidden
         }
@@ -398,11 +426,17 @@ enum AXScanner {
                 let winTitle = attr(win, kAXTitleAttribute) ?? ""
                 let sectionLabel = winTitle.isEmpty ? appName : "\(appName) \"\(winTitle)\""
 
-                // Get window frame to determine display
+                // Get window frame to determine display and match z-order
                 let winFrame = getFrame(win)
                 let cgFrame = CGRect(x: CGFloat(winFrame.x), y: CGFloat(winFrame.y),
                                      width: CGFloat(winFrame.w), height: CGFloat(winFrame.h))
                 let dispIdx = displayForWindow(windowFrame: cgFrame, displays: displays)
+
+                // Match to CG window for z-order
+                let zOrder = cgWindows.first(where: { cg in
+                    cg.pid == visApp.processIdentifier &&
+                    (cg.title == winTitle || abs(cg.frame.origin.x - cgFrame.origin.x) < 5)
+                })?.zOrder ?? 999
 
                 // Shallow scan: only top-level interactive elements
                 var winElements: [ACElement] = []
@@ -418,6 +452,7 @@ enum AXScanner {
                 if !winElements.isEmpty {
                     var section = ScreenSection(label: sectionLabel, elements: winElements)
                     section.displayIndex = dispIdx
+                    section.zOrder = zOrder
                     sections.append(section)
                 }
             }

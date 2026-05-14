@@ -65,6 +65,9 @@ enum TreeFormatter {
     }
 
     /// Format full screen snapshot grouped by display
+    /// How many foreground windows to fully expand (rest are collapsed to title only)
+    private static let expandLimit = 3
+
     static func formatScreen(_ sections: [AXScanner.ScreenSection], displays: [AXScanner.DisplayInfo], frontmostApp: String?, frontmostPID: Int32?) -> String {
         var lines: [String] = []
         var totalInteractive = 0
@@ -72,61 +75,102 @@ enum TreeFormatter {
         let focusInfo = frontmostApp ?? "none"
         let displayCount = displays.count
         
-        // Group sections by display
-        var sectionsByDisplay: [Int: [AXScanner.ScreenSection]] = [:]
-        for section in sections {
-            sectionsByDisplay[section.displayIndex, default: []].append(section)
+        // Separate global sections (menu bar, dock, extras) from window sections
+        let globalSections = sections.filter { $0.isGlobal }
+        let windowSections = sections.filter { !$0.isGlobal }.sorted { $0.zOrder < $1.zOrder }
+
+        // Group window sections by display
+        var windowsByDisplay: [Int: [AXScanner.ScreenSection]] = [:]
+        for section in windowSections {
+            windowsByDisplay[section.displayIndex, default: []].append(section)
         }
 
-        // Single display: don't show display header (same as before)
+        // Helper: render a section fully expanded
+        func renderExpanded(_ section: AXScanner.ScreenSection, indent: String) {
+            let isActive = frontmostApp != nil && section.label.lowercased().hasPrefix(frontmostApp!.lowercased())
+            let activeTag = isActive ? " [active]" : ""
+            lines.append("\(indent)\(section.label):\(activeTag)")
+            let (text, intCount, _) = format(section.elements, interactive: false)
+            totalInteractive += intCount
+            for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+                lines.append("\(indent)  \(line)")
+            }
+        }
+
+        // Helper: render a section collapsed (title only)
+        func renderCollapsed(_ section: AXScanner.ScreenSection, indent: String) {
+            let isActive = frontmostApp != nil && section.label.lowercased().hasPrefix(frontmostApp!.lowercased())
+            let activeTag = isActive ? " [active]" : ""
+            // Count interactive elements without rendering
+            let (_, intCount, _) = format(section.elements, interactive: false)
+            totalInteractive += intCount
+            lines.append("\(indent)\(section.label)\(activeTag) [\(intCount) elements]")
+        }
+
+        // Single display
         if displayCount <= 1 {
-            let header = "Screen [active: \(focusInfo), \(displayCount) display]"
-            lines.append(header)
-            for section in sections {
+            lines.append("Screen [active: \(focusInfo)]")
+
+            // Global sections always expanded
+            for section in globalSections {
                 lines.append("")
-                let isActive = frontmostApp != nil && section.label.lowercased().hasPrefix(frontmostApp!.lowercased())
-                let activeTag = isActive ? " [active]" : ""
-                lines.append("  \(section.label):\(activeTag)")
-                let (text, intCount, _) = format(section.elements, interactive: false)
-                totalInteractive += intCount
-                for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
-                    lines.append("    \(line)")
+                renderExpanded(section, indent: "  ")
+            }
+
+            // Window sections: expand top N, collapse rest
+            if !windowSections.isEmpty {
+                lines.append("")
+                lines.append("  Windows:")
+                for (i, section) in windowSections.enumerated() {
+                    lines.append("")
+                    if i < expandLimit {
+                        renderExpanded(section, indent: "    ")
+                    } else {
+                        renderCollapsed(section, indent: "    ")
+                    }
                 }
             }
-            // Update header with interactive count
+
             lines[0] = "Screen [active: \(focusInfo), \(totalInteractive) interactive]"
             return lines.joined(separator: "\n")
         }
 
-        // Multiple displays: group by display
-        let header = "Screen [active: \(focusInfo), \(displayCount) displays]"
-        lines.append(header)
+        // Multiple displays
+        lines.append("Screen [active: \(focusInfo), \(displayCount) displays]")
 
+        // Global sections (on main display header)
+        for section in globalSections {
+            lines.append("")
+            lines.append("  \(section.label):")
+            let (text, intCount, _) = format(section.elements, interactive: false)
+            totalInteractive += intCount
+            for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+                lines.append("    \(line)")
+            }
+        }
+
+        // Per-display window sections
         for disp in displays {
             let mainTag = disp.isMain ? ", main" : ""
             let res = "\(Int(disp.frame.width))×\(Int(disp.frame.height))"
             lines.append("")
             lines.append("  ┌ Display \(disp.index + 1): \(disp.name) [\(res)\(mainTag)]")
 
-            let dispSections = sectionsByDisplay[disp.index] ?? []
-            for section in dispSections {
-                let isActive = frontmostApp != nil && section.label.lowercased().hasPrefix(frontmostApp!.lowercased())
-                let activeTag = isActive ? " [active]" : ""
+            let dispWindows = windowsByDisplay[disp.index] ?? []
+            for (i, section) in dispWindows.enumerated() {
                 lines.append("  │")
-                lines.append("  │ \(section.label):\(activeTag)")
-                let (text, intCount, _) = format(section.elements, interactive: false)
-                totalInteractive += intCount
-                for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
-                    lines.append("  │   \(line)")
+                if i < expandLimit {
+                    renderExpanded(section, indent: "  │ ")
+                } else {
+                    renderCollapsed(section, indent: "  │ ")
                 }
             }
-            if dispSections.isEmpty {
+            if dispWindows.isEmpty {
                 lines.append("  │ (no windows)")
             }
             lines.append("  └")
         }
 
-        // Update header with interactive count
         lines[0] = "Screen [active: \(focusInfo), \(displayCount) displays, \(totalInteractive) interactive]"
         return lines.joined(separator: "\n")
     }
