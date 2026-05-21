@@ -241,6 +241,14 @@ struct AgentControl {
             let interactive = args.contains("-i")
             let jsonMode = args.contains("--json")
             let fallback = args.contains("--fallback")
+            // Auto-enable AX tree for Electron/Chromium apps (idempotent, cached per pid)
+            if let p = pid {
+                let wasAlreadyAsserted = AXEnablementAssertion.shared.isAlreadyAsserted(pid: p)
+                AXEnablementAssertion.shared.assert(pid: p)
+                if !wasAlreadyAsserted {
+                    usleep(300_000) // Give Chromium time to build AX tree on first assert
+                }
+            }
             var elements = AXScanner.snapshot(appPID: pid)
             // AX fallback: if AX returns nothing, use CGWindowList
             if elements.isEmpty || fallback {
