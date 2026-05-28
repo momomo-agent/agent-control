@@ -127,6 +127,20 @@ Still works for platform-specific operations:
 agent-control -p macos --app Finder snapshot
 agent-control -p macos --app Finder click @e3
 
+# macOS multi-window apps (Codex, VS Code, Chrome, etc.)
+# snapshot auto-groups per window with @w1/@w2/... headers
+agent-control -p macos --app Codex snapshot
+# Filter to a specific window (saves tokens, focuses LLM attention)
+agent-control -p macos --app Codex --window @w2 snapshot
+agent-control -p macos --app Codex --window-title 'Project A' snapshot
+# Screenshot a specific window (defaults to main window)
+agent-control -p macos --app Codex screenshot @w2 /tmp/win2.png
+agent-control -p macos --app Codex --window @w2 screenshot /tmp/win2.png
+# click/fill auto-target the right window because @eN is globally unique
+agent-control -p macos --app Codex click @e87  # always lands in the window that owns e87
+# Old flat output (single ref list, no @w grouping):
+agent-control -p macos --app Codex --legacy snapshot
+
 # Web (Playwright daemon)
 agent-control -p web open https://example.com
 agent-control -p web snapshot

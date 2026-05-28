@@ -16,6 +16,12 @@ enum AXScreenshot {
         return capture(["-x", output])
     }
 
+    /// Capture a specific window by its CG window ID. Used for multi-window apps
+    /// where the caller wants a particular window (e.g. Codex window 2 of 3).
+    static func window(windowID wid: UInt32, output: String) async -> Bool {
+        return capture(["-x", "-o", "-l", String(wid), output])
+    }
+
     /// Get the CGWindowID for an app's main window
     private static func windowID(for pid: pid_t) -> CGWindowID? {
         guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return nil }

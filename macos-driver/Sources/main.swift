@@ -165,9 +165,9 @@ struct AgentControl {
 
         let args = rawArgs
 
-        // Extract command: skip flags (--pid X, --app X, -i)
-        let flagsWithValue: Set<String> = ["--pid", "--app"]
-        let flagsNoValue: Set<String> = ["-i"]
+        // Extract command: skip flags (--pid X, --app X, --window X, --window-title X, -i, --legacy, --json, --fallback, --full)
+        let flagsWithValue: Set<String> = ["--pid", "--app", "--window", "--window-title"]
+        let flagsNoValue: Set<String> = ["-i", "--legacy", "--json", "--fallback", "--full"]
         var command: String? = nil
         var commandIdx = 0
         var idx = 0
@@ -241,6 +241,8 @@ struct AgentControl {
             let interactive = args.contains("-i")
             let jsonMode = args.contains("--json")
             let fallback = args.contains("--fallback")
+            let legacy = args.contains("--legacy")
+            let windowFilter = parseWindow(args, pid: pid)
             // Auto-enable AX tree for Electron/Chromium apps (idempotent, cached per pid)
             if let p = pid {
                 let wasAlreadyAsserted = AXEnablementAssertion.shared.isAlreadyAsserted(pid: p)
@@ -249,25 +251,103 @@ struct AgentControl {
                     usleep(300_000) // Give Chromium time to build AX tree on first assert
                 }
             }
-            var elements = AXScanner.snapshot(appPID: pid)
-            // AX fallback: if AX returns nothing, use CGWindowList
-            if elements.isEmpty || fallback {
+
+            // Decide grouped vs flat based on:
+            //   - --legacy forces flat
+            //   - --window <X> forces single-window flat (only that window)
+            //   - frontmost-app mode (no --app/--pid) uses flat (legacy behavior)
+            //   - otherwise: grouped per-window when app has 2+ windows, flat for 1 window
+            let appName = pid.flatMap { p in
+                NSWorkspace.shared.runningApplications.first(where: { $0.processIdentifier == p })?.localizedName
+            } ?? "unknown"
+
+            if legacy || pid == nil {
+                // Flat mode (backward compatible)
+                var elements = AXScanner.snapshot(appPID: pid, windowID: windowFilter)
+                if elements.isEmpty || fallback {
+                    let fbElements = WindowManager.fallbackSnapshot(appPID: pid)
+                    if elements.isEmpty {
+                        elements = fbElements
+                        fputs("info: AX tree empty, using CGWindowList fallback (\(elements.count) windows)\n", stderr)
+                    }
+                }
+                if jsonMode {
+                    let output = interactive ? elements.filter { $0.interactive } : elements
+                    printJSON(output)
+                } else {
+                    let (text, intCount, total) = TreeFormatter.format(elements, interactive: interactive)
+                    print("App \"\(appName)\" [\(intCount) interactive, \(total) total]")
+                    print(text)
+                }
+                break
+            }
+
+            // Grouped per-window snapshot
+            let snap = AXScanner.snapshotByWindow(appPID: pid)
+            // Apply --window filter if requested
+            let filteredWindows: [AXScanner.WindowSnapshot]
+            let filteredMenubar: [ACElement]
+            if let wid = windowFilter {
+                filteredWindows = snap.windows.filter { $0.windowID == wid }
+                filteredMenubar = []  // skip menubar when targeting a single window
+                if filteredWindows.isEmpty {
+                    fputs("error: window with id \(wid) not found in snapshot\n", stderr)
+                    exit(1)
+                }
+            } else {
+                filteredWindows = snap.windows
+                filteredMenubar = snap.menubar
+            }
+
+            // Empty snapshot → try CGWindowList fallback (preserve legacy safety net)
+            if filteredWindows.isEmpty && filteredMenubar.isEmpty {
                 let fbElements = WindowManager.fallbackSnapshot(appPID: pid)
-                if elements.isEmpty {
-                    elements = fbElements
-                    fputs("info: AX tree empty, using CGWindowList fallback (\(elements.count) windows)\n", stderr)
+                if !fbElements.isEmpty {
+                    fputs("info: AX tree empty, using CGWindowList fallback (\(fbElements.count) windows)\n", stderr)
+                    if jsonMode {
+                        printJSON(interactive ? fbElements.filter { $0.interactive } : fbElements)
+                    } else {
+                        let (text, intCount, total) = TreeFormatter.format(fbElements, interactive: interactive)
+                        print("App \"\(appName)\" [\(intCount) interactive, \(total) total]")
+                        print(text)
+                    }
+                    break
                 }
             }
+
             if jsonMode {
-                let output = interactive ? elements.filter { $0.interactive } : elements
-                printJSON(output)
+                struct WinJSON: Encodable {
+                    let windowRef: String
+                    let windowID: UInt32
+                    let title: String
+                    let frame: ACElement.ACFrame
+                    let isMain: Bool
+                    let elements: [ACElement]
+                }
+                struct GroupedJSON: Encodable {
+                    let app: String
+                    let windows: [WinJSON]
+                    let menubar: [ACElement]
+                }
+                let wins = filteredWindows.map { w in
+                    WinJSON(
+                        windowRef: w.windowRef,
+                        windowID: w.windowID,
+                        title: w.title,
+                        frame: w.frame,
+                        isMain: w.isMain,
+                        elements: interactive ? w.elements.filter { $0.interactive } : w.elements
+                    )
+                }
+                let menu = interactive ? filteredMenubar.filter { $0.interactive } : filteredMenubar
+                printJSON(GroupedJSON(app: appName, windows: wins, menubar: menu))
             } else {
-                let (text, intCount, total) = TreeFormatter.format(elements, interactive: interactive)
-                // Print summary header
-                let appName = pid.flatMap { p in
-                    NSWorkspace.shared.runningApplications.first(where: { $0.processIdentifier == p })?.localizedName
-                } ?? "unknown"
-                print("App \"\(appName)\" [\(intCount) interactive, \(total) total]")
+                let (text, _, _) = TreeFormatter.formatByWindow(
+                    appName: appName,
+                    windows: filteredWindows,
+                    menubar: filteredMenubar,
+                    interactiveOnly: interactive
+                )
                 print(text)
             }
 
@@ -455,14 +535,27 @@ struct AgentControl {
 
         case "screenshot":
             let ref = cmdArgs.first(where: { isRef($0) })
-            let output = cmdArgs.first(where: { !isRef($0) && !$0.hasPrefix("--") }) ?? "/tmp/agent-control-screenshot.png"
+            // Allow @wN as an explicit positional window ref (e.g. screenshot @w2 out.png)
+            let positionalWindowRef = cmdArgs.first(where: { $0.hasPrefix("@w") })
+            let output = cmdArgs.first(where: { !isRef($0) && !$0.hasPrefix("--") && !$0.hasPrefix("@w") }) ?? "/tmp/agent-control-screenshot.png"
             let allowFull = cmdArgs.contains("--full") || args.contains("--full")
+            // Resolve --window / --window-title via parseWindow; positional @wN as fallback
+            // (uses AX-window order to match snapshot output)
+            var windowFilter = parseWindow(args, pid: pid)
+            if windowFilter == nil, let posRef = positionalWindowRef {
+                // Inject as --window arg and reparse to reuse the same resolution path
+                let synthetic = args + ["--window", posRef]
+                windowFilter = parseWindow(synthetic, pid: pid)
+            }
 
             let ok: Bool
             if let ref = ref {
                 ok = await AXScreenshot.element(ref: ref, output: output, appPID: pid)
+            } else if let wid = windowFilter {
+                // Targeted window capture via screencapture -l <wid>
+                ok = await AXScreenshot.window(windowID: wid, output: output)
             } else if pid != nil {
-                // App-scoped capture: background-friendly, window-only
+                // App-scoped capture: background-friendly, main window
                 ok = await AXScreenshot.fullScreen(output: output, appPID: pid)
             } else if allowFull {
                 // Explicit full-screen opt-in
@@ -1125,6 +1218,95 @@ struct AgentControl {
         return nil
     }
 
+    /// Resolve `--window @w<N>` / `--window <wid>` / `--window-title <substr>`
+    /// to a CG windowID. Requires `pid` to scope. Returns nil if no flag given.
+    /// Exits with error if a flag was given but couldn't resolve.
+    ///
+    /// `@wN` resolution must mirror `AXScanner.snapshotByWindow` so that the
+    /// `@w1`/`@w2`/... seen in snapshot output points at the same window when
+    /// passed back via --window. We therefore enumerate AX windows here, not
+    /// `WindowManager.listWindows` (which uses SLS z-order — may differ).
+    static func parseWindow(_ args: [String], pid: pid_t?) -> UInt32? {
+        // --window
+        if let idx = args.firstIndex(of: "--window"), idx + 1 < args.count {
+            let raw = args[idx + 1]
+            guard let pid = pid else {
+                fputs("error: --window requires --app or --pid\n", stderr)
+                exit(1)
+            }
+            // @wN form — use AX windows order (matches snapshotByWindow)
+            if raw.hasPrefix("@w"), let n = Int(raw.dropFirst(2)), n > 0 {
+                let axWins = enumerateAXWindowIDs(pid: pid)
+                if n > axWins.count {
+                    fputs("error: \(raw) out of range (app has \(axWins.count) AX window\(axWins.count == 1 ? "" : "s"))\n", stderr)
+                    exit(1)
+                }
+                return axWins[n - 1]
+            }
+            // numeric windowID
+            if let wid = UInt32(raw) {
+                let wins = WindowManager.listWindows(forPID: pid)
+                if !wins.contains(where: { $0.windowID == wid }) {
+                    fputs("error: window \(wid) not found in app pid=\(pid)\n", stderr)
+                    exit(1)
+                }
+                return wid
+            }
+            fputs("error: --window expects @wN or numeric windowID, got '\(raw)'\n", stderr)
+            exit(1)
+        }
+        // --window-title <substr> (case-insensitive substring match — prefer AX titles)
+        if let idx = args.firstIndex(of: "--window-title"), idx + 1 < args.count {
+            let needle = args[idx + 1].lowercased()
+            guard let pid = pid else {
+                fputs("error: --window-title requires --app or --pid\n", stderr)
+                exit(1)
+            }
+            // Try AX titles first — these are what snapshotByWindow shows.
+            let snap = AXScanner.snapshotByWindow(appPID: pid)
+            if let match = snap.windows.first(where: { $0.title.lowercased().contains(needle) }) {
+                return match.windowID
+            }
+            // Fallback: SLS window names
+            let wins = WindowManager.listWindows(forPID: pid)
+            if let match = wins.first(where: { ($0.name ?? "").lowercased().contains(needle) }) {
+                return match.windowID
+            }
+            fputs("error: no window with title containing '\(needle)' in app pid=\(pid)\n", stderr)
+            fputs("hint: agent-control -p macos --pid \(pid) windows\n", stderr)
+            exit(1)
+        }
+        return nil
+    }
+
+    /// Enumerate AX windowIDs in the same order as `AXScanner.snapshotByWindow`.
+    /// Used by `--window @wN` so the ref user sees in snapshot is the ref they
+    /// pass back. Falls back to empty array if `_AXUIElementGetWindow` is
+    /// unavailable.
+    private static func enumerateAXWindowIDs(pid: pid_t) -> [UInt32] {
+        let getWindow: ((AXUIElement, UnsafeMutablePointer<UInt32>) -> Int32)? = {
+            guard let sym = dlsym(dlopen(nil, RTLD_LAZY), "_AXUIElementGetWindow") else { return nil }
+            return unsafeBitCast(sym, to: (@convention(c) (AXUIElement, UnsafeMutablePointer<UInt32>) -> Int32).self)
+        }()
+        guard let resolve = getWindow else { return [] }
+
+        let app = AXUIElementCreateApplication(pid)
+        var windows: CFTypeRef?
+        AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windows)
+        guard let winArray = windows as? [AXUIElement] else { return [] }
+
+        var ids: [UInt32] = []
+        for w in winArray {
+            var wid: UInt32 = 0
+            if resolve(w, &wid) == 0 {
+                ids.append(wid)
+            } else {
+                ids.append(0)  // keep index alignment even if resolution fails
+            }
+        }
+        return ids
+    }
+
     static func printJSON<T: Encodable>(_ value: T) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -1151,7 +1333,10 @@ struct AgentControl {
         agent-control — AI 操作层 (macOS driver)
 
         UI Elements:
-          snapshot [-i] [--fallback]             获取可交互元素列表
+          snapshot [-i] [--fallback] [--legacy]  获取可交互元素列表 (多窗口默认按 @w1/@w2 分组)
+          snapshot --window @wN                  只输出某个窗口 (节省 token)
+          snapshot --window <wid>                同上, 传 CG windowID
+          snapshot --window-title <substr>       同上, 按窗口标题模糊匹配
           click @ref | click x y                 点击
           dblclick @ref                          双击
           rightclick @ref                        右键
@@ -1159,8 +1344,11 @@ struct AgentControl {
           press <key>                            按键
           drag @ref1 @ref2                       拖拽
           scroll <up|down|left|right> [amount]   滚动
-          screenshot --app <name> [path]         App 窗口截图 (推荐,background-friendly)
+          screenshot --app <name> [path]         App 主窗口截图 (推荐,background-friendly)
           screenshot @ref [path]                 元素截图
+          screenshot @wN [path]                  指定窗口截图 (多窗口场景)
+          screenshot --window @wN [path]         同上, flag 形式
+          screenshot --window-title <s> [path]   按标题选窗口截图
           screenshot --full [path]               全屏截图 (显式 opt-in)
 
         Background Mode (--bg flag, AX FocusGuard — macOS 26 可用):

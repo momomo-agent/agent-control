@@ -68,6 +68,73 @@ enum TreeFormatter {
     /// How many foreground windows to fully expand (rest are collapsed to title only)
     private static let expandLimit = 3
 
+    /// Format an app's per-window snapshot. Each window gets a `@wN` header with
+    /// title + frame + flags, then its element tree indented underneath. The
+    /// menubar (if present) is rendered last under a `Menu Bar:` header.
+    /// `@eN` numbering inside `windows[*].elements` and `menubar` is global —
+    /// callers can use any ref directly with click/fill without ambiguity.
+    static func formatByWindow(
+        appName: String,
+        windows: [AXScanner.WindowSnapshot],
+        menubar: [ACElement],
+        interactiveOnly: Bool = false
+    ) -> (text: String, interactive: Int, total: Int) {
+        var lines: [String] = []
+        var totalInt = 0
+        var totalAll = 0
+
+        // Header summary
+        var winInt = 0
+        var winAll = 0
+        var perWindowCounts: [(Int, Int)] = []
+        for win in windows {
+            let (_, ic, tc) = format(win.elements, interactive: true)
+            winInt += ic
+            winAll += tc
+            perWindowCounts.append((ic, tc))
+        }
+        let (_, menuInt, menuAll) = format(menubar, interactive: true)
+        totalInt = winInt + menuInt
+        totalAll = winAll + menuAll
+
+        lines.append("App \"\(appName)\" [\(windows.count) window\(windows.count == 1 ? "" : "s"), \(totalInt) interactive, \(totalAll) total]")
+
+        // Per-window blocks
+        for (idx, win) in windows.enumerated() {
+            lines.append("")
+            var flags: [String] = []
+            if win.isMain { flags.append("main") }
+            if win.windowID > 0 { flags.append("wid:\(win.windowID)") }
+            flags.append("\(win.frame.w)×\(win.frame.h) at \(win.frame.x),\(win.frame.y)")
+            let (ic, tc) = perWindowCounts[idx]
+            flags.append("\(ic) interactive")
+            flags.append("\(tc) total")
+            let titleStr = win.title.isEmpty ? "(untitled)" : "\"\(win.title)\""
+            lines.append("\(win.windowRef) \(titleStr) [\(flags.joined(separator: ", "))]")
+
+            let (text, _, _) = format(win.elements, interactive: interactiveOnly)
+            if text.isEmpty {
+                lines.append("  (no elements)")
+            } else {
+                for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+                    lines.append("  \(line)")
+                }
+            }
+        }
+
+        // Menu bar block
+        if !menubar.isEmpty {
+            lines.append("")
+            lines.append("Menu Bar [\(menuInt) interactive, \(menuAll) total]")
+            let (text, _, _) = format(menubar, interactive: interactiveOnly)
+            for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+                lines.append("  \(line)")
+            }
+        }
+
+        return (lines.joined(separator: "\n"), totalInt, totalAll)
+    }
+
     static func formatScreen(_ sections: [AXScanner.ScreenSection], displays: [AXScanner.DisplayInfo], frontmostApp: String?, frontmostPID: Int32?) -> String {
         var lines: [String] = []
         var totalInteractive = 0

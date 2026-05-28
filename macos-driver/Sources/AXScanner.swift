@@ -24,16 +24,20 @@ enum AXScanner {
 
     /// Snapshot the frontmost app's UI tree, returning interactive elements with @refs.
     /// Handles macOS 26 (Tahoe) where AXWindows returns AXApplication instead of AXWindow.
-    static func snapshot(appPID: pid_t? = nil) -> [ACElement] {
+    /// When `windowID` is provided, only that specific window's tree is scanned (menubar still included).
+    static func snapshot(appPID: pid_t? = nil, windowID: UInt32? = nil) -> [ACElement] {
         let app: AXUIElement
+        let pidForFilter: pid_t?
         if let pid = appPID {
             app = AXUIElementCreateApplication(pid)
+            pidForFilter = pid
         } else {
             guard let frontApp = NSWorkspace.shared.frontmostApplication else {
                 fputs("error: no frontmost application\n", stderr)
                 return []
             }
             app = AXUIElementCreateApplication(frontApp.processIdentifier)
+            pidForFilter = frontApp.processIdentifier
         }
 
         var counter = 0
@@ -44,6 +48,13 @@ enum AXScanner {
         AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windows)
         if let winArray = windows as? [AXUIElement] {
             for win in winArray {
+                // If filtering by windowID, only the matching AXWindow is scanned.
+                // Note: counter still advances for skipped windows so refs stay stable
+                // relative to a multi-window snapshot. To get fresh @e1-based refs for
+                // a single window, callers should use `snapshotByWindow(...)` instead.
+                if let targetWID = windowID, pidForFilter != nil {
+                    if winIDFor(win) != targetWID { continue }
+                }
                 let winRole = attr(win, kAXRoleAttribute) ?? ""
 
                 if winRole == "AXWindow" {
@@ -60,12 +71,14 @@ enum AXScanner {
             }
         }
 
-        // Scan menubar + extras menubar
-        for attrKey in [kAXMenuBarAttribute, kAXExtrasMenuBarAttribute] {
-            var bar: CFTypeRef?
-            AXUIElementCopyAttributeValue(app, attrKey as CFString, &bar)
-            if let barEl = bar {
-                elements.append(contentsOf: scanElement(barEl as! AXUIElement, depth: 0, maxDepth: 15, counter: &counter, seenAppDepth: 0))
+        // Scan menubar + extras menubar (skip when filtering to a specific window)
+        if windowID == nil {
+            for attrKey in [kAXMenuBarAttribute, kAXExtrasMenuBarAttribute] {
+                var bar: CFTypeRef?
+                AXUIElementCopyAttributeValue(app, attrKey as CFString, &bar)
+                if let barEl = bar {
+                    elements.append(contentsOf: scanElement(barEl as! AXUIElement, depth: 0, maxDepth: 15, counter: &counter, seenAppDepth: 0))
+                }
             }
         }
 
@@ -74,6 +87,96 @@ enum AXScanner {
         }
         return elements
     }
+
+    /// Per-window snapshot result. `windowRef` is `@w1`, `@w2`, … in AX order.
+    /// `elements` reuses the same global `@eN` numbering as `snapshot()`, so refs from
+    /// different windows never collide and existing click/fill paths keep working.
+    struct WindowSnapshot {
+        let windowRef: String       // @w1, @w2, …
+        let windowID: UInt32        // CG window id
+        let title: String           // AX title (may be empty)
+        let frame: ACElement.ACFrame
+        let isMain: Bool            // AXMain — typically the foreground/keyboard-focused window
+        let elements: [ACElement]
+    }
+
+    /// Multi-window snapshot. Walks the same AX tree as `snapshot(appPID:)` but
+    /// returns elements grouped per window with stable `@wN` handles.
+    /// `@eN` numbering is global across all windows + menubar (preserves the
+    /// invariant that ref → element is unique within the app).
+    static func snapshotByWindow(appPID: pid_t? = nil) -> (windows: [WindowSnapshot], menubar: [ACElement]) {
+        let app: AXUIElement
+        if let pid = appPID {
+            app = AXUIElementCreateApplication(pid)
+        } else {
+            guard let frontApp = NSWorkspace.shared.frontmostApplication else {
+                fputs("error: no frontmost application\n", stderr)
+                return ([], [])
+            }
+            app = AXUIElementCreateApplication(frontApp.processIdentifier)
+        }
+
+        var counter = 0
+        var winSnaps: [WindowSnapshot] = []
+
+        var windows: CFTypeRef?
+        AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &windows)
+        if let winArray = windows as? [AXUIElement] {
+            var idx = 0
+            for win in winArray {
+                idx += 1
+                let winRole = attr(win, kAXRoleAttribute) ?? ""
+                let title = attr(win, kAXTitleAttribute) ?? ""
+                let frame = getFrame(win)
+                let main = (attr(win, kAXMainAttribute) == "true")
+                let wid = winIDFor(win) ?? 0
+
+                let scanned: [ACElement]
+                if winRole == "AXWindow" {
+                    scanned = scanElement(win, depth: 0, maxDepth: 15, counter: &counter, seenAppDepth: 0)
+                } else if winRole == "AXApplication" {
+                    scanned = scanWindowContent(win, counter: &counter)
+                } else {
+                    scanned = scanElement(win, depth: 0, maxDepth: 15, counter: &counter, seenAppDepth: 0)
+                }
+
+                winSnaps.append(WindowSnapshot(
+                    windowRef: "@w\(idx)",
+                    windowID: wid,
+                    title: title,
+                    frame: frame,
+                    isMain: main,
+                    elements: scanned
+                ))
+            }
+        }
+
+        var menuElements: [ACElement] = []
+        for attrKey in [kAXMenuBarAttribute, kAXExtrasMenuBarAttribute] {
+            var bar: CFTypeRef?
+            AXUIElementCopyAttributeValue(app, attrKey as CFString, &bar)
+            if let barEl = bar {
+                menuElements.append(contentsOf: scanElement(barEl as! AXUIElement, depth: 0, maxDepth: 15, counter: &counter, seenAppDepth: 0))
+            }
+        }
+
+        return (winSnaps, menuElements)
+    }
+
+    /// Resolve a CG windowID for an AXUIElement (window). Uses the private
+    /// `_AXUIElementGetWindow` symbol; returns nil when unavailable or the
+    /// element is not a window.
+    private static func winIDFor(_ el: AXUIElement) -> UInt32? {
+        guard let getWindow = _axGetWindowSymbol else { return nil }
+        var wid: UInt32 = 0
+        let rc = getWindow(el, &wid)
+        return rc == 0 ? wid : nil
+    }
+
+    private static let _axGetWindowSymbol: ((AXUIElement, UnsafeMutablePointer<UInt32>) -> Int32)? = {
+        guard let sym = dlsym(dlopen(nil, RTLD_LAZY), "_AXUIElementGetWindow") else { return nil }
+        return unsafeBitCast(sym, to: (@convention(c) (AXUIElement, UnsafeMutablePointer<UInt32>) -> Int32).self)
+    }()
 
     // MARK: - macOS 26 Window Content Scanner
 
